@@ -1,6 +1,15 @@
 ### Datasets
 
 Additional data will be made accessible here over time
+### Fast5 files
+
+| CellLine | Replicate | Sequencing profile | Links|
+|-------|----------|------------------|-----------------------------------------------------------------------------------|
+| MCF7   | 1        | direct cDNA      | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_MCF7_directcDNA_Replicate1_fast5.tar.gz) |
+| K562   | 1        | direct cDNA      | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_K562_directcDNA_Replicate1_fast5.tar.gz) |
+| HepG2  | 1        | direct cDNA      | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_HepG2_directcDNA_Replicate1_fast5.tar.gz)|
+| HepG2  | 1        | PCR-cDNA         | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_HepG2_cDNA_Replicate1_fast5.tar.gz)      |
+| HepG2  | 1        | direct RNA       | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_HepG2_directRNA_Replicate1_fast5.tar.gz) |
 
 
 ### Fastq files
