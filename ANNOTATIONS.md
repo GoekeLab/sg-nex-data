@@ -9,5 +9,5 @@ gtf: ftp://ftp.ensembl.org/pub/release-91/gtf/homo_sapiens/Homo_sapiens.GRCh38.9
 
 #### Transcriptome alignment 
 non coding RNA: ftp://ftp.ensembl.org/pub/release-91/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz    
-coding RNA: ftp://ftp.ensembl.org/pub/release-91/fasta/homo_sapiens/crna/Homo_sapiens.GRCh38.crna.fa.gz     
+coding RNA: ftp://ftp.ensembl.org/pub/release-91/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz     
  
