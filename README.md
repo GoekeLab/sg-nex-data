@@ -16,12 +16,9 @@ Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplific
 Data can be downloaded [here](DATA.md)     
 Notes on data usage: This site provides early access to the SG-NEx data for research. Please note that the data is under publication embargo until the SG-NEx project is published.
 
-## Basecalling and Alignment
+## Data Processing
 
-Basecalling was done using albacore-2.3.1. Alignment was done with minimap2 using the following parameters:    
- 
-* Alignment to genome:  -ax splice  -I 32G   -t 3 
-* Alignment to transcriptome: -ax  map-ont  -t 3
+We collaborated with [nf-core group](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA data processing.
 
 
 ## Reference files

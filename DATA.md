@@ -1,50 +1,13 @@
 ### Datasets
 
-Additional data will be made accessible here over time
+  As the core datasets, we have in total 72 runs for core cell lines using three different Nanopore RNA-Sequencing prototocols. 
+  
+  As an initial release, we are providing fastq and bam files at the moment. 
+  
+  Please see below for the downloading links:
+  - fastq: [fastq](https://www.dropbox.com/sh/q098af3xdzfqc72/AAA-UhZGSvmez5pOdZIN2mpRa?dl=0)
+  - bam:   [genomeBam](https://www.dropbox.com/sh/mjzbtp31cgtxato/AACPTouVgMztbArwTP9Yt0zCa?dl=0), [transcriptomeBam](https://www.dropbox.com/sh/cuyicuormo809fx/AAA9ndo8BWvGRjaByWKvrALIa?dl=0) 
+  
+  Detailed information on sample ids and corresponding sample attributes can be found [here](docs/Sample_information.txt).
 
-### Fastq files
-
-| CellLine | Replicate | Sequencing profile | Links|
-|-------|----------|------------------|-----------------------------------------------------------------------------------|
-| MCF7   | 1        | direct cDNA      | [Fastq](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fastq/GIS_MCF7_directcDNA_Replicate1_fastq.fastq.gz) |
-| K562   | 1        | direct cDNA      | [Fastq](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fastq/GIS_K562_directcDNA_Replicate1_fastq.fastq.gz) |
-| HepG2  | 1        | direct cDNA      | [Fastq](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fastq/GIS_HepG2_directcDNA_Replicate1_fastq.fastq.gz)|
-| HepG2  | 1        | PCR-cDNA         | [Fastq](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fastq/GIS_HepG2_cDNA_Replicate1_fastq.fastq.gz)      |
-| HepG2  | 1        | direct RNA       | [Fastq](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fastq/GIS_HepG2_directRNA_Replicate1_fastq.fastq.gz) |
-
-
-### Bam files
-
-#### Alignment to genome 
-| CellLine | Replicate | Sequencing profile | Links|
-|------- |-------------|------------------|-----------------------------------------------------------------------------------|
-| MCF7   | 1        | direct cDNA      | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_MCF7_directcDNA_Replicate1_genome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_MCF7_directcDNA_Replicate1_genome.bam.bai)| 
-| K562   | 1        | direct cDNA      | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_K562_directcDNA_Replicate1_genome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_K562_directcDNA_Replicate1_genome.bam.bai)| 
-| HepG2  | 1        | direct cDNA      | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_directcDNA_Replicate1_genome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_directcDNA_Replicate1_genome.bam.bai)| 
-| HepG2  | 1        | PCR-cDNA         | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_cDNA_Replicate1_genome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_cDNA_Replicate1_genome.bam.bai) | 
-| HepG2  | 1        | direct RNA      | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_directRNA_Replicate1_genome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_directRNA_Replicate1_genome.bam.bai)| 
-
-#### Alignment to transcriptome
-| CellLine | Replicate | Sequencing profile | Links|
-|------- |-----------|------------------|-----------------------------------------------------------------------------------|
-| MCF7   | 1        | direct cDNA      | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_MCF7_directcDNA_Replicate1_transcriptome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_MCF7_directcDNA_Replicate1_transcriptome.bam.bai)| 
-| K562   | 1        | direct cDNA      | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_K562_directcDNA_Replicate1_transcriptome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_K562_directcDNA_Replicate1_transcriptome.bam.bai)| 
-| HepG2  | 1        | direct cDNA      | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_directcDNA_Replicate1_transcriptome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_directcDNA_Replicate1_transcriptome.bam.bai)| 
-| HepG2   | 1        | PCR-cDNA         | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_cDNA_Replicate1_transcriptome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_cDNA_Replicate1_transcriptome.bam.bai)| 
-| HepG2   | 1        | direct RNA      | [Bam](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_directRNA_Replicate1_transcriptome.bam), [BamIndex](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/bamFiles/GIS_HepG2_directRNA_Replicate1_transcriptome.bam.bai)| 
-
-
-
-
-### Fast5 files
-| CellLine | Replicate | Sequencing profile | Links|
-|-------|----------|------------------|-----------------------------------------------------------------------------------|
-| MCF7   | 1        | direct cDNA      | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_MCF7_directcDNA_Replicate1_fast5.tar.gz) |
-| K562   | 1        | direct cDNA      | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_K562_directcDNA_Replicate1_fast5.tar.gz) |
-| HepG2  | 1        | direct cDNA      | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_HepG2_directcDNA_Replicate1_fast5.tar.gz)|
-| HepG2  | 1        | PCR-cDNA         | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_HepG2_cDNA_Replicate1_fast5.tar.gz)      |
-| HepG2  | 1        | direct RNA       | [Fast5](http://s3.ap-southeast-1.amazonaws.com/ont-sgnex.store.genome.sg/fast5/GIS_HepG2_directRNA_Replicate1_fast5.tar.gz) |
-
-
-
-Notes on data usage: This site provides early access to the SG-NEx data for research. Please note that the data is under publication embargo until the SG-NEx project is published.
+  Notes on data usage: This site provides early access to the SG-NEx data for research. Please note that the data is under publication embargo until the SG-NEx project is published.
