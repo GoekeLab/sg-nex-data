@@ -37,6 +37,9 @@ Chen Ying, Naruemon Pratanwanich, Andreas Wilm, Alexandre Thiery, Jonathan Göke
 
 
 ## Contact
+
+Questions about SG-NEx? You can contact [Jonathan Göke](https://www.a-star.edu.sg/gis/our-people/faculty-staff)
+
 [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/)
 
 [https://www.jglab.org](https://www.jglab.org)
