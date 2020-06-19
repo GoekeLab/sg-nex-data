@@ -6,7 +6,7 @@
   
   Please see below for the downloading links:
   - fastq: [fastq](https://www.dropbox.com/sh/q098af3xdzfqc72/AAA-UhZGSvmez5pOdZIN2mpRa?dl=0)
-  - bam:   [genomeBam](https://www.dropbox.com/sh/mjzbtp31cgtxato/AACPTouVgMztbArwTP9Yt0zCa?dl=0), [transcriptomeBam](https://www.dropbox.com/sh/qanpzefjc7dbsv3/AAActVxGLPlS2CK9FcHK7VF3a?dl=0) 
+  - bam:   [genomeBam](https://www.dropbox.com/sh/mjzbtp31cgtxato/AACPTouVgMztbArwTP9Yt0zCa?dl=0), [transcriptomeBam](https://www.dropbox.com/sh/cuyicuormo809fx/AAA9ndo8BWvGRjaByWKvrALIa?dl=0) 
   
   Detailed information on sample ids and corresponding sample attributes can be found [here](docs/Sample_information.txt).
 
