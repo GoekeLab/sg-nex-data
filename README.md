@@ -37,7 +37,7 @@ Chen Ying, Naruemon Pratanwanich, Andreas Wilm, Alexandre Thiery, Jonathan Göke
 
 
 ## Contact
-[Jonathan Göke](https://www.a-star.edu.sg/gis/Our-People/Investigator-details/source/faculty_member/user_id/160)
+[Genome Institute of Singapore](https://www.a-star.edu.sg/gis/)
 
 [https://www.jglab.org](https://www.jglab.org)
 
