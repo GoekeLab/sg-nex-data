@@ -1,5 +1,4 @@
 # SG-NEx - The Singapore Nanopore-Expression Project
-## The Singapore Nanopore-Expression Project
 
 The SG-NEx project was initiated by the Genome Institute of Singapore with the aim to generate reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore RNA-Seq data. The following cell lines are used for sequencing:
 
@@ -10,7 +9,12 @@ The SG-NEx project was initiated by the Genome Institute of Singapore with the a
 * HepG2 (Liver Cancer)     
    
 
-Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), and direct sequencing of native RNA (“direct RNA”). 
+Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq.
+
+## Sign up for data release notifications 
+You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: 
+
+https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 ## Data download
 Data can be downloaded [here](DATA.md)     
@@ -18,7 +22,7 @@ Notes on data usage: This site provides early access to the SG-NEx data for rese
 
 ## Data Processing
 
-We collaborated with [nf-core group](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA data processing.
+We collaborated with [nf-core group](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA-Seq data processing.
 
 
 ## Reference files
@@ -41,7 +45,5 @@ Chen Ying, Naruemon Pratanwanich, Andreas Wilm, Alexandre Thiery, Jonathan Göke
 Questions about SG-NEx? You can contact [Jonathan Göke](https://www.a-star.edu.sg/gis/our-people/faculty-staff)
 
 [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/)
-
-[https://www.jglab.org](https://www.jglab.org)
 
 
