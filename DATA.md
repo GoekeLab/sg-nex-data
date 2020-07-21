@@ -2,7 +2,9 @@
 
   As the core datasets, we have in total 72 runs for core cell lines using three different Nanopore RNA-Sequencing prototocols. 
   
-  As an initial release, we are providing fastq and bam files at the moment. 
+  As an initial release, we are providing fastq and bam files. You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: 
+
+https://groups.google.com/forum/#!forum/sg-nex-updates/join
   
   Please see below for the downloading links:
   - fastq: [fastq](https://www.dropbox.com/sh/q098af3xdzfqc72/AAA-UhZGSvmez5pOdZIN2mpRa?dl=0)
