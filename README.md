@@ -29,7 +29,6 @@ We collaborated with [nf-core](https://github.com/nf-core) to develop [nanoseq](
 ## Reference files
 Details on reference files can be found [here](ANNOTATIONS.md).
 
-
 ## Contributors
 
 **GIS Sequencing Platform and Data Generation**            
@@ -41,11 +40,8 @@ Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, X
 **Statistical Modeling and Data Analytics**                     
 Chen Ying, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
 
-
 ## Contact
 
-Questions about SG-NEx? You can contact [Jonathan Göke](https://www.a-star.edu.sg/gis/our-people/faculty-staff)
-
-
+Questions about SG-NEx? Please contact [Jonathan Göke](https://www.a-star.edu.sg/gis/our-people/faculty-staff)
 
 ![The Singapore Nanopore-Expression Project\!](https://jglaborg.files.wordpress.com/2020/10/sg_nex_logos-1.png)
