@@ -1,17 +1,13 @@
 # SG-NEx - The Singapore Nanopore-Expression Project
 
-The SG-NEx project was initiated by the Genome Institute of Singapore with the aim to generate reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore RNA-Seq data. The following cell lines are used for sequencing:
+The SG-NEx project is an international collaboration that was initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/). The aim of the SG-NEx Project is to generate reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
 
-* A549 (Lung Cancer)    
-* MCF7 (Breast Cancer)   
-* Hct116 (Colon Cancer)
-* K562 (Leukemia)  
-* HepG2 (Liver Cancer)     
-   
+![The Singapore Nanopore-Expression Project - Design\!](
+https://jglaborg.files.wordpress.com/2020/10/sg_nex_design-1.png)
 
-Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq.
+Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. All samples are sequenced with at least 3 high quality replicates. For a subset of samples, we used sequin spike-in RNAs.
 
-## Sign up for data release notifications 
+## Sign up for data release notifications and updates
 You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: 
 
 https://groups.google.com/forum/#!forum/sg-nex-updates/join
@@ -22,7 +18,7 @@ Notes on data usage: This site provides early access to the SG-NEx data for rese
 
 ## Data Processing
 
-We collaborated with [nf-core group](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA-Seq data processing.
+We collaborated with [nf-core](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA-Seq data processing.
 
 
 ## Reference files
@@ -30,20 +26,21 @@ Details on reference files can be found [here](ANNOTATIONS.md).
 
 
 ## Contributors
-**GIS Sequencing Platform**            
-Hwee Meng Low, Wendy Soon, CC Khor     
-**GIS Genome Innovation Lab**        
-Yao Fei, Sarah Ng    
-**Cancer Genomics**            
-Torsten Wüstefeld, Viktoriia Iakovleva, Ramanuj DasGupta, Shumei Chia, Lixia Xin, Shyam Prabhakar, Puay Leng Lee, Yu Qiang, Wai Leong Tam, Patrick Tan, Sho Goh     
+
+**GIS Sequencing Platform and Data Generation**            
+Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor   
+
+**Cancer Genomics and RNA Modifications**            
+Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, Xuewen Ong, Hui Qi Amanda Ng, Suk Yeah Polly Poon, Hoang-Dai Tran, Kok Hao Edwin Lim, Huck Hui Ng, Boon Ooi Patrick Tan, Huck-Hui Ng, N.Gopalakrishna Iyer, Wai Leong Tam, Wee Joo Chng, Leilei Chen, Ramanuj DasGupta, Yun Shen Winston Chan, Qiang Yu, Torsten Wüstefeld, Wee Siong Sho Goh
+
 **Statistical Modeling and Data Analytics**                     
-Chen Ying, Naruemon Pratanwanich, Andreas Wilm, Alexandre Thiery, Jonathan Göke
+Chen Ying, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
 
 
 ## Contact
 
 Questions about SG-NEx? You can contact [Jonathan Göke](https://www.a-star.edu.sg/gis/our-people/faculty-staff)
 
-[Genome Institute of Singapore](https://www.a-star.edu.sg/gis/)
 
 
+![The Singapore Nanopore-Expression Project\!](https://jglaborg.files.wordpress.com/2020/10/sg_nex_logos-1.png)
