@@ -7,7 +7,7 @@ https://jglaborg.files.wordpress.com/2020/10/sg_nex_design-1.png)
 
 Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. All samples are sequenced with at least 3 high quality replicates. For a subset of samples, we used sequin spike-in RNAs.
 
-## Sign up for data release notifications 
+## Sign up for data release notifications and updates
 You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: 
 
 https://groups.google.com/forum/#!forum/sg-nex-updates/join
