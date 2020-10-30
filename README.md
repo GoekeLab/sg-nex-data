@@ -16,6 +16,8 @@ https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 **Pre-Release (v0.1)**
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4159715.svg)](https://doi.org/10.5281/zenodo.4159715)
+
 Data can be downloaded [here](DATA.md)     
 Notes on data usage: This site provides early access to the SG-NEx data for research. Please note that the data is under publication embargo until the SG-NEx project is published.
 
