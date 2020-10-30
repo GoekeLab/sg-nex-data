@@ -12,7 +12,10 @@ You can sign up for the sg-nex-updates email list to receive notifications about
 
 https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
-## Data download
+## Data Releases
+
+**Pre-Release (v0.1)**
+
 Data can be downloaded [here](DATA.md)     
 Notes on data usage: This site provides early access to the SG-NEx data for research. Please note that the data is under publication embargo until the SG-NEx project is published.
 
