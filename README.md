@@ -26,10 +26,13 @@ Details on reference files can be found [here](ANNOTATIONS.md).
 
 
 ## Contributors
+
 **GIS Sequencing Platform and Data Generation**            
-Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor     
+Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor   
+
 **Cancer Genomics and RNA Modifications**            
-Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, Xuewen Ong, Hui Qi Amanda Ng, Suk Yeah Polly Poon, Hoang-Dai Tran, Kok Hao Edwin Lim, Huck Hui Ng, Boon Ooi Patrick Tan, Huck-Hui Ng, N.Gopalakrishna Iyer, Wai Leong Tam, Wee Joo Chng, Leilei Chen, Ramanuj DasGupta, Yun Shen Winston Chan, Qiang Yu, Torsten Wüstefeld, Wee Siong Sho Goh 
+Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, Xuewen Ong, Hui Qi Amanda Ng, Suk Yeah Polly Poon, Hoang-Dai Tran, Kok Hao Edwin Lim, Huck Hui Ng, Boon Ooi Patrick Tan, Huck-Hui Ng, N.Gopalakrishna Iyer, Wai Leong Tam, Wee Joo Chng, Leilei Chen, Ramanuj DasGupta, Yun Shen Winston Chan, Qiang Yu, Torsten Wüstefeld, Wee Siong Sho Goh
+
 **Statistical Modeling and Data Analytics**                     
 Chen Ying, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
 
