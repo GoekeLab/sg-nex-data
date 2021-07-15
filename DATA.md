@@ -1,5 +1,11 @@
 ### Datasets
 
+---
+#### Update (15-07-2021)
+Download links are currently unavailable, we work on restoring them as soon as possible. In the meantime, the unprocessed data (fastq) can be downloaded from ENA: https://www.ebi.ac.uk/ena/browser/view/PRJEB44348
+
+---
+
   As the core datasets, we have in total 72 runs for core cell lines using three different Nanopore RNA-Sequencing prototocols. 
   
   As an initial release, we are providing fastq and bam files. You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: 
