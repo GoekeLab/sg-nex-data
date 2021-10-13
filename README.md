@@ -1,5 +1,7 @@
 # SG-NEx - The Singapore Nanopore-Expression Project
 
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-download)
+
 The SG-NEx project is an international collaboration that was initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/). The aim of the SG-NEx Project is to generate reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
 
 ![The Singapore Nanopore-Expression Project - Design\!](
@@ -12,21 +14,26 @@ You can sign up for the sg-nex-updates email list to receive notifications about
 
 https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
-## Data Releases
+## Data Download
 
 **Pre-Release (v0.1)**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4159715.svg)](https://doi.org/10.5281/zenodo.4159715)
 
 Data can be downloaded [here](DATA.md)     
-Notes on data usage: This site provides early access to the SG-NEx data for research. Please note that the data is under publication embargo until the SG-NEx project is published.
+
+Notes on data usage: This site provides early access to the SG-NEx data. These data can be used in research and publications, but we ask data users to refrain from publishing a systematic comparison that is described in the pre-print until the final manuscript is published. If you are uncertain, please feel free to reach out ([Contact](#contact)).
+
+**Release History**
+
+You can find previous releases here in the [release history](https://github.com/GoekeLab/sg-nex-data/releases)
 
 ## Data Processing
 
 We collaborated with [nf-core](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA-Seq data processing.
 
+**Reference files**
 
-## Reference files
 Details on reference files can be found [here](ANNOTATIONS.md).
 
 ## Contributors
@@ -40,8 +47,16 @@ Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, X
 **Statistical Modeling and Data Analytics**                     
 Chen Ying, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
 
+## Citing the SG-NEx project
+
+If you use the SG-NEx data in your research, please specify the [release version](#data-download) and cite the pre-print that describes this data resource:
+
+Chen, Ying, et al. "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
+
+Please see the note on data usage (under [Data Download](#data-download)).
+
 ## Contact
 
-Questions about SG-NEx? Please contact [Jonathan Göke](https://www.a-star.edu.sg/gis/our-people/faculty-staff)
+Questions about SG-NEx? Please add an entry in the [Discussions Forum](https://github.com/GoekeLab/sg-nex-data/discussions). You can also contact [Jonathan Göke](https://www.a-star.edu.sg/gis/our-people/faculty-staff)
 
 ![The Singapore Nanopore-Expression Project\!](https://jglaborg.files.wordpress.com/2020/10/sg_nex_logos-1.png)
