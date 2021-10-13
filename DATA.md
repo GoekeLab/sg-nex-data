@@ -1,21 +1,5 @@
 ### Datasets
 
----
-#### Update (15-07-2021)
-Download links are currently unavailable, we work on restoring them as soon as possible. In the meantime, the unprocessed data (fastq) can be downloaded from ENA: https://www.ebi.ac.uk/ena/browser/view/PRJEB44348
+The current data release consists of 93 files that include long read and short read RNA-Seq data from all 5 cell lines. The sample description and download links can be found  [here](docs/Sample_information.txt).
 
----
-
-  As the core datasets, we have in total 72 runs for core cell lines using three different Nanopore RNA-Sequencing prototocols. 
-  
-  As an initial release, we are providing fastq and bam files. You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: 
-
-https://groups.google.com/forum/#!forum/sg-nex-updates/join
-  
-  Please see below for the downloading links:
-  - fastq: [fastq](https://www.dropbox.com/sh/q098af3xdzfqc72/AAA-UhZGSvmez5pOdZIN2mpRa?dl=0)
-  - bam:   [genomeBam](https://www.dropbox.com/sh/mjzbtp31cgtxato/AACPTouVgMztbArwTP9Yt0zCa?dl=0), [transcriptomeBam](https://www.dropbox.com/sh/cuyicuormo809fx/AAA9ndo8BWvGRjaByWKvrALIa?dl=0) 
-  
-  Detailed information on sample ids and corresponding sample attributes can be found [here](docs/Sample_information.txt).
-
-  Notes on data usage: This site provides early access to the SG-NEx data for research. Please note that the data is under publication embargo until the SG-NEx project is published.
+**_Notes on data usage_**: This site provides early access to the SG-NEx data. These data can be used in research and publications, but we ask data users to refrain from publishing a systematic comparison that is described in the pre-print until the final manuscript is published. If you are uncertain, please feel free to reach out (https://github.com/GoekeLab/sg-nex-data/#contact). You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: https://groups.google.com/forum/#!forum/sg-nex-updates/join. If you use the SG-NEx data in your research, please specify the [release version](https://github.com/GoekeLab/sg-nex-data/#data-download) and cite the pre-print (see [citation](https://github.com/GoekeLab/sg-nex-data/#citing-the-SG-NEx-project)).
