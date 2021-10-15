@@ -1,4 +1,4 @@
-### Use Cases and Applications: Research articles using the SG-NEx data
+### Use Cases and Applications: Research articles using the SG-NEx data (pre-release versions)
 
 This site lists some examples how the SG-NEx data resource is used in research:
 
