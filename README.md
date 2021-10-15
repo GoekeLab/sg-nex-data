@@ -1,4 +1,5 @@
-# SG-NEx - The Singapore Nanopore-Expression Project
+![The Singapore Nanopore-Expression Project\!](
+https://jglaborg.files.wordpress.com/2021/10/sg_nex_textlogo.png)
 
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-download)
 
