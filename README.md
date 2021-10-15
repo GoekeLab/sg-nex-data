@@ -9,6 +9,17 @@ https://jglaborg.files.wordpress.com/2020/10/sg_nex_design-1.png)
 
 Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. All samples are sequenced with at least 3 high quality replicates. For a subset of samples, we used sequin spike-in RNAs.
 
+## Content
+
+- [Email list](#sign-up-for-data-release-notifications-and-updates)
+- [Data Download and Release History](#data-download)
+- [Data Processing](#data-processing)
+- [Use Cases and Applications](#use-cases-and-applications)
+- [Data Access Tutorials](#data-access-tutorials)
+- [Contributors](#contributors)
+- [Citing the SG-NEx project](#citing-the-sg-nex-project)
+- [Contact](#contact)
+
 ## Sign up for data release notifications and updates
 You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: 
 
@@ -22,7 +33,7 @@ https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 Data can be downloaded [here](DATA.md)     
 
-Notes on data usage: This site provides early access to the SG-NEx data. These data can be used in research and publications, but we ask data users to refrain from publishing a systematic comparison that is described in the pre-print until the final manuscript is published. If you are uncertain, please feel free to reach out ([Contact](#contact)).
+_**Notes on data usage**_: This site provides early access to the SG-NEx data. These data can be used in research and publications, but we ask data users to refrain from publishing a systematic comparison that is described in the pre-print until the final manuscript is published. If you are uncertain, please feel free to reach out ([Contact](#contact)).
 
 **Release History**
 
@@ -35,6 +46,14 @@ We collaborated with [nf-core](https://github.com/nf-core) to develop [nanoseq](
 **Reference files**
 
 Details on reference files can be found [here](ANNOTATIONS.md).
+
+## Use Cases and Applications
+
+You can browse a list of articles using the SG-NEx data in research [here](SGNEx_usecases.md)
+
+## Data Access Tutorials
+
+Coming soon! Please refer to [Data Download](#data-download) in the meantime.
 
 ## Contributors
 
