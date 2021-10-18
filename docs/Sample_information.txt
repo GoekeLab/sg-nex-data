@@ -1,73 +1,94 @@
-sample_id	cell_line	sequencing_protocol
-SGNex_Hct116_directRNA_replicate1_run1	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate2_run1	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate1_run2	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate1_run3	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate2_run2	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate2_run3	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate2_run4	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate2_run5	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate2_run6	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate3_run1	Hct116	directRNA
-SGNex_Hct116_directcDNA_replicate3_run2	Hct116	directcDNA
-SGNex_Hct116_directcDNA_replicate4_run1	Hct116	directcDNA
-SGNex_Hct116_directcDNA_replicate5_run1	Hct116	directcDNA
-SGNex_Hct116_cDNA_replicate3_run3	Hct116	cDNA
-SGNex_Hct116_cDNA_replicate4_run2	Hct116	cDNA
-SGNex_Hct116_directRNA_replicate3_run4	Hct116	directRNA
-SGNex_Hct116_directRNA_replicate4_run3	Hct116	directRNA
-SGNex_Hct116_directcDNA_replicate1_run4	Hct116	directcDNA
-SGNex_Hct116_directcDNA_replicate1_run5	Hct116	directcDNA
-SGNex_Hct116_cDNA_replicate1_run6	Hct116	cDNA
-SGNex_HepG2_directcDNA_replicate1_run1	HepG2	directcDNA
-SGNex_HepG2_directRNA_replicate5_run1	HepG2	directRNA
-SGNex_HepG2_directcDNA_replicate1_run2	HepG2	directcDNA
-SGNex_HepG2_directRNA_replicate1_run3	HepG2	directRNA
-SGNex_HepG2_cDNA_replicate1_run4	HepG2	cDNA
-SGNex_HepG2_directRNA_replicate2_run1	HepG2	directRNA
-SGNex_HepG2_directRNA_replicate3_run1	HepG2	directRNA
-SGNex_HepG2_directcDNA_replicate4_run1	HepG2	directcDNA
-SGNex_HepG2_directcDNA_replicate4_run2	HepG2	directcDNA
-SGNex_HepG2_cDNAStranded_replicate4_run3	HepG2	cDNA
-SGNex_HepG2_directRNA_replicate5_run2	HepG2	directRNA
-SGNex_HepG2_directcDNA_replicate5_run3	HepG2	directcDNA
-SGNex_HepG2_cDNAStranded_replicate5_run4	HepG2	cDNA
-SGNex_HepG2_directRNA_replicate6_run1	HepG2	directRNA
-SGNex_K562_directRNA_replicate1_run1	K562	directRNA
-SGNex_K562_directcDNA_replicate1_run2	K562	directcDNA
-SGNex_K562_cDNA_replicate1_run3	K562	cDNA
-SGNex_K562_directcDNA_replicate2_run1	K562	directcDNA
-SGNex_K562_directcDNA_replicate2_run2	K562	directcDNA
-SGNex_K562_cDNAStranded_replicate2_run3	K562	cDNA
-SGNex_K562_directcDNA_replicate3_run1	K562	directcDNA
-SGNex_K562_cDNAStranded_replicate3_run2	K562	cDNA
-SGNex_K562_cDNAStranded_replicate3_run3	K562	cDNA
-SGNex_K562_directRNA_replicate4_run1	K562	directRNA
-SGNex_K562_directRNA_replicate5_run1	K562	directRNA
-SGNex_K562_directcDNA_replicate4_run2	K562	directcDNA
-SGNex_K562_cDNA_replicate3_run4	K562	cDNA
-SGNex_K562_directRNA_replicate6_run1	K562	directRNA
-SGNex_A549_directRNA_replicate1_run1	A549	directRNA
-SGNex_A549_cDNA_replicate1_run2	A549	cDNA
-SGNex_A549_directcDNA_replicate1_run3	A549	directcDNA
-SGNex_A549_directcDNA_replicate2_run1	A549	directcDNA
-SGNex_A549_directcDNA_replicate3_run1	A549	directcDNA
-SGNex_A549_directcDNA_replicate3_run2	A549	directcDNA
-SGNex_A549_cDNAStranded_replicate3_run3	A549	cDNA
-SGNex_A549_directRNA_replicate5_run1	A549	directRNA
-SGNex_A549_cDNAStranded_replicate5_run2	A549	cDNA
-SGNex_A549_directcDNA_replicate5_run3	A549	directcDNA
-SGNex_A549_directRNA_replicate6_run1	A549	directRNA
-SGNex_A549_directRNA_replicate4_run1	A549	directRNA
-SGNex_MCF7_directRNA_replicate1_run1	MCF7	directRNA
-SGNex_MCF7_directcDNA_replicate1_run2	MCF7	directcDNA
-SGNex_MCF7_cDNA_replicate1_run3	MCF7	cDNA
-SGNex_MCF7_cDNAStranded_replicate2_run1	MCF7	cDNA
-SGNex_MCF7_directRNA_replicate3_run1	MCF7	directRNA
-SGNex_MCF7_cDNAStranded_replicate3_run2	MCF7	cDNA
-SGNex_MCF7_directcDNA_replicate3_run3	MCF7	directcDNA
-SGNex_MCF7_directRNA_replicate4_run1	MCF7	directRNA
-SGNex_MCF7_directcDNA_replicate4_run2	MCF7	directcDNA
-SGNex_MCF7_directRNA_replicate2_run2	MCF7	directRNA
-SGNex_MCF7_directRNA_replicate2_run3	MCF7	directRNA
-SGNex_Hct116_directRNA_replicate6_run1	Hct116	directRNA
+sample_id	cell_line	sequencing_protocol	fastq_ftp
+SGNex_MCF7-EV_directRNA_replicate2_run1	MCF7-EV	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR572/008/ERR5729408/ERR5729408.fastq.gz
+SGNex_Hct116_directRNA_replicate1_run1	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR586/008/ERR5867848/ERR5867848.fastq.gz
+SGNex_A549_cDNA_replicate1_run2	A549	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/006/ERR6053016/ERR6053016.fastq.gz
+SGNex_A549_cDNAStranded_replicate5_run2	A549	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/008/ERR6053018/ERR6053018.fastq.gz
+SGNex_A549_directcDNA_replicate1_run3	A549	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/009/ERR6053019/ERR6053019.fastq.gz
+SGNex_A549_directcDNA_replicate2_run1	A549	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/000/ERR6053020/ERR6053020.fastq.gz
+SGNex_A549_directcDNA_replicate3_run2	A549	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/002/ERR6053022/ERR6053022.fastq.gz
+SGNex_A549_directcDNA_replicate5_run3	A549	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/003/ERR6053023/ERR6053023.fastq.gz
+SGNex_A549_directRNA_replicate1_run1	A549	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/004/ERR6053024/ERR6053024.fastq.gz
+SGNex_A549_directRNA_replicate4_run1	A549	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/005/ERR6053025/ERR6053025.fastq.gz
+SGNex_A549_directRNA_replicate6_run1	A549	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/007/ERR6053027/ERR6053027.fastq.gz
+SGNex_H9_directcDNA_replicate1_run2	H9	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/006/ERR6053036/ERR6053036.fastq.gz
+SGNex_H9_directRNA_replicate1_run1	H9	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/007/ERR6053037/ERR6053037.fastq.gz
+SGNex_Hct116_cDNA_replicate1_run6	Hct116	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/008/ERR6053038/ERR6053038.fastq.gz
+SGNex_Hct116_cDNA_replicate3_run3	Hct116	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/009/ERR6053039/ERR6053039.fastq.gz
+SGNex_Hct116_cDNA_replicate4_run2	Hct116	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/000/ERR6053040/ERR6053040.fastq.gz
+SGNex_Hct116_directcDNA_replicate1_run4	Hct116	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/001/ERR6053041/ERR6053041.fastq.gz
+SGNex_Hct116_directcDNA_replicate1_run5	Hct116	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/002/ERR6053042/ERR6053042.fastq.gz
+SGNex_Hct116_directcDNA_replicate3_run2	Hct116	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/003/ERR6053043/ERR6053043.fastq.gz
+SGNex_Hct116_directcDNA_replicate4_run1	Hct116	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/004/ERR6053044/ERR6053044.fastq.gz
+SGNex_Hct116_directcDNA_replicate5_run1	Hct116	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/005/ERR6053045/ERR6053045.fastq.gz
+SGNex_Hct116_directRNA_replicate1_run1	Hct116	directRNA	
+SGNex_Hct116_directRNA_replicate1_run2	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/007/ERR6053047/ERR6053047.fastq.gz
+SGNex_Hct116_directRNA_replicate2_run1	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/009/ERR6053049/ERR6053049.fastq.gz
+SGNex_Hct116_directRNA_replicate2_run2	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/000/ERR6053050/ERR6053050.fastq.gz
+SGNex_Hct116_directRNA_replicate2_run3	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/001/ERR6053051/ERR6053051.fastq.gz
+SGNex_Hct116_directRNA_replicate2_run4	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/002/ERR6053052/ERR6053052.fastq.gz
+SGNex_Hct116_directRNA_replicate2_run5	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/003/ERR6053053/ERR6053053.fastq.gz
+SGNex_Hct116_directRNA_replicate2_run6	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/004/ERR6053054/ERR6053054.fastq.gz
+SGNex_Hct116_directRNA_replicate3_run1	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/005/ERR6053055/ERR6053055.fastq.gz
+SGNex_Hct116_directRNA_replicate3_run4	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/006/ERR6053056/ERR6053056.fastq.gz
+SGNex_Hct116_directRNA_replicate4_run3	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/007/ERR6053057/ERR6053057.fastq.gz
+SGNex_Hct116_directRNA_replicate6_run1	Hct116	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/008/ERR6053058/ERR6053058.fastq.gz
+SGNex_Hek293T_directRNA_replicate1_run1	Hek293T	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/009/ERR6053059/ERR6053059.fastq.gz
+SGNex_Hek293T_directRNA_replicate2_run1	Hek293T	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/000/ERR6053060/ERR6053060.fastq.gz
+SGNex_Hek293T_directRNA_replicate3_run1	Hek293T	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/001/ERR6053061/ERR6053061.fastq.gz
+SGNex_Hek293T_directRNA_replicate4_run1	Hek293T	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/002/ERR6053062/ERR6053062.fastq.gz
+SGNex_HepG2_cDNA_replicate1_run4	HepG2	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/003/ERR6053063/ERR6053063.fastq.gz
+SGNex_HepG2_cDNAStranded_replicate4_run3	HepG2	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/004/ERR6053064/ERR6053064.fastq.gz
+SGNex_HepG2_cDNAStranded_replicate5_run4	HepG2	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/005/ERR6053065/ERR6053065.fastq.gz
+SGNex_HepG2_directcDNA_replicate1_run1	HepG2	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/006/ERR6053066/ERR6053066.fastq.gz
+SGNex_HepG2_directcDNA_replicate1_run2	HepG2	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/007/ERR6053067/ERR6053067.fastq.gz
+SGNex_HepG2_directcDNA_replicate4_run2	HepG2	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/009/ERR6053069/ERR6053069.fastq.gz
+SGNex_HepG2_directcDNA_replicate5_run3	HepG2	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/000/ERR6053070/ERR6053070.fastq.gz
+SGNex_HepG2_directRNA_replicate1_run3	HepG2	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/001/ERR6053071/ERR6053071.fastq.gz
+SGNex_HepG2_directRNA_replicate2_run1	HepG2	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/002/ERR6053072/ERR6053072.fastq.gz
+SGNex_HepG2_directRNA_replicate3_run1	HepG2	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/003/ERR6053073/ERR6053073.fastq.gz
+SGNex_HepG2_directRNA_replicate5_run1	HepG2	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/004/ERR6053074/ERR6053074.fastq.gz
+SGNex_HepG2_directRNA_replicate6_run1	HepG2	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/006/ERR6053076/ERR6053076.fastq.gz
+SGNex_IM95_directRNA_replicate1_run1	IM95	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/008/ERR6053078/ERR6053078.fastq.gz
+SGNex_K562_cDNA_replicate1_run3	K562	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/009/ERR6053079/ERR6053079.fastq.gz
+SGNex_K562_cDNA_replicate3_run4	K562	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/000/ERR6053080/ERR6053080.fastq.gz
+SGNex_K562_cDNAStranded_replicate2_run3	K562	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/001/ERR6053081/ERR6053081.fastq.gz
+SGNex_K562_directcDNA_replicate1_run2	K562	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/004/ERR6053084/ERR6053084.fastq.gz
+SGNex_K562_directcDNA_replicate2_run1	K562	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/005/ERR6053085/ERR6053085.fastq.gz
+SGNex_K562_directcDNA_replicate2_run2	K562	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/006/ERR6053086/ERR6053086.fastq.gz
+SGNex_K562_directcDNA_replicate3_run1	K562	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/007/ERR6053087/ERR6053087.fastq.gz
+SGNex_K562_directcDNA_replicate4_run2	K562	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/008/ERR6053088/ERR6053088.fastq.gz
+SGNex_K562_directRNA_replicate1_run1	K562	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/009/ERR6053089/ERR6053089.fastq.gz
+SGNex_K562_directRNA_replicate4_run1	K562	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/000/ERR6053090/ERR6053090.fastq.gz
+SGNex_K562_directRNA_replicate5_run1	K562	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/001/ERR6053091/ERR6053091.fastq.gz
+SGNex_K562_directRNA_replicate6_run1	K562	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/002/ERR6053092/ERR6053092.fastq.gz
+SGNex_MCF7_cDNA_replicate1_run3	MCF7	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/003/ERR6053093/ERR6053093.fastq.gz
+SGNex_MCF7_cDNAStranded_replicate2_run1	MCF7	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/004/ERR6053094/ERR6053094.fastq.gz
+SGNex_MCF7_cDNAStranded_replicate3_run2	MCF7	cDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/005/ERR6053095/ERR6053095.fastq.gz
+SGNex_MCF7_directcDNA_replicate1_run2	MCF7	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/006/ERR6053096/ERR6053096.fastq.gz
+SGNex_MCF7_directcDNA_replicate3_run3	MCF7	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/007/ERR6053097/ERR6053097.fastq.gz
+SGNex_MCF7_directcDNA_replicate4_run2	MCF7	directcDNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/008/ERR6053098/ERR6053098.fastq.gz
+SGNex_MCF7_directRNA_replicate1_run1	MCF7	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/009/ERR6053099/ERR6053099.fastq.gz
+SGNex_MCF7_directRNA_replicate2_run2	MCF7	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/000/ERR6053100/ERR6053100.fastq.gz
+SGNex_MCF7_directRNA_replicate2_run3	MCF7	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/001/ERR6053101/ERR6053101.fastq.gz
+SGNex_MCF7_directRNA_replicate4_run1	MCF7	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/003/ERR6053103/ERR6053103.fastq.gz
+SGNex_MCF7-EV_directRNA_replicate1_run1	MCF7-EV	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/004/ERR6053104/ERR6053104.fastq.gz
+SGNex_MCF7-EV_directRNA_replicate2_run1	MCF7-EV	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/005/ERR6053105/ERR6053105.fastq.gz
+SGNex_Myeloma-N082_directRNA_replicate1_run1	Myeloma-N082	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/006/ERR6053106/ERR6053106.fastq.gz
+SGNex_Myeloma-N104_directRNA_replicate1_run1	Myeloma-N104	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/007/ERR6053107/ERR6053107.fastq.gz
+SGNex_Myeloma-N122_directRNA_replicate1_run1	Myeloma-N122	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/008/ERR6053108/ERR6053108.fastq.gz
+SGNex_NCC24_directRNA_replicate1_run1	NCC24	directRNA	ftp.sra.ebi.ac.uk/vol1/fastq/ERR605/009/ERR6053109/ERR6053109.fastq.gz
+SGNex_A549_Illumina_replicate1_run1	A549	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/008/ERR6937788/ERR6937788_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/008/ERR6937788/ERR6937788_2.fastq.gz
+SGNex_A549_Illumina_replicate3_run1	A549	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/009/ERR6937789/ERR6937789_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/009/ERR6937789/ERR6937789_2.fastq.gz
+SGNex_A549_Illumina_replicate5_run1	A549	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/000/ERR6937790/ERR6937790_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/000/ERR6937790/ERR6937790_2.fastq.gz
+SGNex_HepG2_Illumina_replicate2_run1	HepG2	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/001/ERR6937791/ERR6937791_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/001/ERR6937791/ERR6937791_2.fastq.gz
+SGNex_HepG2_Illumina_replicate4_run1	HepG2	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/002/ERR6937792/ERR6937792_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/002/ERR6937792/ERR6937792_2.fastq.gz
+SGNex_HepG2_Illumina_replicate5_run1	HepG2	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/003/ERR6937793/ERR6937793_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/003/ERR6937793/ERR6937793_2.fastq.gz
+SGNex_Hct116_Illumina_replicate3_run1	Hct116	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/004/ERR6937794/ERR6937794_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/004/ERR6937794/ERR6937794_2.fastq.gz
+SGNex_Hct116_Illumina_replicate4_run1	Hct116	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/005/ERR6937795/ERR6937795_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/005/ERR6937795/ERR6937795_2.fastq.gz
+SGNex_Hct116_Illumina_replicate5_run1	Hct116	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/006/ERR6937796/ERR6937796_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/006/ERR6937796/ERR6937796_2.fastq.gz
+SGNex_K562_Illumina_replicate3_run1	K562	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/007/ERR6937797/ERR6937797_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/007/ERR6937797/ERR6937797_2.fastq.gz
+SGNex_K562_Illumina_replicate4_run1	K562	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/008/ERR6937798/ERR6937798_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/008/ERR6937798/ERR6937798_2.fastq.gz
+SGNex_K562_Illumina_replicate5_run1	K562	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/009/ERR6937799/ERR6937799_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/009/ERR6937799/ERR6937799_2.fastq.gz
+SGNex_MCF7_Illumina_replicate2_run1	MCF7	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/000/ERR6937800/ERR6937800_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/000/ERR6937800/ERR6937800_2.fastq.gz
+SGNex_MCF7_Illumina_replicate3_run1	MCF7	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/001/ERR6937801/ERR6937801_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/001/ERR6937801/ERR6937801_2.fastq.gz
+SGNex_MCF7_Illumina_replicate4_run1	MCF7	Illumina	ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/002/ERR6937802/ERR6937802_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/ERR693/002/ERR6937802/ERR6937802_2.fastq.gz
