@@ -51,7 +51,7 @@ Details on reference files can be found [here](ANNOTATIONS.md).
 
 ## Use Cases and Applications
 
-You can browse a list of articles using the SG-NEx data in research [here](SGNEx_usecases.md)
+You can browse a list of articles that review or use the SG-NEx data [here](SGNEx_usecases.md). 
 
 ## Data Access Tutorials
 
