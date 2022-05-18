@@ -42,4 +42,18 @@ aws s3 ls --no-sign-request sg-nex-data/data/sequencing_data/bam/transcriptome  
 aws s3 cp --no-sign-request sg-nex-data/data/sequencing_data/bam/transcriptome/sample_name . --recursive  # download bam files that are aligned to transcriptome
 ```
 
+### Annotations
+
+We provide genome fasta, gtf file and transcriptome fasta files to cater for all needs.
+
+```bash
+aws s3 ls --no-sign-request sg-nex-data/data/annotations/genome_fasta/  # list included genome fasta files used for processing the sequencing data 
+aws s3 cp --no-sign-request sg-nex-data/data/annotations/genome_fasta/ . --recursive  # download genome fasta files used for processing the sequencing data 
+
+aws s3 ls --no-sign-request sg-nex-data/data/annotations/transcriptome_fasta/  # list included transcriptome fasta files used for processing the sequencing data 
+aws s3 cp --no-sign-request sg-nex-data/data/annotations/transcriptome_fasta/ . --recursive  # download transcriptome fasta files used for processing the sequencing data 
+
+aws s3 ls --no-sign-request sg-nex-data/data/annotations/gtf_file/  # list included annotation gtf files used in processing the sequencing data 
+aws s3 cp --no-sign-request sg-nex-data/data/annotations/gtf_file/ . --recursive  # download nnotation gtf files used for processing the sequencing data 
+```
 
