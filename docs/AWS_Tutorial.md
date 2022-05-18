@@ -7,13 +7,13 @@ SG-NEx data source contains long read (Oxford Nanopore) RNA sequencing data for 
 
 The bukcet contains the following types of data
 
-- [Raw sequencing signals](#fast5-data)
-- [Basecalled sequences](#fastq-data)
-- [Aligned sequences](#bam-data)
-- [Annotations](#annotations)
-- [Processed data](#processed-data)
+   - [Raw sequencing signals](#fast5-data)            
+   - [Basecalled sequences](#fastq-data)            
+   - [Aligned sequences](#bam-data)             
+   - [Annotations](#annotations)            
+   - [Processed data](#processed-data)                    
 
-The sample information are provided [here](/docs/aws_data_structure_plan - sample_information.tsv). The data also include multiplexed samples, for those samples, they will share the same fast5 files, to find the sample mapping to mux samples, please refer the multiplexed sample info [here](/docs/aws_data_structure_plan - multiplexed_samples.tsv)
+The sample information are provided [here](/docs/sample_information.tsv). The data also include multiplexed samples, for those samples, they will share the same fast5 files, to find the sample mapping to mux samples, please refer the multiplexed sample info [here](/docs/multiplexed_samples.tsv)
 
 ### Raw sequencing data
 To access raw sequencing fast5 file
