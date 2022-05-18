@@ -1,0 +1,5 @@
+sample_alias	mux_sample_alias	barcode	barcode_kit
+SGNex_K562_directcDNA_replicate3_run1	SGNex_directcDNA_MUX_Sample1	1	EXP-NBD103
+SGNex_K562_directcDNA_replicate4_run2	SGNex_directcDNA_MUX_Sample2	8	EXP-NBD104
+SGNex_HepG2_directcDNA_replicate5_run3	SGNex_directcDNA_MUX_Sample1	2	EXP-NBD103
+SGNex_MCF7_directcDNA_replicate3_run3	SGNex_directcDNA_MUX_Sample2	7	EXP-NBD104
