@@ -1,0 +1,16 @@
+#######################################################
+##                                                   ##
+## How to access SG-NEx datasets from AWS S3 bukcet  ##
+##                                                   ##
+#######################################################
+
+1. Read up the AWS tutorial: https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/AWS_Tutorial.md
+
+2. To download sequencing data for one specific sample, check the sample download links here: https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/sample_information.tsv
+
+3. To download processed data for RNA modification by xpore, please go here: to be added soon
+
+4. To download processed data for RNA modification by m6Anet, please go here: to be added soon
+
+5. To download processed data for RNA discovery and quantification by Bambu, please go here: to be added soon
+
