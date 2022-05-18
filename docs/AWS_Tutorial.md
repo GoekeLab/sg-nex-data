@@ -7,9 +7,9 @@ SG-NEx data source contains long read (Oxford Nanopore) RNA sequencing data for 
 
 The bukcet contains the following types of data
 
-   - [Raw sequencing signals](#fast5-data)            
-   - [Basecalled sequences](#fastq-data)            
-   - [Aligned sequences](#bam-data)             
+   - [Raw sequencing signals](#raw-sequencing-signals)            
+   - [Basecalled sequences](#basecalled-sequences)            
+   - [Aligned sequences](#aligned-sequences)             
    - [Annotations](#annotations)            
    - [Processed data](#processed-data)                    
 
