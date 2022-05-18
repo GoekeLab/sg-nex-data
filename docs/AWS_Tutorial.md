@@ -57,3 +57,7 @@ aws s3 ls --no-sign-request sg-nex-data/data/annotations/gtf_file/  # list inclu
 aws s3 cp --no-sign-request sg-nex-data/data/annotations/gtf_file/ . --recursive  # download nnotation gtf files used for processing the sequencing data 
 ```
 
+### Process data 
+This section will be added soon.
+
+
