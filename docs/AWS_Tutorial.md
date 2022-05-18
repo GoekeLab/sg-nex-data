@@ -15,7 +15,7 @@ The bukcet contains the following types of data
 
 The sample information are provided [here](/docs/sample_information.tsv). The data also include multiplexed samples, for those samples, they will share the same fast5 files, to find the sample mapping to mux samples, please refer the multiplexed sample info [here](/docs/multiplexed_samples.tsv)
 
-### Raw sequencing data
+### Raw sequencing signals
 To access raw sequencing fast5 file
 
 ```bash
@@ -23,14 +23,14 @@ aws s3 ls --no-sign-request sg-nex-data/data/sequencing_data/fast5/ # list sampl
 aws s3 cp --no-sign-request sg-nex-data/data/sequencing_data/fast5/sample_name . --recursive  # download fast5 files to your local directory
 ```
 
-### Basecalled sequencing data
+### Basecalled sequences
 To access basecalled sequencing fastq file
 
 ```bash
 aws s3 ls --no-sign-request sg-nex-data/data/sequencing_data/fastq/  # list samples 
 aws s3 cp --no-sign-request sg-nex-data/data/sequencing_data/fastq/sample_name . --recursive  # download fastq files to your local directory
 ```
-### Aligned bam files
+### Aligned sequences
 
 We provide both genome and transcriptome aligned files
 
