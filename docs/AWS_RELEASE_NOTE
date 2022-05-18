@@ -1,0 +1,12 @@
+SG-NEx data release on AWS S3 open data 
+
+
+Version Number: V1.0.0               
+Date: 2022-05-20
+By: Ying Chen
+Sequencing technology: Nanopore RNA sequencing
+Seqeuncing protocols: direct RNA, cDNA, direct cDNA
+Sequencing platforms: MinION, GridION, PromethION
+Basecalling software and versions: Albacore, Guppy
+Note: For more data generation details, you may also refer to our manuscript below:
+Chen, Ying, et al. "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." bioRxiv (2021). doi: https://doi.org/10.1101/2021.04.21.440736
