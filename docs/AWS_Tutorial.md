@@ -1,4 +1,4 @@
-# On accessing SG-NEx datasets from AWS open data.
+# On accessing SG-NEx datasets from AWS S3 bucket
 
 ### Bucket indexing
 
