@@ -3,7 +3,7 @@
 ### Bucket indexing
 
 SG-NEx data source contains long read (Oxford Nanopore) RNA sequencing data for commonly used cancer cell lines. The annotation files used for processing these sequencing data are also stored in the bucket. Below is the folder index for the open data bucket
-![folder indexing\!](/images/folder_indexing.png)
+![folder indexing\!](/images/folder_index.png)
 
 The bucket contains the following types of data
 
@@ -55,20 +55,26 @@ Two sets of annotations are provided in the bucket:
 aws s3 ls --no-sign-request s3://sg-nex-data/data/annotations/genome_fasta/  # list included genome fasta files used for processing the sequencing data 
 aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/genome_fasta .   # download genome fasta files used for processing the sequencing data 
 ```
+
+
 ![genome_fasta\!](/images/genome_fasta.png)
+
+
 
 ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/annotations/transcriptome_fasta/  # list included transcriptome fasta files used for processing the sequencing data 
 aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/transcriptome_fasta .   # download transcriptome fasta files used for processing the sequencing data 
-``
-![transcriptome_fasta\!](/images/transcriptome_fasta.png)`
+```
+
+![transcriptome_fasta\!](/images/transcriptome_fasta.png)
+
 
 ```bash
 
 aws s3 ls --no-sign-request s3://sg-nex-data/data/annotations/gtf_file/  # list included annotation gtf files used in processing the sequencing data 
 aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/gtf_file .  # download nnotation gtf files used for processing the sequencing data 
 ```
-![gtf_file\!](/images/gtf_file.png)`
+![gtf_file\!](/images/gtf_file.png)
 
 
 
