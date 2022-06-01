@@ -103,6 +103,6 @@ For how to use xPore with AWS data, you can refer [here](/docs/xPore_ONT_tutoria
 ## Long read transcript discovery and quantification
 The ability to generate full-length RNA data has also made it possible to discover novel isoforms directly from the RNA Seq reads. However, removing false positive novel transcripts and inactive isoforms have always been a challenging task. There are quite a few tools developed for transcript discovery and quantification, for example, Bambu. 
 
-For how to use Bambu with AWS data, you can refer [here](/docs/Bambu_ONT_tutorial.md) for guidance. 
+For how to use Bambu with AWS data, you can refer [here](https://goekelab.github.io/bambu/articles/bambu.html) for guidance. 
 
 
