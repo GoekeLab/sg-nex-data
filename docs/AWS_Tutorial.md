@@ -79,6 +79,8 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/gtf_file .  # do
 
 
 # Processed data 
+
+## RNA modification detection
  Long read RNA sequencing has allowed for detection of RNA modification with RNA modification tools, such as xPore and m6Anet. In the SG-Nex datasets, you can also find the processed data for xPore and m6Anet. 
  
  To download xpore processed data
@@ -94,4 +96,13 @@ aws s3 ls --no-sign-request s3://sg-nex-data/data/processed_data/m6Anet/  # list
 aws s3 sync --no-sign-request s3://sg-nex-data/data/processed_data/m6Anet/sample_name .  # download the json and index file needed for running m6Anet
 ```
 
-[Here](/docs/samples_with_RNAmod_data.tsv) you can find all samples with matched processed data for xPore and m6Anet
+[Here](/docs/samples_with_RNAmod_data.tsv) you can find all samples with matched processed data for xPore and m6Anet.
+
+For how to use xPore with AWS data, you can refer [here](/docs/xPore_ONT_tutorial_draft1.ipynb) for guidance.
+
+## Long read transcript discovery and quantification
+The ability to generate full-length RNA data has also made it possible to discover novel isoforms directly from the RNA Seq reads. However, removing false positive novel transcripts and inactive isoforms have always been a challenging task. There are quite a few tools developed for transcript discovery and quantification, for example, Bambu. 
+
+For how to use Bambu with AWS data, you can refer [here](/docs/Bambu_ONT_tutorial.md) for guidance. 
+
+
