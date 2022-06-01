@@ -20,7 +20,7 @@ To access raw sequencing fast5 file
 
 ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/ # list samples 
-aws s3 cp --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/sample_name . --recursive  # download fast5 files to your local directory
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/sample_name .    # download fast5 files to your local directory
 ```
 
 # Basecalled sequences
@@ -28,7 +28,7 @@ To access basecalled sequencing fastq file
 
 ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/  # list samples 
-aws s3 cp --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/sample_name . --recursive  # download fastq files to your local directory
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/sample_name .   # download fastq files to your local directory
 ```
 # Aligned sequences
 
@@ -85,13 +85,13 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/gtf_file .  # do
  ```bash
 
 aws s3 ls --no-sign-request s3://sg-nex-data/data/processed_data/xpore/  # list all samples that have processed data for RNA modification detection using xPore
-aws s3 sync --no-sign-request s3://sg-nex-data/data/processed_data/xpore/sample_name/ .  # download the json and index file needed for running xPore
+aws s3 sync --no-sign-request s3://sg-nex-data/data/processed_data/xpore/sample_name .  # download the json and index file needed for running xPore
 ```
 To download m6Anet processed data
  ```bash
 
 aws s3 ls --no-sign-request s3://sg-nex-data/data/processed_data/m6Anet/  # list all samples that have processed data for RNA modification detection using m6Anet
-aws s3 sync --no-sign-request s3://sg-nex-data/data/processed_data/m6Anet/sample_name/ .  # download the json and index file needed for running m6Anet
+aws s3 sync --no-sign-request s3://sg-nex-data/data/processed_data/m6Anet/sample_name .  # download the json and index file needed for running m6Anet
 ```
 
 [Here](/docs/samples_with_RNAmod_data.tsv) you can find all samples with matched processed data for xPore and m6Anet
