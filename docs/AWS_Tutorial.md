@@ -13,9 +13,9 @@ The bucket contains the following types of data
    - [Annotations](#annotations)            
    - [Processed data](#processed-data)                    
 
-The sample information is provided [here](/docs/sample_information.tsv). The data also include multiplexed samples, for those samples, they will share the same fast5 files, to find the sample mapping to mux samples, please refer the multiplexed sample info [here](/docs/multiplexed_samples.tsv)
+The sample information is provided [here](/docs/samples.tsv). The data also include multiplexed samples, for those samples, they will share the same fast5 files, to find the sample mapping to mux samples, please refer the multiplexed sample info [here](/docs/multiplexed_samples.tsv)
 
-### Raw sequencing signals
+# Raw sequencing signals
 To access raw sequencing fast5 file
 
 ```bash
@@ -23,14 +23,14 @@ aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/ # list 
 aws s3 cp --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/sample_name . --recursive  # download fast5 files to your local directory
 ```
 
-### Basecalled sequences
+# Basecalled sequences
 To access basecalled sequencing fastq file
 
 ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/  # list samples 
 aws s3 cp --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/sample_name . --recursive  # download fastq files to your local directory
 ```
-### Aligned sequences
+# Aligned sequences
 
 We provide both genome and transcriptome aligned files
 
@@ -42,7 +42,7 @@ aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/transcript
 aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/transcriptome/sample_name .   # download bam files that are aligned to transcriptome
 ```
 
-### Annotations
+# Annotations
 
 We provide genome fasta, gtf file and transcriptome fasta files to cater for all needs.
 
@@ -78,7 +78,20 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/gtf_file .  # do
 
 
 
-### Processed data 
-This section will be added soon.
+# Processed data 
+ Long read RNA sequencing has allowed for detection of RNA modification with RNA modification tools, such as xPore and m6Anet. In the SG-Nex datasets, you can also find the processed data for xPore and m6Anet. 
+ 
+ To download xpore processed data
+ ```bash
 
+aws s3 ls --no-sign-request s3://sg-nex-data/data/processed_data/xpore/  # list all samples that have processed data for RNA modification detection using xPore
+aws s3 sync --no-sign-request s3://sg-nex-data/data/processed_data/xpore/sample_name/ .  # download the json and index file needed for running xPore
+```
+To download m6Anet processed data
+ ```bash
 
+aws s3 ls --no-sign-request s3://sg-nex-data/data/processed_data/m6Anet/  # list all samples that have processed data for RNA modification detection using m6Anet
+aws s3 sync --no-sign-request s3://sg-nex-data/data/processed_data/m6Anet/sample_name/ .  # download the json and index file needed for running m6Anet
+```
+
+[Here](/docs/samples_with_RNAmod_data.tsv) you can find all samples with matched processed data for xPore and m6Anet
