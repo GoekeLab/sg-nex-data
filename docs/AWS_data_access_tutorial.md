@@ -1,22 +1,23 @@
-# On accessing SG-NEx datasets from AWS S3 bucket
+# Accessing the SG-NEx dataset
 
-### Bucket indexing
+SG-NEx data source contains long read (Oxford Nanopore) RNA sequencing data for commonly used cell lines. The data is hosted by AWS on S3 and can be accessed using direct links or the aws CLI.
 
-SG-NEx data source contains long read (Oxford Nanopore) RNA sequencing data for commonly used cancer cell lines. The annotation files used for processing these sequencing data are also stored in the bucket. Below is the folder index for the open data bucket
+The SG-NEx S3 bucket contains the following types of data:
+
+   - [Raw sequencing signal (fast5)](#raw-sequencing-signal)            
+   - [Basecalled sequences (fastq)](#basecalled-sequences)            
+   - [Aligned sequences (bam)](#aligned-sequences)     
+   - [Data visualisation tracks (bigwig/bigbed)](#data-visualisation-tracks)        
+   - [Annotations](#annotations)            
+   - [Processed data for RNA modification detection](#processed-data)     
+   - [Sample and experiment information](#sample-and-experimental-data)               
+
+ Below is the folder index for the open data bucket:
+
 ![folder indexing\!](/images/folder_index.png)
 
-The bucket contains the following types of data
-
-   - [Raw sequencing signals](#raw-sequencing-signals)            
-   - [Basecalled sequences](#basecalled-sequences)            
-   - [Aligned sequences](#aligned-sequences)             
-   - [Annotations](#annotations)            
-   - [Processed data](#processed-data)                    
-
-The sample information is provided [here](/docs/samples.tsv). The data also include multiplexed samples, for those samples, they will share the same fast5 files, to find the sample mapping to mux samples, please refer the multiplexed sample info [here](/docs/multiplexed_samples.tsv)
-
-# Raw sequencing signals
-To access raw sequencing fast5 file
+# Raw sequencing signal
+To access raw sequencing (fast5) files:
 
 ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/ # list samples 
@@ -24,7 +25,7 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/sample
 ```
 
 # Basecalled sequences
-To access basecalled sequencing fastq file
+To access basecalled sequencing (fastq) files:
 
 ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/  # list samples 
@@ -32,7 +33,7 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/sample
 ```
 # Aligned sequences
 
-We provide both genome and transcriptome aligned files
+We provide both genome and transcriptome aligned files:
 
 ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/genome  # list samples inside this folder
@@ -41,15 +42,24 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/genome/s
 aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/transcriptome  # list samples inside this folder
 aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/transcriptome/sample_name .   # download bam files that are aligned to transcriptome
 ```
+# Data visualisation tracks
 
+We provide bigbed and bigwig files which can be directly visualised any genome browser. These files follow the UCSC chromosome naming convention and they can be directly visualised using the UCSC Genome Browser:
+
+- [Visualise the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chrX%3A15222881%2D15533324&hgsid=1412808365_PnEkLUK7aspQOsfc7WDB6Sm93YA2)
+
+The files can be accessed and downloaded through S3 as well:
+```bash
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/genome_browser_data/bigbed/  # list all bigbed files
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/genome_browser_data/bigwig/  # list all bigwig files
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/genome_browser_data/bigbed/sample_name.bigbed .   # download bigbed file for the a specific sample
+```
 # Annotations
 
-We provide genome fasta, gtf file and transcriptome fasta files to cater for all needs.
+The genome and transcriptome fasta files and the gtf file describing the genome annotations and which were used to process thedata can also be accessed. Two sets of annotations are provided in the bucket:
 
-Two sets of annotations are provided in the bucket: 
-
-- Grch38 Ensembl annotations: 
-- Grch38 Ensembl + Sequin + SIRVERCCome annotations
+- Grch38 Ensembl annotations (without spike in RNAs) 
+- Grch38 Ensembl + Sequin + SIRV and ERCC annotations
 
 ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/annotations/genome_fasta/  # list included genome fasta files used for processing the sequencing data 
@@ -58,7 +68,6 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/genome_fasta .  
 
 
 ![genome_fasta\!](/images/genome_fasta.png)
-
 
 
 ```bash
@@ -70,7 +79,6 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/transcriptome_fa
 
 
 ```bash
-
 aws s3 ls --no-sign-request s3://sg-nex-data/data/annotations/gtf_file/  # list included annotation gtf files used in processing the sequencing data 
 aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/gtf_file .  # download nnotation gtf files used for processing the sequencing data 
 ```
@@ -81,28 +89,27 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/gtf_file .  # do
 # Processed data 
 
 ## RNA modification detection
- Long read RNA sequencing has allowed for detection of RNA modification with RNA modification tools, such as xPore and m6Anet. In the SG-Nex datasets, you can also find the processed data for xPore and m6Anet. 
+ Long read direct RNA sequencing has allows the detection of RNA modification with RNA modification tools, such as [xPore](https://github.com/GoekeLab/xpore) and [m6Anet](https://github.com/GoekeLab/m6anet). To simplify the analysis of RNA modifications using the SG-Nex datasets, you can download the processed files to use with xPore and m6Anet. 
  
- To download xpore processed data
+ To download the processed data for differential RNA modification analysis with xPore:
  ```bash
-
 aws s3 ls --no-sign-request s3://sg-nex-data/data/processed_data/xpore/  # list all samples that have processed data for RNA modification detection using xPore
 aws s3 sync --no-sign-request s3://sg-nex-data/data/processed_data/xpore/sample_name .  # download the json and index file needed for running xPore
 ```
-To download m6Anet processed data
+To download the processed data for detection of m6A using m6Anet:
  ```bash
-
 aws s3 ls --no-sign-request s3://sg-nex-data/data/processed_data/m6Anet/  # list all samples that have processed data for RNA modification detection using m6Anet
 aws s3 sync --no-sign-request s3://sg-nex-data/data/processed_data/m6Anet/sample_name .  # download the json and index file needed for running m6Anet
 ```
 
-[Here](/docs/samples_with_RNAmod_data.tsv) you can find all samples with matched processed data for xPore and m6Anet.
+These files are provided for a subset of samples, please see [here](/docs/samples_with_RNAmod_data.tsv) for the sample list with matched processed data for xPore and m6Anet.
 
-For how to use xPore with AWS data, you can refer [here](/docs/xPore_ONT_tutorial_draft1.ipynb) for guidance.
+# Sample and experimental data 
 
-## Long read transcript discovery and quantification
-The ability to generate full-length RNA data has also made it possible to discover novel isoforms directly from the RNA Seq reads. However, removing false positive novel transcripts and inactive isoforms have always been a challenging task. There are quite a few tools developed for transcript discovery and quantification, for example, Bambu. 
-
-For how to use Bambu with AWS data, you can refer [here](https://goekelab.github.io/bambu/articles/bambu.html) for guidance. 
+Detailed information for each sequencing sample is provided [here](/docs/samples.tsv). The data also includes multiplexed samples which share the same fast5 files. The information about the multiplexed samples can be found [here](/docs/multiplexed_samples.tsv). The files can also be accessed directly on S3:
 
 
+ ```bash
+aws s3 ls --no-sign-request s3://sg-nex-data/metadata/  # list metadata files
+aws s3 sync --no-sign-request s3://sg-nex-data/metadata/ .  # download the metadata files
+```
