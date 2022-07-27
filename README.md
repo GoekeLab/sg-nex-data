@@ -71,7 +71,7 @@ All data was aligned against the human genome version Grch38 (please refer to th
 
 ## Use Cases and Applications
 
-You can browse a list of articles that review or use the SG-NEx data [here](SGNEx_usecases.md). If you have used the data for your own research, feel free to add a publication entry.
+You can browse a list of articles that review or use the SG-NEx data [here](/docs/SGNEx_usecases.md). If you have used the data for your own research, feel free to add a publication entry.
 
 ## Data Analysis Tutorials
 
