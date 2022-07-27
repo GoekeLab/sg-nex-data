@@ -1,7 +1,7 @@
 ![The Singapore Nanopore-Expression Project\!](
 https://jglaborg.files.wordpress.com/2021/10/sg_nex_textlogo.png)
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-download)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-release-and-access) [![cell lines](https://img.shields.io/badge/cell_lines-11-green)](#data-release-and-access) [![Sequencing Experiments](https://img.shields.io/badge/sequencing_runs-84-green)](docs/samples.tsv) 
 
 The SG-NEx project is an international collaboration initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/) to provide reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
 
@@ -73,15 +73,24 @@ All data was aligned against the human genome version Grch38 (please refer to th
 
 You can browse a list of articles that review or use the SG-NEx data [here](/docs/SGNEx_usecases.md). If you have used the data for your own research, feel free to add a publication entry.
 
-## Data Analysis Tutorials
+## Data Analysis Tutorials and Workflows
 
-The following tutorials are available that demonstrate how to analyse the SG-NEx data:
+The following short tutorials are available that demonstrate how to analyse the SG-NEx data:
 
-- Transcript discovery and quantification of SG-NEx samples using Bambu
+- Transcript discovery and quantification of SG-NEx samples (using Bambu)
 
-- Analysing differential RNA modifications using xPore
+- Analysing differential RNA modifications of SG-NEx samples (using xPore)
 
-- Identification of m6A using m6Anet
+- Identification of m6A with the SG-NEx samples (using m6Anet)
+
+Additional, more detailed workflows can be found here:
+
+- Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data
+
+- Identification of differential RNA modifications using a METTL3 knockout cell line
+
+- Analysing transcriptome-wide m6A modifications
+
 
 ## Contributors
 
