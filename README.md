@@ -3,17 +3,20 @@ https://jglaborg.files.wordpress.com/2021/10/sg_nex_textlogo.png)
 
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-download)
 
-The SG-NEx project is an international collaboration that was initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/). The aim of the SG-NEx Project is to generate reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
+The SG-NEx project is an international collaboration initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/) to provide reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
 
 ![The Singapore Nanopore-Expression Project - Design\!](
 https://jglaborg.files.wordpress.com/2020/10/sg_nex_design-1.png)
 
-Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. All samples are sequenced with at least 3 high quality replicates. For a subset of samples, we used sequin spike-in RNAs.
+Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. All samples are sequenced with at least 3 high quality replicates. For a subset of samples, we used sequin spike-in RNAs, m6A profiling using m6ACE-Seq is provided for 2 cell lines. 
+
+The raw, aligned, and processed data is hosted on the AWS open data registry (see below for data access and analysis tutorial).
+
 
 ## Content
 
 - [Email list](#sign-up-for-data-release-notifications-and-updates)
-- [Data Download and Release History](#data-download)
+- [Latest Data Release](#data-release)
 - [Data Processing](#data-processing)
 - [Use Cases and Applications](#use-cases-and-applications)
 - [Data Access Tutorials](#data-access-tutorials)
@@ -26,12 +29,13 @@ You can sign up for the sg-nex-updates email list to receive notifications about
 
 https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
-## Data Download
+## Data Release
 
-**Pre-Release (v0.2)**
+**Latest Release (v0.3)**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5574654.svg)](https://doi.org/10.5281/zenodo.5574654)
 
+All data is now accessible through the AWS Open Data Registry.
 
 Data can be downloaded [here](DATA.md)     
 
