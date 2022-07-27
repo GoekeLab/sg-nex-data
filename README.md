@@ -49,7 +49,7 @@ This release includes 86 samples from 11 different cell lines. You can access th
 
 Please read the [data access tutorial](docs/AWS_data_access_tutorial.md) which describes the S3 data structure and how to access files on AWS. The direct links to the data are listed in the [sample spreadsheet](docs/samples.tsv).
 
-_**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data [VERSION] was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
+_**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
 Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
 
@@ -105,9 +105,11 @@ Ying Chen, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Naruemon Pratanwanich,
 
 ## Citing the SG-NEx project
 
-If you use the SG-NEx data in your research, please specify the [release version](#data-download) and the date of access ("The SG-NEx data [VERSION] was accessed on [DATE] at registry.opendata.aws/sg-nex-data"), and cite the pre-print that describes this data resource:
+The SG-NEx resource is described in:
 
 Chen, Ying, et al. "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
+
+Please cite this pre-print when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
 ## Contact
 
