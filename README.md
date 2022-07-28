@@ -8,7 +8,7 @@ The SG-NEx project is an international collaboration initiated at the [Genome In
 ![The Singapore Nanopore-Expression Project - Design\!](
 https://jglaborg.files.wordpress.com/2020/10/sg_nex_design-1.png)
 
-Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. All samples are sequenced with at least 3 high quality replicates. For a subset of samples, we used sequin spike-in RNAs, m6A profiling using m6ACE-Seq is provided for 2 cell lines. 
+Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. All samples are sequenced with at least 3 high quality replicates. For a subset of samples spike-in RNAs are included and matched m6A profiling is available.
 
 The raw, aligned, and processed data is hosted on the AWS open data registry (see below for data access and analysis tutorial).
 
