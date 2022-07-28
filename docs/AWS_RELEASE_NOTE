@@ -1,14 +1,13 @@
-SG-NEx data release on AWS S3 open data 
+The Singapore Nanopore Expression (SG-NEx) Project: Release updates on AWS S3 open data 
 
 
-Version Number: V1.0.0               
-Date: 2022-05-20
-By: Ying Chen
-Sequencing technology: Nanopore RNA sequencing
-Seqeuncing protocols: direct RNA, cDNA, direct cDNA
-Sequencing platforms: MinION, GridION, PromethION
-Basecalling software and versions: Albacore v2.3.1, Guppy v1.4.3 to v5.1.13
-Processing pipeline: we collaborated with nfcore to develop Nanoseq (https://github.com/nf-core/nanoseq).
-Alignment software: Minimap2 (alignment parameters can be found here (https://github.com/nf-core/nanoseq/blob/master/modules/local/minimap2_align.nf).
-Note: For more data generation details, you may also refer to our manuscript below:
+Version Number: V0.3.0               
+Date: 2022-07-28
+By: Ying Chen, Genome Insitute of Singapore
+Initial release of the SG-NEx data on AWS. Includes Nanopore direct RNA, cDNA, direct cDNA-Seq, short read RNA-Seq and m6ACE-Seq. Please refer to https://github.com/GoekeLab/sg-nex-data for a detailed documentation.
+
+Data access tutorial: https://github.com/GoekeLab/sg-nex-data/docs/AWS_data_access_tutorial.md
+Contact and questions: https://github.com/GoekeLab/sg-nex-data/discussions
+
+Please refer to the pre-print describing the SG-NEx data resource:
 Chen, Ying, et al. "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." bioRxiv (2021). doi: https://doi.org/10.1101/2021.04.21.440736
