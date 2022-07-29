@@ -1,16 +1,12 @@
 #######################################################
 ##                                                   ##
-## How to access SG-NEx datasets from AWS S3 bucket  ##
+##     The Singapore Nanopore Expression Project     ##
 ##                                                   ##
 #######################################################
 
-1. Read up the AWS tutorial: https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/AWS_Tutorial.md
+The Singapore Nanopore Expression (SG-NEx) project is an international collaboration to generate reference transcriptomes and a comprehensive benchmark data set for long read Nanopore RNA-Seq. Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. The SG-NEx core data includes 5 of the most commonly used cell lines and it is extended with additional cell lines and samples that cover a broad range of human tissues. All core samples are sequenced with at least 3 high quality replicates. For a subset of samples spike-in RNAs are used and matched m6A profiling data is available.
 
-2. To download sequencing data for one specific sample, check the sample download links here: https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples.tsv
+The SG-NEx data set is documented here: https://github.com/GoekeLab/sg-nex-data
 
-3. To download processed data for RNA modification by xpore, please go here: https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples_with_RNAmod_data.tsv
-
-4. To download processed data for RNA modification by m6Anet, please go here: https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples_with_RNAmod_data.tsv
-
-5. To download processed data for RNA discovery and quantification by Bambu, please go here: to be added soon
+The folder structure and data access tutorial is described here: https://github.com/GoekeLab/sg-nex-data/docs/AWS_data_access_tutorial.md
 

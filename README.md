@@ -1,22 +1,26 @@
 ![The Singapore Nanopore-Expression Project\!](
 https://jglaborg.files.wordpress.com/2021/10/sg_nex_textlogo.png)
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-download)
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-release-and-access) [![cell lines](https://img.shields.io/badge/cell_lines-11-green)](#data-release-and-access) [![Sequencing Experiments](https://img.shields.io/badge/sequencing_runs-84-green)](docs/samples.tsv) 
 
-The SG-NEx project is an international collaboration that was initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/). The aim of the SG-NEx Project is to generate reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
+The SG-NEx project is an international collaboration initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/) to provide reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
 
 ![The Singapore Nanopore-Expression Project - Design\!](
 https://jglaborg.files.wordpress.com/2020/10/sg_nex_design-1.png)
 
-Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. All samples are sequenced with at least 3 high quality replicates. For a subset of samples, we used sequin spike-in RNAs.
+Transcriptome profiling is done using PCR-cDNA sequencing ("PCR-cDNA"), amplification-free cDNA sequencing ("direct cDNA"), direct sequencing of native RNA (“direct RNA”), and short read RNA-Seq. All samples are sequenced with at least 3 high quality replicates. For a subset of samples spike-in RNAs are included and matched m6A profiling is available.
+
+The raw, aligned, and processed data is hosted on the AWS open data registry (see below for data access and analysis tutorial).
+
 
 ## Content
 
 - [Email list](#sign-up-for-data-release-notifications-and-updates)
-- [Data Download and Release History](#data-download)
+- [Latest Data Release and Access](#data-release-and-access)
+- [Browse the data](#browse-the-data)
 - [Data Processing](#data-processing)
 - [Use Cases and Applications](#use-cases-and-applications)
-- [Data Access Tutorials](#data-access-tutorials)
+- [Data Analysis Tutorials](#data-analysis-tutorials)
 - [Contributors](#contributors)
 - [Citing the SG-NEx project](#citing-the-sg-nex-project)
 - [Contact](#contact)
@@ -26,36 +30,67 @@ You can sign up for the sg-nex-updates email list to receive notifications about
 
 https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
-## Data Download
+## Data Release and Access
 
-**Pre-Release (v0.2)**
+**Latest Release (v0.3)**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5574654.svg)](https://doi.org/10.5281/zenodo.5574654)
 
+This release includes 86 samples from 11 different cell lines. You can access the following data through the AWS Open Data Registry:
 
-Data can be downloaded [here](DATA.md)     
+- raw files (fast5)
+- basecalled files (fastq)
+- aligned reads (genome and transcriptome) (bam)
+- tracks for visualisation (bigwig and bigbed)
+- processed data for differential RNA modification analysis (json, for use with xPore)
+- processed data for identification of m6A (json, for use with m6Anet)
+- annotation files
+- detailed sample and experiment information
 
-_**Notes on data usage**_: This site provides early access to the SG-NEx data. These data can be used in research and publications, but we ask data users to refrain from publishing a systematic comparison that is described in the pre-print until the final manuscript is published. If you are uncertain, please feel free to reach out ([Contact](#contact)).
+Please read the [data access tutorial](docs/AWS_data_access_tutorial.md) which describes the S3 data structure and how to access files on AWS. The direct links to the data are listed in the [sample spreadsheet](docs/samples.tsv).
+
+_**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
+
+Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
 
 **Release History**
 
 You can find previous releases here in the [release history](https://github.com/GoekeLab/sg-nex-data/releases)
 
+## Browse the data
+
+You can now browse the data using the UCSC genome browser:
+
+[View the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chrX%3A15222881%2D15533324&hgsid=1412808365_PnEkLUK7aspQOsfc7WDB6Sm93YA2)
+
+By default only selected tracks are shown, but you can visualise all reads (bigbed tracks) and their coverage tracks (bigwig) from each individual sample.
+
 ## Data Processing
 
-We collaborated with [nf-core](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA-Seq data processing.
-
-**Reference files**
-
-Details on reference files can be found [here](ANNOTATIONS.md).
+All data was aligned against the human genome version Grch38 (please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) for reference files). We collaborated with [nf-core](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA-Seq data processing. 
 
 ## Use Cases and Applications
 
-You can browse a list of articles that review or use the SG-NEx data [here](SGNEx_usecases.md). 
+You can browse a list of articles that review or use the SG-NEx data [here](/docs/SGNEx_usecases.md). If you have used the data for your own research, feel free to add a publication entry.
 
-## Data Access Tutorials
+## Data Analysis Tutorials and Workflows
 
-Coming soon! Please refer to [Data Download](#data-download) in the meantime.
+The following short tutorials are available that demonstrate how to analyse the SG-NEx data:
+
+- Transcript discovery and quantification of SG-NEx samples (using Bambu)
+
+- Analysing differential RNA modifications of SG-NEx samples (using xPore)
+
+- Identification of m6A with the SG-NEx samples (using m6Anet)
+
+Additional, more detailed workflows can be found here:
+
+- Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data
+
+- Identification of differential RNA modifications using a METTL3 knockout cell line
+
+- Analysing transcriptome-wide m6A modifications
+
 
 ## Contributors
 
@@ -70,11 +105,11 @@ Ying Chen, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Naruemon Pratanwanich,
 
 ## Citing the SG-NEx project
 
-If you use the SG-NEx data in your research, please specify the [release version](#data-download) and cite the pre-print that describes this data resource:
+The SG-NEx resource is described in:
 
 Chen, Ying, et al. "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
 
-Please see the note on data usage (under [Data Download](#data-download)).
+Please cite this pre-print when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
 ## Contact
 
