@@ -7,6 +7,7 @@ By: Ying Chen, Genome Insitute of Singapore
 Initial release of the SG-NEx data on AWS. Includes Nanopore direct RNA, cDNA, direct cDNA-Seq, short read RNA-Seq and m6ACE-Seq. Please refer to https://github.com/GoekeLab/sg-nex-data for a detailed documentation.
 
 Data access tutorial: https://github.com/GoekeLab/sg-nex-data/docs/AWS_data_access_tutorial.md
+Data browser link: http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/
 Contact and questions: https://github.com/GoekeLab/sg-nex-data/discussions
 
 Please refer to the pre-print describing the SG-NEx data resource:
