@@ -78,7 +78,7 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/geno
 ### **Prepare Data for Bambu**
 
 All required data are now stored in the `bambu_tutorial` folder of the
-current working directory. Next, we prepare the data to run bambu.
+current working directory. Next, we prepare the data to run Bambu.
 
 ``` bash
 R  
@@ -96,12 +96,12 @@ samples.bam <- list.files(".", pattern = ".bam$", full.names = TRUE)
 
 ## **Running Bambu**
 
-Now we can run bambu with these data. For a
+Now we can run Bambu with these data. For a
 faster running speed, you can increase the `ncore` parameter up
 to the total number of samples at your availability. 
 
 ``` bash
-# running bambu 
+# running Bambu 
 se <- bambu(reads = samples.bam, annotations = annotations, genome = fa.file, ncore = 2)  
 ```
 
@@ -112,7 +112,7 @@ estimates. They can be assessed using the following code:
 ``` bash
 assays(se) #returns the transcript abundance estimates as counts or CPM.
 rowRanges(se) #returns a GRangesList (with genomic coordinates) with all annotated and newly discovered transcripts.
-rowData(se) #returns additional information about each transcript such as the gene name and the class of newly discovered transcript.
+rowData(se) #returns additional information about each transcript such as the gene name and the class of the newly discovered transcript.
 ```
 This `SummarizedExperiment` object can also be used for further downstream analysis (eg. DESeq). If you want to save the transcript &  genomic annotations and their expression
 estimates, you can then write them into an `output` folder using the `writeBambuOutput` function.
