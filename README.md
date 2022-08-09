@@ -79,9 +79,9 @@ The following short tutorials are available that demonstrate how to analyse the 
 
 - Transcript discovery and quantification of SG-NEx samples (using Bambu)
 
-- Analysing differential RNA modifications of SG-NEx samples (using xPore)
+- [Analysing differential RNA modifications of SG-NEx samples (using xPore)](./docs/SG-NEx_xPore_tutorial.md)
 
-- Identification of m6A with the SG-NEx samples (using m6Anet)
+- [Identification of m6A with the SG-NEx samples (using m6Anet)](./docs/SG-NEx_m6Anet_tutorial.md)
 
 Additional, more detailed workflows can be found here:
 
