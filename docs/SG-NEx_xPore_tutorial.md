@@ -123,7 +123,7 @@ method:
         method: t-test
         threshold: 0.1
 ```
-#### **Please press the `Enter` key followed by the `Ctrl` and `D` keys together to save the file. This file is now saved as `config.yml`**
+#### **Please press the `Enter` key followed by the `Ctrl` and `D` keys to save the file. This file is now saved as `config.yml`**
 <br>
 
 **Note: If you want xPore to test every genomic/transcriptomic position, you may remove the prefiltering section.** <br>
@@ -154,7 +154,7 @@ xPore returns a table `(diffmod.table)` consisting of differential RNA modificat
 #### **NOTE: This is a short tutorial to demonstrate the usage of xPore on the SG-NEx data. Please refer to the [xPore documentation](https://xpore.readthedocs.io/en/latest/quickstart.html#) for the complete workflow to perform differential RNA modification analysis.** 
 <br>
 
-### **Access to file required for complete workflow** 
+### **Access to the required files for complete workflow** 
 
 If you wish to run the complete workflow of xPore, you can access all the required files (fast5, fastq and bam files) from the [SG-NEx S3 bucket](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples.tsv). 
 

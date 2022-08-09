@@ -113,7 +113,7 @@ m6anet-run_inference --input_dir ./replicate1 ./replicate2 ./replicate3 --out_di
 #### **NOTE: This is a short tutorial to demonstrate the usage of m6Anet on the SG-NEx data. Please refer to the [m6Anet documentation](https://m6anet.readthedocs.io/en/latest/quickstart.html) for the complete workflow to identify m6A modification.** 
 <br>
 
-### **Access to file required for complete workflow** 
+### **Access to the required files for complete workflow** 
 
 If you wish to run the complete workflow of m6Anet, you can access all the required files (fast5, fastq and bam files) from the [SG-NEx S3 bucket](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples.tsv). 
 
