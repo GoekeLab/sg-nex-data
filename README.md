@@ -85,11 +85,11 @@ The following short tutorials are available that demonstrate how to analyse the 
 
 Additional, more detailed workflows can be found here:
 
-- Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data
+- [Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data(using Bambu)](https://github.com/GoekeLab/bambu)
 
-- Identification of differential RNA modifications using a METTL3 knockout cell line
+- [Identification of differential RNA modifications using a METTL3 knockout cell line(using xPore)](./docs/xPore_ONT_tutorial.ipynb)
 
-- Analysing transcriptome-wide m6A modifications
+- [Analysing transcriptome-wide m6A modifications(using m6Anet)](https://m6anet.readthedocs.io/en/latest/)
 
 
 ## Contributors
@@ -101,7 +101,7 @@ Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor
 Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, Xuewen Ong, Hui Qi Amanda Ng, Suk Yeah Polly Poon, Hoang-Dai Tran, Kok Hao Edwin Lim, Huck Hui Ng, Boon Ooi Patrick Tan, Huck-Hui Ng, N.Gopalakrishna Iyer, Wai Leong Tam, Wee Joo Chng, Leilei Chen, Ramanuj DasGupta, Yun Shen Winston Chan, Qiang Yu, Torsten Wüstefeld, Wee Siong Sho Goh
 
 **Statistical Modeling and Data Analytics**                     
-Ying Chen, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
+Ying Chen, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Min Hao Ling, Yu Song Chuah, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
 
 ## Citing the SG-NEx project
 
