@@ -1,6 +1,6 @@
 # **Analysing differential RNA modifications of SG-NEx samples** 
 
-In this tutorial, we will perform differential RNA modification analysis on the SG-NEx sample. We will use the Nanopore direct RNA-sequencing data of A549 and HepG2 cell lines from the SG-NEx project for this analysis. The A549 cell line was extracted from the lung tissues of a patient with lung cancer. Meanwhile, the HepG2 cell line was extracted from hepatocellular carcinoma from a patient with liver cancer. A Python package known as **xPore**, will be used to identify differential RNA modification sites in these two cell lines. <br>
+In this tutorial, we will perform differential RNA modification analysis on the SG-NEx samples. We will use the Nanopore direct RNA-sequencing data of A549 and HepG2 cell lines from the SG-NEx project for this analysis. The A549 cell line was extracted from the lung tissues of a patient with lung cancer. Meanwhile, the HepG2 cell line was extracted from hepatocellular carcinoma from a patient with liver cancer. A Python package known as **xPore**, will be used to identify differential RNA modification sites in these two cell lines. <br>
 **Note: This tutorial may take 2 hours to complete(due to the use of large datasets).**
 
 ## **Content**
