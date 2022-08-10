@@ -140,7 +140,7 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/transcriptome_fa
 # To download the gtf file
 aws s3 cp --no-sign-request s3://sg-nex-data/data/annotations/gtf_file/Homo_sapiens.GRCh38.91.gtf ./
 ```
-Alternatively, you can download the files with their respective [URLs](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples.tsv). 
+Alternatively, you can download the files from the [AWS S3 browser](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/#data/annotations/) directly. 
 
 
 ## **Reference**
