@@ -143,7 +143,7 @@ Now, we are all set to run xPore to identify differential RNA modification.
 # Before running the command, please ensure that you are at the directory where the .yml configuration file is located.
 xpore diffmod --config config.yml --n_processes 8
 ```
-**Note: You can reduce the "n_processes" if you have lesser processes available in your machine. However, lowering the "n_processes" may increase the run time. Alternatively, you may visit the [xPore documentation](https://xpore.readthedocs.io/en/latest/data.html) for downsampled dataset (demo.tar.gz file), which can reduce the total run time to less than ten minutes.**
+**Note: You can reduce the "n_processes" if you have lesser processes available in your machine. However, lowering the "n_processes" may increase the running time. Alternatively, you may use the downsampled dataset (demo.tar.gz file) from the [xPore documentation](https://xpore.readthedocs.io/en/latest/data.html), which can reduce the total running time to less than ten minutes.**
 
 
 xPore returns a table `(diffmod.table)` consisting of differential RNA modification rates for all tested positions, saved in the specified output directory in the `.yml` file. Please refer to the [xPore documentation](https://xpore.readthedocs.io/en/latest/outputtable.html) for more information regarding the output table. 
