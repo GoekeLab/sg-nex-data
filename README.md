@@ -85,11 +85,11 @@ The following short tutorials are available that demonstrate how to analyse the 
 
 Additional, more detailed workflows can be found here:
 
-- [Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data(using Bambu)](https://github.com/GoekeLab/bambu)
+- [Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data (using Bambu)](https://github.com/GoekeLab/bambu)
 
-- [Identification of differential RNA modifications using a METTL3 knockout cell line(using xPore)](./docs/xPore_ONT_tutorial.ipynb)
+- [Identification of differential RNA modifications using a METTL3 knockout cell line (using xPore)](./docs/xPore_ONT_tutorial.ipynb)
 
-- [Analysing transcriptome-wide m6A modifications(using m6Anet)](https://m6anet.readthedocs.io/en/latest/)
+- [Analysing transcriptome-wide m6A modifications (using m6Anet)](https://m6anet.readthedocs.io/en/latest/)
 
 
 ## Contributors
