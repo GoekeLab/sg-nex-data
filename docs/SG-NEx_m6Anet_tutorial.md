@@ -110,7 +110,7 @@ m6anet-run_inference --input_dir ./replicate1 ./replicate2 ./replicate3 --out_di
 ```
 <br>
 
-#### **NOTE: This is a short tutorial to demonstrate the usage of m6Anet on the SG-NEx data. Please refer to the [m6Anet documentation](https://m6anet.readthedocs.io/en/latest/quickstart.html) for the complete workflow to identify m6A modification.** 
+#### **NOTE: This is a short tutorial to demonstrate the usage of m6Anet on the SG-NEx data. Please refer to the [m6Anet documentation](https://m6anet.readthedocs.io/en/latest/quickstart.html) for the complete workflow on identifying m6A modification with m6Anet.** 
 <br>
 
 ### **Access to the required files for the complete workflow** 
