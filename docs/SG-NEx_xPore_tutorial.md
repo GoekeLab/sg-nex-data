@@ -154,7 +154,7 @@ xPore returns a table `(diffmod.table)` consisting of differential RNA modificat
 #### **NOTE: This is a short tutorial to demonstrate the usage of xPore on the SG-NEx data. Please refer to the [xPore documentation](https://xpore.readthedocs.io/en/latest/quickstart.html#) for the complete workflow on performing differential RNA modification analysis with xPore.** 
 <br>
 
-### **Access to the required files for complete workflow** 
+### **Access to the required files for the complete workflow** 
 
 If you wish to run the complete workflow of xPore, you can access all the required files (fast5, fastq and bam files) from the [SG-NEx S3 bucket](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples.tsv). 
 
