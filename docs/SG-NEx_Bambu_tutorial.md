@@ -114,7 +114,7 @@ assays(se) #returns the transcript abundance estimates as counts or CPM.
 rowRanges(se) #returns a GRangesList (with genomic coordinates) with all annotated and newly discovered transcripts.
 rowData(se) #returns additional information about each transcript such as the gene name and the class of the newly discovered transcript.
 ```
-This `SummarizedExperiment` object can also be used for further downstream analysis (eg. DESeq). If you want to save the transcript &  genomic annotations and their expression
+This `SummarizedExperiment` object can also be used for further downstream analysis (eg. [DESeq](http://bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html)). If you want to save the transcript &  genomic annotations and their expression
 estimates, you can then write them into an `output` folder using the `writeBambuOutput` function.
 
 ``` bash
