@@ -2,7 +2,7 @@
 
 In this tutorial, we will perform novel transcript discovery and
 quantification on the SG-NEx samples. We will be using six Nanopore direct RNA-Sequencing
-Nanopore long-read samples, three replicates each from the A549 and
+samples, three replicates each from the A549 and
 HepG2 cell lines. The A549 cell line was extracted from lung tissues
 from a patient with lung cancer whereas HepG2 was extracted from
 hepatocellular carcinoma from a patient with liver cancer. We will use
