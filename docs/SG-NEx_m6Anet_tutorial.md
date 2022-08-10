@@ -35,7 +35,7 @@ For this tutorial, we will use the data from the A549_directRNA_replicate6_run1 
 
 - feature values of the A549 sample (json file), 
 - indexes of the feature values file (index file),
-- number of reads for each DRACH position. (readcount file)
+- number of reads for each DRACH position (readcount file).
 
 ### **Download data for m6Anet**
 The data files can be downloaded from the [SG-NEx AWS S3 bucket](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). Please refer to this [page](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/AWS_data_access_tutorial.md) for a comprehensive tutorial to access the SG-NEx dataset.
