@@ -151,7 +151,7 @@ xPore returns a table `(diffmod.table)` consisting of differential RNA modificat
 <br>
 
 
-#### **NOTE: This is a short tutorial to demonstrate the usage of xPore on the SG-NEx data. Please refer to the [xPore documentation](https://xpore.readthedocs.io/en/latest/quickstart.html#) for the complete workflow to perform differential RNA modification analysis.** 
+#### **NOTE: This is a short tutorial to demonstrate the usage of xPore on the SG-NEx data. Please refer to the [xPore documentation](https://xpore.readthedocs.io/en/latest/quickstart.html#) for the complete workflow on performing differential RNA modification analysis with xPore.** 
 <br>
 
 ### **Access to the required files for complete workflow** 
