@@ -9,7 +9,7 @@ hepatocellular carcinoma from a patient with liver cancer. We will use
 Bambu, a R package hosted on the Bioconductor platform to identify and
 quantify novel isoforms in these cell lines. 
 
-**Note: This tutorial may take 20 minutes to complete.**
+**Note: This tutorial may take 10 minutes to complete.**
 
 ## **Content**
 
@@ -53,13 +53,13 @@ tutorial](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/doc
 mkdir bambu_tutorial
 
 # download genome fasta file 
-aws s3 cp --no-sign-request s3://sg-nex-data/data/annotations/genome_fasta/Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa ./bambu_tutorial
+aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.fa ./bambu_tutorial
 
 # download genome index fastai file 
-aws s3 cp --no-sign-request s3://sg-nex-data/data/annotations/genome_fasta/Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.fai ./bambu_tutorial
+aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.fa.fai ./bambu_tutorial
 
 # download gtf file
-aws s3 cp --no-sign-request s3://sg-nex-data/data/annotations/gtf_file/Homo_sapiens.GRCh38.91.gtf ./bambu_tutorial
+aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.gtf ./bambu_tutorial
 
 # download aligned bam files for A549 samples and HepG2 samples
 aws s3 sync --no-sign-request s3://sg-nex-data/data/data_tutorial/bam ./bambu_tutorial --include *.bam 
@@ -68,7 +68,7 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/data_tutorial/bam ./bambu_tu
 You may also download the required data directly from the [SG-NEx AWS S3
 bucket](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/) if you are unfamiliar with AWS CLI command. They are stored in the `data/data_tutorial/bam` folder.
 
-**NOTE: We have downsampled A549 and HepG2 samples to ensure the tutorial can be completed within 20 minutes. If you want to run Bambu on the original samples, you can find the sample name [here](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/docs/samples.tsv) and amend it into the following code chunk:**
+**NOTE: We have downsampled the Hg38 genome, A549 and HepG2 samples to ensure this tutorial can be completed in 10 minutes. If you want to run Bambu on the original samples, you can find the sample name [here](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/docs/samples.tsv) and amend it into the following code chunk:**
 
 ```bash
 # Note: Please make sure to replace the "sample_alias" with your sample name 
