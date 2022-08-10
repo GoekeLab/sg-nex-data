@@ -31,7 +31,7 @@ cd ..  # return to the working directory
 
 ## **Data Access and Preparation**
 
-xPore requires a control group and a treatment group to work. For this tutorial, we will use the data from A549_directRNA_replicate6_run1 as the control and HepG2_directRNA_replicate6_run1 as the treatment group. The required data include:
+xPore requires at least two samples for comparison. For this tutorial, we will use the data from A549_directRNA_replicate6_run1 and HepG2_directRNA_replicate6_run1. The required data include:
 
 - feature values from both the A549 and HepG2 samples (two json files, one for each sample),
 - indexes of the feature values file. (two index files, one from each sample)
