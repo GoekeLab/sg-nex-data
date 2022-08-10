@@ -34,7 +34,7 @@ cd ..  # return to the working directory
 For this tutorial, we will use the data from the A549_directRNA_replicate6_run1 sample. The required data include:
 
 - feature values of the A549 sample (json file), 
-- indexes of the feature values file. (index file)
+- indexes of the feature values file (index file),
 - number of reads for each DRACH position. (readcount file)
 
 ### **Download data for m6Anet**
