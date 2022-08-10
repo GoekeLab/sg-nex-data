@@ -34,7 +34,7 @@ cd ..  # return to the working directory
 xPore requires at least two samples for comparison. For this tutorial, we will use the data from A549_directRNA_replicate6_run1 and HepG2_directRNA_replicate6_run1. The required data include:
 
 - feature values from both the A549 and HepG2 samples (two json files, one for each sample),
-- indexes of the feature values file. (two index files, one from each sample)
+- indexes of the feature values file (two index files, one for each sample).
 
 ### **Download data for xPore**
 The data files can be downloaded from the [SG-NEx AWS S3 bucket](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). Please refer to this [page](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/AWS_data_access_tutorial.md) for a comprehensive tutorial to access the SG-NEx dataset.
