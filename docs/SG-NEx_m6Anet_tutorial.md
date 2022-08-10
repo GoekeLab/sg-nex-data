@@ -88,7 +88,7 @@ Now that all the required files are ready, we can proceed to run the m6Anet anal
 # Run m6Anet
 m6anet-run_inference --input_dir ./A549_directRNA_replicate6_run1 --out_dir ./A549_directRNA_replicate6_run1 --infer_mod_rate --n_processes 4
 ```
-**Note: You can reduce the "n_processes" if you have lesser processes available in your machine. However, lowering the "n_processes" may increase the run time.**
+**Note: You can reduce the "n_processes" if you have lesser processes available in your machine. However, lowering the "n_processes" may increase the running time.**
 
 
 m6Anet returns a csv file `(data.result.csv.gz)` that contains the probability of modification as well as the modification stoichiometry for each candidate site. The first few lines of the file are shown below.
