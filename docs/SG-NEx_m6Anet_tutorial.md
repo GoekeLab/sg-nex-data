@@ -102,7 +102,7 @@ Please refer to the [m6Anet documentation](https://m6anet.readthedocs.io/en/late
 <br>
 
 
-m6Anet also allows the pooling of replicates. It can be done by providing the file path to each replicate's folder containing the json, index and readcount files. 
+m6Anet also allows the pooling of replicate samples. It can be done by providing the file path to each replicate sample's folder containing the json, index and readcount files. 
 
 Example:
 ```
