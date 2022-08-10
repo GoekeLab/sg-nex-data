@@ -1,5 +1,0 @@
-### Datasets
-
-The current data release consists of 93 files that include long read and short read RNA-Seq data from all 5 cell lines. The sample description and download links can be found  [here](docs/Sample_information.txt).
-
-**_Notes on data usage_**: This site provides early access to the SG-NEx data. These data can be used in research and publications, but we ask data users to refrain from publishing a systematic comparison that is described in the pre-print until the final manuscript is published. If you are uncertain, please feel free to reach out (https://github.com/GoekeLab/sg-nex-data/#contact). You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: https://groups.google.com/forum/#!forum/sg-nex-updates/join. If you use the SG-NEx data in your research, please specify the [release version](https://github.com/GoekeLab/sg-nex-data/#data-download) and cite the pre-print (see [citation](https://github.com/GoekeLab/sg-nex-data/#citing-the-SG-NEx-project)).
