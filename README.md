@@ -77,7 +77,7 @@ You can browse a list of articles that review or use the SG-NEx data [here](/doc
 
 The following short tutorials are available that demonstrate how to analyse the SG-NEx data:
 
-- [Transcript discovery and quantification of SG-NEx samples (using Bambu)](https://github.com/cyusong/sg-nex-data/blob/short_tutorials/docs/SG-NEx_Bambu_tutorial.md)
+- [Transcript discovery and quantification of SG-NEx samples (using Bambu)](./docs/SG-NEx_Bambu_tutorial.md)
 
 - [Analysing differential RNA modifications of SG-NEx samples (using xPore)](./docs/SG-NEx_xPore_tutorial.md)
 
