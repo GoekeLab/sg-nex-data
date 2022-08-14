@@ -61,7 +61,7 @@ You can find previous releases here in the [release history](https://github.com/
 
 You can now browse the data using the UCSC genome browser:
 
-[View the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chrX%3A15222881%2D15533324&hgsid=1412808365_PnEkLUK7aspQOsfc7WDB6Sm93YA2)
+View the SG-NEx data in the UCSC Genome Browser (coming soon)
 
 By default only selected tracks are shown, but you can visualise all reads (bigbed tracks) and their coverage tracks (bigwig) from each individual sample.
 
