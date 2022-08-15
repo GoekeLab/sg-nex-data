@@ -20,43 +20,43 @@ The SG-NEx S3 bucket contains the following types of data:
 To access raw sequencing (fast5) files:
 
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/ # list samples 
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/sample_name .    # download fast5 files to your local directory
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fast5/ # list samples 
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fast5/sample_name .    # download fast5 files to your local directory
 ```
 
 # Basecalled sequences
 To access basecalled sequencing (fastq) files:
 
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/  # list samples 
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/sample_name .   # download fastq files to your local directory
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fastq/  # list samples 
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fastq/sample_name .   # download fastq files to your local directory
 ```
 # Aligned sequences
 
 We provide both genome and transcriptome aligned files:
 
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/genome  # list samples inside this folder
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/genome/sample_name .   # download bam files that are aligned to genome 
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/genome  # list samples inside this folder
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/genome/sample_name .   # download bam files that are aligned to genome 
 
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/transcriptome  # list samples inside this folder
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/transcriptome/sample_name .   # download bam files that are aligned to transcriptome
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/transcriptome  # list samples inside this folder
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/transcriptome/sample_name .   # download bam files that are aligned to transcriptome
 ```
 # Data visualisation tracks
 
 We provide bigbed and bigwig files which can be directly visualised any genome browser. These files follow the UCSC chromosome naming convention and they can be directly visualised using the UCSC Genome Browser:
 
-- [Visualise the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chrX%3A15222881%2D15533324&hgsid=1412808365_PnEkLUK7aspQOsfc7WDB6Sm93YA2)
+- Visualise the SG-NEx data in the UCSC Genome Browser(coming soon)
 
 The files can be accessed and downloaded through S3 as well:
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/genome_browser_data/bigbed/  # list all bigbed files
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/genome_browser_data/bigwig/  # list all bigwig files
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/genome_browser_data/bigbed/sample_name.bigbed .   # download bigbed file for the a specific sample
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/genome_browser_data/bigbed/  # list all bigbed files
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/genome_browser_data/bigwig/  # list all bigwig files
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/genome_browser_data/bigbed/sample_name.bigbed .   # download bigbed file for the a specific sample
 ```
 # Annotations
 
-The genome and transcriptome fasta files and the gtf file describing the genome annotations and which were used to process thedata can also be accessed. The latest SG-NEx data release used Ensembl version 91 (see [here](docs/ANNOTATIONS.md) for links to original data). Two sets of annotations are provided in the bucket:
+The genome and transcriptome fasta files and the gtf file describing the genome annotations and which were used to process thedata can also be accessed. The latest SG-NEx data release used Ensembl version 91 (see [here](/docs/ANNOTATIONS.md) for links to original data). Two sets of annotations are provided in the bucket:
 
 - Grch38 Ensembl annotations (without spike in RNAs) 
 - Grch38 Ensembl + Sequin + SIRV and ERCC annotations

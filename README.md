@@ -61,7 +61,7 @@ You can find previous releases here in the [release history](https://github.com/
 
 You can now browse the data using the UCSC genome browser:
 
-[View the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chrX%3A15222881%2D15533324&hgsid=1427184463_EQ506DJQp0PbCbtAE3rOQe0jej5g)
+View the SG-NEx data in the UCSC Genome Browser (coming soon)
 
 By default only selected tracks are shown, but you can visualise all reads (bigbed tracks) and their coverage tracks (bigwig) from each individual sample.
 
@@ -77,7 +77,7 @@ You can browse a list of articles that review or use the SG-NEx data [here](/doc
 
 The following short tutorials are available that demonstrate how to analyse the SG-NEx data:
 
-- [Transcript discovery and quantification of SG-NEx samples (using Bambu)](https://github.com/cyusong/sg-nex-data/blob/short_tutorials/docs/SG-NEx_Bambu_tutorial.md)
+- [Transcript discovery and quantification of SG-NEx samples (using Bambu)](./docs/SG-NEx_Bambu_tutorial.md)
 
 - [Analysing differential RNA modifications of SG-NEx samples (using xPore)](./docs/SG-NEx_xPore_tutorial.md)
 
