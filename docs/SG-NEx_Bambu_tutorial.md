@@ -88,8 +88,8 @@ setwd("bambu_tutorial")
 
 # data preparation
 library(bambu)
-fa.file <- "Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa"
-gtf.file <- "Homo_sapiens.GRCh38.91.gtf"
+fa.file <- "hg38_chr22.fa"
+gtf.file <- "hg38_chr22.gtf"
 annotations <- prepareAnnotations(gtf.file) # This function creates a reference annotation object which is used for transcript discovery and quantification in Bambu.
 samples.bam <- list.files(".", pattern = ".bam$", full.names = TRUE)
 ```
