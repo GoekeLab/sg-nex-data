@@ -56,7 +56,7 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/genome_b
 ```
 # Annotations
 
-The genome and transcriptome fasta files and the gtf file describing the genome annotations and which were used to process thedata can also be accessed. The latest SG-NEx data release used Ensembl version 91 (see [here](docs/ANNOTATIONS.md) for links to original data). Two sets of annotations are provided in the bucket:
+The genome and transcriptome fasta files and the gtf file describing the genome annotations and which were used to process thedata can also be accessed. The latest SG-NEx data release used Ensembl version 91 (see [here](/docs/ANNOTATIONS.md) for links to original data). Two sets of annotations are provided in the bucket:
 
 - Grch38 Ensembl annotations (without spike in RNAs) 
 - Grch38 Ensembl + Sequin + SIRV and ERCC annotations
