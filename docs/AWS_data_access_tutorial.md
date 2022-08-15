@@ -20,27 +20,27 @@ The SG-NEx S3 bucket contains the following types of data:
 To access raw sequencing (fast5) files:
 
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/ # list samples 
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/fast5/sample_name .    # download fast5 files to your local directory
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fast5/ # list samples 
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fast5/sample_name .    # download fast5 files to your local directory
 ```
 
 # Basecalled sequences
 To access basecalled sequencing (fastq) files:
 
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/  # list samples 
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/fastq/sample_name .   # download fastq files to your local directory
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fastq/  # list samples 
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fastq/sample_name .   # download fastq files to your local directory
 ```
 # Aligned sequences
 
 We provide both genome and transcriptome aligned files:
 
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/genome  # list samples inside this folder
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/genome/sample_name .   # download bam files that are aligned to genome 
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/genome  # list samples inside this folder
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/genome/sample_name .   # download bam files that are aligned to genome 
 
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/transcriptome  # list samples inside this folder
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/bam/transcriptome/sample_name .   # download bam files that are aligned to transcriptome
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/transcriptome  # list samples inside this folder
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/transcriptome/sample_name .   # download bam files that are aligned to transcriptome
 ```
 # Data visualisation tracks
 
@@ -50,9 +50,9 @@ We provide bigbed and bigwig files which can be directly visualised any genome b
 
 The files can be accessed and downloaded through S3 as well:
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/genome_browser_data/bigbed/  # list all bigbed files
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data/genome_browser_data/bigwig/  # list all bigwig files
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data/genome_browser_data/bigbed/sample_name.bigbed .   # download bigbed file for the a specific sample
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/genome_browser_data/bigbed/  # list all bigbed files
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/genome_browser_data/bigwig/  # list all bigwig files
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/genome_browser_data/bigbed/sample_name.bigbed .   # download bigbed file for the a specific sample
 ```
 # Annotations
 
