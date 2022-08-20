@@ -36,10 +36,10 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fastq/sa
 We provide both genome and transcriptome aligned files:
 
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/genome  # list samples inside this folder
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/genome/  # list samples inside this folder
 aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/genome/sample_name .   # download bam files that are aligned to genome 
 
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/transcriptome  # list samples inside this folder
+aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/transcriptome/  # list samples inside this folder
 aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/transcriptome/sample_name .   # download bam files that are aligned to transcriptome
 ```
 # Data visualisation tracks
