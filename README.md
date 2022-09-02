@@ -20,7 +20,7 @@ The raw, aligned, and processed data is hosted on the AWS open data registry (se
 - [Browse the data](#browse-the-data)
 - [Data Processing](#data-processing)
 - [Use Cases and Applications](#use-cases-and-applications)
-- [Data Analysis Tutorials](#data-analysis-tutorials)
+- [Data Analysis Tutorials](#data-analysis-tutorials-and-workflows)
 - [Contributors](#contributors)
 - [Citing the SG-NEx project](#citing-the-sg-nex-project)
 - [Contact](#contact)
