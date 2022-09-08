@@ -36,7 +36,11 @@ https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5574654.svg)](https://doi.org/10.5281/zenodo.5574654)
 
-This release includes 86 samples from 11 different cell lines. You can access the following data through the AWS Open Data Registry:
+This release includes 86 samples from 11 different cell lines. 
+
+**Data Access**
+
+You can access the following data through the [AWS Open Data Registry](https://registry.opendata.aws/sgnex/):
 
 - raw files (fast5)
 - basecalled files (fastq)
@@ -47,7 +51,9 @@ This release includes 86 samples from 11 different cell lines. You can access th
 - annotation files
 - detailed sample and experiment information
 
-You can browse the S3 data [here](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). You can also read the [data access tutorial](docs/AWS_data_access_tutorial.md) which describes the S3 data structure and how to access files with [AWS CLI](https://docs.aws.amazon.com/cli/latest/reference/s3/). The direct links to the data are listed in the [sample spreadsheet](docs/samples.tsv).
+You can browse the S3 data [here](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). 
+
+Please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) which describes the S3 data structure and how to access files with [AWS CLI](https://docs.aws.amazon.com/cli/latest/reference/s3/). The direct links to the data are listed in the [sample spreadsheet](docs/samples.tsv).
 
 _**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
