@@ -1,6 +1,6 @@
-# **Converting G-NEx samples to BLOW5**
+# **Converting SG-NEx samples to BLOW5**
 
-In this tutorial, we will convert a SG-NEx sample to S/BLOW5 format.
+In this tutorial, we will convert a SG-NEx sample to BLOW5 format.
 We will be using a Nanopore direct RNA-Sequencing sample, one replicate from the K562 cell line.
 
 ## **Content**
@@ -73,10 +73,8 @@ aws s3 cp --no-sign-request s3://sg-nex-data/data/processed_data/blow5/SGNex_K56
 
 You can convert other SG-NEx samples by following the steps in this tutorial above. However, note that those steps only will work for samples with multi-FAST5 files. Some of the samples in SG-NEx are in the early single-FAST5 format. For those samples, slow5tools f2s will fail with an error mentioning of "multiple runIDs in same file". For such samples, you may use the helper script that comes with slow5tools which is available [here](https://github.com/hasindu2008/slow5tools/blob/master/scripts/mixed-single-fast5-to-blow5.sh). Commands for using this script are:
 
-```
-
-
-# down the script
+```bash
+# download the script
 wget https://raw.githubusercontent.com/hasindu2008/slow5tools/master/scripts/mixed-single-fast5-to-blow5.sh
 
 #set executable permission to script
@@ -88,16 +86,13 @@ chmod +x mixed-single-fast5-to-blow5.sh
 
 If successful, a merged BLOW5 file called reads.blow5 will be created along with its index reads.blow5.idx. You can rename these files to what you want.
 
+Note that, there are a few samples where some of the original FAST5 files are corrupted, which the above mentioned method will fail. Converting such samples need some manual FAST5 file curation, which is too advanced to be discussed here.
 
 ## **Reference**
 
 If you use the
-dataset from SG-NEx in your work, please cite the following paper.
-
-Chen, Ying, et al. “A systematic benchmark of Nanopore long read RNA
+dataset from SG-NEx in your work, please cite: Chen, Ying, et al. “A systematic benchmark of Nanopore long read RNA
 sequencing for transcript level analysis in human cell lines.” bioRxiv
 (2021). doi: <https://doi.org/10.1101/2021.04.21.440736>
 
-If you used S/BLOW5 in your work, please cite the following paper.
-
-Gamaarachchi, H., Samarakoon, H., Jenner, S.P. et al. “Fast nanopore sequencing data analysis with SLOW5.” Nat Biotechnol 40, 1026–1029 (2022). https://doi.org/10.1038/s41587-021-01147-4
+If you used S/BLOW5 in your work, please cite: Gamaarachchi, H., Samarakoon, H., Jenner, S.P. et al. “Fast nanopore sequencing data analysis with SLOW5.” Nat Biotechnol 40, 1026–1029 (2022). https://doi.org/10.1038/s41587-021-01147-4
