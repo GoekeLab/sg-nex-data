@@ -1,4 +1,4 @@
-# **Converting SG-NEx samples to BLOW5**
+# **Converting SG-NEx samples to S/BLOW5**
 
 In this tutorial, we will convert a SG-NEx sample to BLOW5 format.
 We will be using a Nanopore direct RNA-Sequencing sample, one replicate from the K562 cell line.
