@@ -89,6 +89,12 @@ The following short tutorials are available that demonstrate how to analyse the 
 
 - [Identification of m6A with the SG-NEx samples (using m6Anet)](./docs/SG-NEx_m6Anet_tutorial.md)
 
+- [Converting SG-NEx samples to S/BLOW5 (using slow5tools)](./docs/SG-NEx_blow5_conversion_tutorial.md)
+
+- [Directly Basecalling a SG-NEx samples in S/BLOW5 format (using buttery-eel)](./docs/SG-NEx_blow5_basecall_tutorial.md)
+
+
+
 Additional, more detailed workflows can be found here:
 
 - [Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data (using Bambu)](https://github.com/GoekeLab/bambu)
