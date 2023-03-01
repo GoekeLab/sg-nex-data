@@ -64,7 +64,7 @@ slow5tools index blow5_convert_tutorial/SGNex_K562_directRNA_replicate4_run1.blo
 rm -r blow5_convert_tutorial/SGNex_K562_directRNA_replicate4_run1.tar.gz blow5_convert_tutorial/fast5 blow5_convert_tutorial/slow5_tmp
 ```
 
-An already converted BLOW5 file and an index is also available to be directly downloaded.
+Already converted BLOW5 files and an indexes is also available to be directly downloaded.
 
 ```
 aws s3 cp --no-sign-request s3://sg-nex-data/data/processed_data/blow5/SGNex_K562_directRNA_replicate4_run1/SGNex_K562_directRNA_replicate4_run1.blow5
@@ -87,6 +87,8 @@ chmod +x mixed-single-fast5-to-blow5.sh
 ```
 
 If successful, a merged BLOW5 file called reads.blow5 will be created along with its index reads.blow5.idx. You can rename these files to what you want.
+
+There are a few samples where some of the original FAST5 files are corrupted where the above mentioned method will fail. Converting such samples need some manual FAST5 file curation which is too advanced to discussed here.
 
 
 ## **Reference**

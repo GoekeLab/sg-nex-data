@@ -1,7 +1,7 @@
 ![The Singapore Nanopore-Expression Project\!](
 https://jglaborg.files.wordpress.com/2021/10/sg_nex_textlogo.png)
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-release-and-access) [![cell lines](https://img.shields.io/badge/cell_lines-11-green)](#data-release-and-access) [![Sequencing Experiments](https://img.shields.io/badge/sequencing_runs-84-green)](docs/samples.tsv) 
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-release-and-access) [![cell lines](https://img.shields.io/badge/cell_lines-11-green)](#data-release-and-access) [![Sequencing Experiments](https://img.shields.io/badge/sequencing_runs-84-green)](docs/samples.tsv)
 
 The SG-NEx project is an international collaboration initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/) to provide reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
 
@@ -26,7 +26,7 @@ The raw, aligned, and processed data is hosted on the AWS open data registry (se
 - [Contact](#contact)
 
 ## Sign up for data release notifications and updates
-You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases: 
+You can sign up for the sg-nex-updates email list to receive notifications about upcoming data releases:
 
 https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
@@ -36,13 +36,14 @@ https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5574654.svg)](https://doi.org/10.5281/zenodo.5574654)
 
-This release includes 86 samples from 11 different cell lines. 
+This release includes 86 samples from 11 different cell lines.
 
 **Data Access**
 
 You can access the following data through the [AWS Open Data Registry](https://registry.opendata.aws/sgnex/):
 
 - raw files (fast5)
+- raw files (blow5)
 - basecalled files (fastq)
 - aligned reads (genome and transcriptome) (bam)
 - tracks for visualisation (bigwig and bigbed)
@@ -51,7 +52,7 @@ You can access the following data through the [AWS Open Data Registry](https://r
 - annotation files
 - detailed sample and experiment information
 
-You can browse the S3 data [here](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). 
+You can browse the S3 data [here](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/).
 
 Please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) which describes the S3 data structure and how to access files with [AWS CLI](https://docs.aws.amazon.com/cli/latest/reference/s3/). The direct links to the data are listed in the [sample spreadsheet](docs/samples.tsv).
 
@@ -73,7 +74,7 @@ By default only selected tracks are shown, but you can visualise all reads (bigb
 
 ## Data Processing
 
-All data was aligned against the human genome version Grch38 (please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) for reference files). We collaborated with [nf-core](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA-Seq data processing. 
+All data was aligned against the human genome version Grch38 (please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) for reference files). We collaborated with [nf-core](https://github.com/nf-core) to develop [nanoseq](https://github.com/nf-core/nanoseq), a standardardized pipeline for Nanopore RNA-Seq data processing.
 
 ## Use Cases and Applications
 
@@ -100,13 +101,13 @@ Additional, more detailed workflows can be found here:
 
 ## Contributors
 
-**GIS Sequencing Platform and Data Generation**            
-Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor   
+**GIS Sequencing Platform and Data Generation**
+Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor
 
-**Cancer Genomics and RNA Modifications**            
+**Cancer Genomics and RNA Modifications**
 Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, Xuewen Ong, Hui Qi Amanda Ng, Suk Yeah Polly Poon, Hoang-Dai Tran, Kok Hao Edwin Lim, Huck Hui Ng, Boon Ooi Patrick Tan, Huck-Hui Ng, N.Gopalakrishna Iyer, Wai Leong Tam, Wee Joo Chng, Leilei Chen, Ramanuj DasGupta, Yun Shen Winston Chan, Qiang Yu, Torsten Wüstefeld, Wee Siong Sho Goh
 
-**Statistical Modeling and Data Analytics**                     
+**Statistical Modeling and Data Analytics**
 Ying Chen, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Min Hao Ling, Yu Song Chuah, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
 
 ## Citing the SG-NEx project
