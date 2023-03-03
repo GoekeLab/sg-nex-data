@@ -201,7 +201,7 @@ f5c eventalign --min-mapq 0 --rna --slow5 SGNex_K562_directRNA_replicate4_run1.b
     --signal-index  --scale-events --summary summary.txt -t 32 > eventalign.txt
 ```
 
-Note that f5c is efficient and faster, yet, produces the same results as nanopolish.
+Note that f5c is efficient and faster, yet, produces the same results as nanopolish. For best performance with f5c, you can select a profile that suits your computer system using -x option as explained [here](https://hasindu2008.github.io/f5c/docs/profiles).
 
 
 ## Converting FAST5 to BLOW5
