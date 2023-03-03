@@ -90,7 +90,7 @@ The following short tutorials are available that demonstrate how to analyse the 
 
 - [Identification of m6A with the SG-NEx samples (using m6Anet)](./docs/SG-NEx_m6Anet_tutorial.md)
 
-- [Basecalling a SG-NEx samples in S/BLOW5 format (using buttery-eel)](./docs/SG-NEx_blow5_basecall_tutorial.md)
+- [Basecalling and analysing SG-NEx samples in S/BLOW5 format](./docs/SG-NEx_blow5_tutorial.md)
 
 Additional, more detailed workflows can be found here:
 

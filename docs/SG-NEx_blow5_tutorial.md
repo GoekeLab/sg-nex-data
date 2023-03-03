@@ -1,7 +1,7 @@
 # **Basecalling and analysing SG-NEx samples in S/BLOW5 format**
 
-In this tutorial, first we will basecall a full SG-NEx sample directly from S/BLOW5 format.
-Then, we will extract a subset of reads and basecall that subset. Finally, an optional section on converting existing FAST5 data to BLOW5 is also given.
+In this tutorial, first we will learn how to use the BLOW5 format for fast and efficient data manipulation and analysis.
+Tutorial contains four parts: 1, basecall a full SG-NEx sample directly from S/BLOW5 format; 2, extracting a subset of reads and basecall that subset. 3, running nanopolish/f5c; and, 4, an optional section on converting existing FAST5 data to BLOW5 is also given.
 
 In this tutorial, we will be using a Nanopore direct RNA-Sequencing sample, one replicate from the K562 cell line.
 
@@ -9,8 +9,9 @@ In this tutorial, we will be using a Nanopore direct RNA-Sequencing sample, one 
 
 - [Installation](#installation)
 - [Data Access and Preparation](#data-access-and-preparation)
-- [Running Buttery-eel on a full sample)](#Running-buttery-eel)
-- [Running Buttery-eel on a subset)](#Running-buttery-eel-subset)
+- [Running Buttery-eel on a full sample](#Running Buttery-eel-on-a-full-sample)
+- [Running Buttery-eel on a subset](#Running-Buttery-eel-on-a-subset)
+- [Running f5c/nanopolish](#Running-f5c/nanopolish)
 - [Converting FAST5 to BLOW5](#Convering-fast5-to-blow5)
 - [Reference](#reference)
 
@@ -53,6 +54,19 @@ wget "https://github.com/hasindu2008/slow5tools/releases/download/$VERSION/slow5
 ```
 For different systems and architecture, you may refer to the slow5tools GitHub repository [here](https://github.com/hasindu2008/slow5tools).
 
+
+### Installing f5c
+
+For the third part of the tutorial, we need [f5c](https://github.com/hasindu2008/f5c/), an optimised re-implementation of the index, call-methylation and eventalign modules in Nanopolish. We can install slow5tools on Linux x86_64 architecture using the following commands:
+
+```
+VERSION=v1.1
+wget "https://github.com/hasindu2008/f5c/releases/download/$VERSION/f5c-$VERSION-binaries.tar.gz" && tar xvf f5c-$VERSION-binaries.tar.gz && cd f5c-$VERSION/
+./f5c_x86_64_linux        # CPU version
+./f5c_x86_64_linux_cuda   # cuda supported version
+```
+
+Nanopolish from version 0.14.0 onwards supports BLOW5, so you can use that instead of f5c if you wish. However, f5c is efficient and faster and produces the same results as nanopolish.
 
 ## **Data Access and Preparation**
 
@@ -148,6 +162,30 @@ slow5tools get --list read_ids_ENST00000564818.5.txt SGNex_K562_directRNA_replic
 buttery-eel  -g /path/to/ont-guppy/bin/  --config rna_r9.4.1_70bps_hac.cfg --device 'cuda:all' -i read_ids_ENST00000564818.5.blow5 -o  selected_reads.fastq --port 5555  --use_tcp
 ```
 
+## Running f5c eventalign
+
+Now let us execute the event alignment on the subset of data that we extracted and basecalled in the [previous section](#Running-Buttery-eel-on-a-subset).
+
+```bash
+# run minimap2 to align the reads to the reference
+minimap2 -ax map-ont -uf --secondary=no <reference.fa> selected_reads.fastq > selected_reads.sam
+samtools sort selected_reads.sam -o selected_reads.bam
+samtools index selected_reads.bam
+
+# execute f5c eventalign
+f5c index selected_reads.fastq --slow5 read_ids_ENST00000564818.5.blow5
+f5c eventalign --min-mapq 0 --rna --slow5 read_ids_ENST00000564818.5.blow5 \
+    -r selected_reads.fastq -b selected_reads.bam -g <reference.fa> \
+    --signal-index  --scale-events --summary summary.txt -t 32 > eventalign.txt
+```
+
+If you are using nanopolish, the commands are slightly different:
+```bash
+nanopolish index selected_reads.fastq --slow5 read_ids_ENST00000564818.5.blow5
+nanopolish eventalign -r selected_reads.fastq -b selected_reads.bam -g <reference.fa> \
+    --signal-index  --scale-events --summary summary.txt -t 32 > eventalign.txt
+```
+
 ## Converting FAST5 to BLOW5
 
 It is recommended that you directly download the already converted BLOW5 files from the s3 bucket as explained [before](#data-access-and-preparation). BLOW5 files are much smaller than FAST5 and are much faster to basecall and process. For the sake of completeness, here is how original FAST5 data can be converted to BLOW5.
@@ -204,12 +242,13 @@ In summary, the easiest way in simply downloading the already converted BLOW5 fi
 ## **Reference**
 
 If you use the dataset from SG-NEx in your work, please cite:
-Chen, Ying, et al. “A systematic benchmark of Nanopore long read RNA
-sequencing for transcript level analysis in human cell lines.” bioRxiv
-(2021). doi: <https://doi.org/10.1101/2021.04.21.440736>
+Chen, Ying, et al. “A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines.” bioRxiv (2021). doi: <https://doi.org/10.1101/2021.04.21.440736>
 
 If you used S/BLOW5 in your work, please cite:
 Gamaarachchi, H., Samarakoon, H., Jenner, S.P. et al. “Fast nanopore sequencing data analysis with SLOW5.” Nat Biotechnol 40, 1026–1029 (2022). https://doi.org/10.1038/s41587-021-01147-4
 
-If you used butter-eel in your work, please cite:
+If you used buttery-eel in your work, please cite:
 Samarakoon, Hiruna, et al. "Accelerated nanopore basecalling with SLOW5 data format." bioRxiv (2023). doi: https://doi.org/10.1101/2023.02.06.527365
+
+If you used f5c in your work, please cite:
+Gamaarachchi, H., Lam, C.W., Jayatilaka, G. et al. GPU accelerated adaptive banded event alignment for rapid comparative nanopore signal analysis. BMC Bioinformatics 21, 343 (2020). https://doi.org/10.1186/s12859-020-03697-x
