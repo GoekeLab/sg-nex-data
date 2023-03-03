@@ -2,7 +2,7 @@
 
 SG-NEx data source contains long read (Oxford Nanopore) RNA sequencing data for commonly used cell lines. The data is hosted by AWS on S3 and can be accessed using direct links or the aws CLI.
 
-The SG-NEx S3 bucket contains the following types of data:
+The SG-NEx S3 buckets contains the following types of data:
 
    - [Raw sequencing signal (fast5)](#raw-sequencing-signal)
    - [Raw sequencing signal (blow5)](#raw-sequencing-signal-blow5)
@@ -29,8 +29,8 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fast5/sa
 To access raw sequencing (blow5) files:
 
 ```bash
-aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/blow5/ # list samples 
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/blow5/sample_name .    # download blow5 file and the index to your local directory
+aws s3 ls --no-sign-request s3://sg-nex-data-blow5/ # list samples 
+aws s3 sync --no-sign-request s3://sg-nex-data-blow5/sample_name .    # download blow5 file and the index to your local directory
 ```
 
 # Basecalled sequences
