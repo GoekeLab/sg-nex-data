@@ -188,10 +188,10 @@ nanopolish eventalign -r selected_reads.fastq -b selected_reads.bam -g gencode.v
 That is how we run f5c/nanopolish on an extracted subset. Of course, nothing stops us from running f5c on the full dataset if necessary. We already downloaded the full BLOW5 file (and index) and have the full basecalls from the previous sections. Simply do the following: 
 
 ```bash
-#align
+# align
 minimap2 -ax map-ont -uf --secondary=no -t32 gencode.v40.transcripts.fa SGNex_K562_directRNA_replicate4_run1.fastq > SGNex_K562_directRNA_replicate4_run1.sam
 samtools sort SGNex_K562_directRNA_replicate4_run1.sam -o SGNex_K562_directRNA_replicate4_run1.bam
-samtools index selected_reads.bam
+samtools index SGNex_K562_directRNA_replicate4_run1.bam
 
 # execute f5c eventalign
 f5c index SGNex_K562_directRNA_replicate4_run1.fastq --slow5 SGNex_K562_directRNA_replicate4_run1.blow5 \
@@ -245,7 +245,7 @@ You can convert other SG-NEx samples by following the steps above. However, note
 # down the script
 wget https://raw.githubusercontent.com/hasindu2008/slow5tools/master/scripts/mixed-single-fast5-to-blow5.sh
 
-#set executable permission to script
+# set executable permission to script
 chmod +x mixed-single-fast5-to-blow5.sh
 
 #launch the script
