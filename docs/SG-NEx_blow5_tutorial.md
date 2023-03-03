@@ -1,7 +1,7 @@
 # **Basecalling and analysing SG-NEx samples in S/BLOW5 format**
 
-In this tutorial, first we will learn how to use the BLOW5 format for fast and efficient data manipulation and analysis.
-Tutorial contains four parts: 1, basecall a full SG-NEx sample directly from S/BLOW5 format; 2, extracting a subset of reads and basecall that subset. 3, running nanopolish/f5c; and, 4, an optional section on converting existing FAST5 data to BLOW5 is also given.
+In this tutorial, we will learn how to use the BLOW5 format for fast and efficient data manipulation and analysis.
+Tutorial contains four parts: 1, basecalling a full SG-NEx sample directly from S/BLOW5 format; 2, extracting a subset of reads and basecall that subset. 3, running nanopolish/f5c eventalign; and, 4, an optional section on converting existing FAST5 data to BLOW5.
 
 In this tutorial, we will be using a Nanopore direct RNA-Sequencing sample, one replicate from the K562 cell line.
 
@@ -9,10 +9,10 @@ In this tutorial, we will be using a Nanopore direct RNA-Sequencing sample, one 
 
 - [Installation](#installation)
 - [Data Access and Preparation](#data-access-and-preparation)
-- [Running Buttery-eel on a full sample](#Running Buttery-eel-on-a-full-sample)
-- [Running Buttery-eel on a subset](#Running-Buttery-eel-on-a-subset)
-- [Running f5c/nanopolish](#Running-f5c/nanopolish)
-- [Converting FAST5 to BLOW5](#Convering-fast5-to-blow5)
+- [Running Buttery-eel on a full sample](#running-buttery-eel-on-a-full-sample)
+- [Running Buttery-eel on a subset](#running-buttery-eel-on-a-subset-of-reads)
+- [Running f5c eventalign](#running-f5c-eventalign)
+- [Converting FAST5 to BLOW5](#converting-fast5-to-blow5)
 - [Reference](#reference)
 
 ## **Installation**
@@ -81,7 +81,7 @@ tutorial](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/doc
 aws s3 cp --no-sign-request s3://sg-nex-data-blow5/SGNex_K562_directRNA_replicate4_run1/SGNex_K562_directRNA_replicate4_run1.blow5 ./
 ```
 
-For basecalling the full BLOW5 file, the index file is not required. If you plan to [extract a subset of reads](#Running-buttery-eel-subset) in the second part of the tutorial, please also download the BLOW5 index as below:
+For the second part of the tutorial on [extract a subset of reads](#Running-buttery-eel-subset), you also need the BLOW5 index:
 
 ```bash
 # download BLOW5 index file for the K562 replicate 4 run 1 to the current directory
@@ -91,9 +91,8 @@ aws s3 cp --no-sign-request s3://sg-nex-data-blow5/SGNex_K562_directRNA_replicat
 You may also download the required data directly from the [SG-NEx AWS S3
 bucket](http://sg-nex-data-blow5.s3-website-ap-southeast-1.amazonaws.com/) if you are unfamiliar with AWS CLI command.
 
-If you want to convert the FAST5 data yourself, you can refer the conversion section [here](#Convering-fast5-to-blow5).
 
-## **Running Buttery-eel**
+## **Running Buttery-eel on a full sample**
 
 Now we can run buttery-eel with these data.
 
@@ -164,27 +163,46 @@ buttery-eel  -g /path/to/ont-guppy/bin/  --config rna_r9.4.1_70bps_hac.cfg --dev
 
 ## Running f5c eventalign
 
-Now let us execute the event alignment on the subset of data that we extracted and basecalled in the [previous section](#Running-Buttery-eel-on-a-subset).
+Now let us execute the event alignment on the subset of data that we extracted and basecalled in the [previous section](#running-buttery-eel-on-a-subset-of-reads). 
 
 ```bash
-# run minimap2 to align the reads to the reference
-minimap2 -ax map-ont -uf --secondary=no <reference.fa> selected_reads.fastq > selected_reads.sam
+# run minimap2 to align the reads to the reference (assuming you already have gencode.v40.transcripts.fa file as the reference)
+minimap2 -ax map-ont -uf --secondary=no gencode.v40.transcripts.fa selected_reads.fastq > selected_reads.sam
 samtools sort selected_reads.sam -o selected_reads.bam
 samtools index selected_reads.bam
 
 # execute f5c eventalign
 f5c index selected_reads.fastq --slow5 read_ids_ENST00000564818.5.blow5
 f5c eventalign --min-mapq 0 --rna --slow5 read_ids_ENST00000564818.5.blow5 \
-    -r selected_reads.fastq -b selected_reads.bam -g <reference.fa> \
+    -r selected_reads.fastq -b selected_reads.bam -g gencode.v40.transcripts.fa \
     --signal-index  --scale-events --summary summary.txt -t 32 > eventalign.txt
 ```
 
 If you are using nanopolish, the commands are slightly different:
 ```bash
 nanopolish index selected_reads.fastq --slow5 read_ids_ENST00000564818.5.blow5
-nanopolish eventalign -r selected_reads.fastq -b selected_reads.bam -g <reference.fa> \
+nanopolish eventalign -r selected_reads.fastq -b selected_reads.bam -g gencode.v40.transcripts.fa \
     --signal-index  --scale-events --summary summary.txt -t 32 > eventalign.txt
 ```
+
+That is how we run f5c/nanopolish on an extracted subset. Of course, nothing stops us from running f5c on the full dataset if necessary. We already downloaded the full BLOW5 file (and index) and have the full basecalls from the previous sections. Simply do the following: 
+
+```bash
+#align
+minimap2 -ax map-ont -uf --secondary=no -t32 gencode.v40.transcripts.fa SGNex_K562_directRNA_replicate4_run1.fastq > SGNex_K562_directRNA_replicate4_run1.sam
+samtools sort SGNex_K562_directRNA_replicate4_run1.sam -o SGNex_K562_directRNA_replicate4_run1.bam
+samtools index selected_reads.bam
+
+# execute f5c eventalign
+f5c index SGNex_K562_directRNA_replicate4_run1.fastq --slow5 SGNex_K562_directRNA_replicate4_run1.blow5 \
+    -t32 --skip-slow5-idx #we already have a downloaded blow5.idx, so we ask to skip making it
+f5c eventalign --min-mapq 0 --rna --slow5 SGNex_K562_directRNA_replicate4_run1.blow5 \
+    -r SGNex_K562_directRNA_replicate4_run1.fastq -b SGNex_K562_directRNA_replicate4_run1.bam  -g gencode.v40.transcripts.fa \
+    --signal-index  --scale-events --summary summary.txt -t 32 > eventalign.txt
+```
+
+Note that f5c is efficient and faster, yet, produces the same results as nanopolish.
+
 
 ## Converting FAST5 to BLOW5
 
@@ -236,7 +254,7 @@ chmod +x mixed-single-fast5-to-blow5.sh
 
 If successful, a merged BLOW5 file called reads.blow5 will be created along with its index reads.blow5.idx. You can rename these files to what you want. There are a few samples where some of the original FAST5 files are corrupted where the above mentioned method will fail. Converting such samples need some manual FAST5 file curation which is too advanced to discussed here.
 
-In summary, the easiest way in simply downloading the already converted BLOW5 files from the s3 bucket as explained [before](#data-access-and-preparation)
+In summary, the easiest way is simply downloading the already converted BLOW5 files from the s3 bucket as explained [before](#data-access-and-preparation).
 
 
 ## **Reference**
