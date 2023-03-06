@@ -57,7 +57,7 @@ For different systems and architecture, you may refer to the slow5tools GitHub r
 
 ### Installing f5c
 
-For the third part of the tutorial, we need [f5c](https://github.com/hasindu2008/f5c/), an optimised re-implementation of the index, call-methylation and eventalign modules in Nanopolish. We can install slow5tools on Linux x86_64 architecture using the following commands:
+For the third part of the tutorial, we need [f5c](https://github.com/hasindu2008/f5c/), an optimised re-implementation of the index, call-methylation and eventalign modules in Nanopolish. We can install f5c on Linux x86_64 architecture using the following commands:
 
 ```
 VERSION=v1.1
@@ -74,7 +74,7 @@ Next, we will need to download the required data in BLOW5 format to run buttery-
 
 Generally, you may want to learn how to get access to these data using the [data
 access
-tutorial](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/docs/AWS_data_access_tutorial.md). Below we only show the necessary steps to download the required data. The following command requires you to have [AWS CLI](https://aws.amazon.com/cli/) installed.
+tutorial](AWS_data_access_tutorial.md). Below we only show the necessary steps to download the required data. The following command requires you to have [AWS CLI](https://aws.amazon.com/cli/) installed.
 
 ```bash
 # download BLOW5 file for the K562 replicate 4 run 1 to the current directory
