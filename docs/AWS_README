@@ -10,5 +10,5 @@ The SG-NEx data set is documented here: https://github.com/GoekeLab/sg-nex-data
 
 The folder structure and data access tutorial is described here: https://github.com/GoekeLab/sg-nex-data/blob/master/docs/AWS_data_access_tutorial.md
 
-The data browser link is here: http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/
+The data browser link is here: http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/ and http://sg-nex-data-blow5.s3-website-ap-southeast-1.amazonaws.com/
 

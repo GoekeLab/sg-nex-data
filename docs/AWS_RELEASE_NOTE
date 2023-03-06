@@ -1,5 +1,14 @@
 The Singapore Nanopore Expression (SG-NEx) Project: Release updates on AWS S3 open data 
 
+Version Number: V0.4.0              
+Date: 2023-03-06
+By: Ying Chen, Genome Insitute of Singapore
+Update of the SG-NEx data on AWS. Includes raw signal data in blow5 format. Please refer to https://github.com/GoekeLab/sg-nex-data for a detailed documentation.
+
+Data access tutorial: https://github.com/GoekeLab/sg-nex-data/blob/master/docs/AWS_data_access_tutorial.md
+Data browser link: http://sg-nex-data-blow5.s3-website-ap-southeast-1.amazonaws.com/
+Contact and questions: https://github.com/GoekeLab/sg-nex-data/discussions
+
 
 Version Number: V0.3.0               
 Date: 2022-07-28
