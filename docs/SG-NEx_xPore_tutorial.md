@@ -37,7 +37,7 @@ xPore requires at least two samples for comparison. For this tutorial, we will u
 - indexes of the feature values file (two index files, one for each sample).
 
 ### **Download data for xPore**
-The data files can be downloaded from the [SG-NEx AWS S3 bucket](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). Please refer to this [page](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/AWS_data_access_tutorial.md) for a comprehensive tutorial to access the SG-NEx dataset.
+The data files can be downloaded from the [SG-NEx AWS S3 bucket](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). Please refer to this [page](AWS_data_access_tutorial.md) for a comprehensive tutorial to access the SG-NEx dataset.
 
 To begin, we will create directories to store the required files for the respective samples. 
 ```bash
@@ -130,7 +130,7 @@ method:
 Please refer to [xPore](https://xpore.readthedocs.io/en/latest/configuration.html) documentation for more information on the .yml configuration file. 
 <br>
 
-You may refer to this [page](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples_with_RNAmod_data.tsv) for the list of URLs to access the processed data for xPore from different samples. 
+You may refer to this [page](samples_with_RNAmod_data.tsv) for the list of URLs to access the processed data for xPore from different samples. 
 
 
 ## **Running xPore** 
@@ -156,7 +156,7 @@ xPore returns a table `(diffmod.table)` consisting of differential RNA modificat
 
 ### **Access to the required files for the complete workflow** 
 
-If you wish to run the complete workflow of xPore, you can access all the required files (fast5, fastq and bam files) from the [SG-NEx S3 bucket](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples.tsv). 
+If you wish to run the complete workflow of xPore, you can access all the required files (fast5, fastq and bam files) from the [SG-NEx S3 bucket](samples.tsv). 
 
 
 ```bash
@@ -180,7 +180,7 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/transcriptome_fa
 # To download the gtf file
 aws s3 cp --no-sign-request s3://sg-nex-data/data/annotations/gtf_file/Homo_sapiens.GRCh38.91.gtf ./
 ```
-Alternatively, you can download the files with their respective [URL](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples.tsv). 
+Alternatively, you can download the files with their respective [URL](samples.tsv). 
 
 
 ## **Reference**
