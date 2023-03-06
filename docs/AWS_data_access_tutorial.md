@@ -15,7 +15,7 @@ The SG-NEx S3 bucket contains the following types of data:
 The SG-NEx S3 BLOW5 bucket contains the following types of data:
    - [Raw sequencing signal (blow5)](#raw-sequencing-signal-in-blow5-format)
 
-Below is the folder index for the open data SG-NEx S3 bucket:
+Below is the folder index for the open data buckets:
 
 ![folder indexing\!](/images/folder_index.png)
 
