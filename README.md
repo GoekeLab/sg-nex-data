@@ -32,7 +32,7 @@ https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 ## Data Release and Access
 
-**Latest Release (v0.3)**
+**Latest Release (v0.4)**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5574654.svg)](https://doi.org/10.5281/zenodo.5574654)
 
@@ -59,6 +59,16 @@ Please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) whi
 _**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
 Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
+
+**Release Note**
+
+Version Number: V0.4.0                
+Date: 2023-03-06                          
+Update of the SG-NEx data on AWS. Includes raw signal data in blow5 format. 
+
+Version Number: V0.3.0               
+Date: 2022-07-28                 
+Initial release of the SG-NEx data on AWS. Includes Nanopore direct RNA, cDNA, direct cDNA-Seq, short read RNA-Seq and m6ACE-Seq.
 
 **Release History**
 
@@ -102,7 +112,6 @@ Additional, more detailed workflows can be found here:
 
 
 ## Contributors
-
 **GIS Sequencing Platform and Data Generation**            
 Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor   
 
@@ -110,7 +119,7 @@ Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor
 Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, Xuewen Ong, Hui Qi Amanda Ng, Suk Yeah Polly Poon, Hoang-Dai Tran, Kok Hao Edwin Lim, Huck Hui Ng, Boon Ooi Patrick Tan, Huck-Hui Ng, N.Gopalakrishna Iyer, Wai Leong Tam, Wee Joo Chng, Leilei Chen, Ramanuj DasGupta, Yun Shen Winston Chan, Qiang Yu, Torsten Wüstefeld, Wee Siong Sho Goh
 
 **Statistical Modeling and Data Analytics**                     
-Ying Chen, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Min Hao Ling, Yu Song Chuah, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
+Ying Chen, Hasindu Gamaarachchi, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Min Hao Ling, Yu Song Chuah, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
 ## Citing the SG-NEx project
 
 The SG-NEx resource is described in:
