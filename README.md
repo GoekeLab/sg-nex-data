@@ -43,6 +43,7 @@ This release includes 86 samples from 11 different cell lines.
 You can access the following data through the [AWS Open Data Registry](https://registry.opendata.aws/sgnex/):
 
 - raw files (fast5)
+- raw files (blow5)
 - basecalled files (fastq)
 - aligned reads (genome and transcriptome) (bam)
 - tracks for visualisation (bigwig and bigbed)
@@ -89,6 +90,8 @@ The following short tutorials are available that demonstrate how to analyse the 
 
 - [Identification of m6A with the SG-NEx samples (using m6Anet)](./docs/SG-NEx_m6Anet_tutorial.md)
 
+- [Basecalling and analysing SG-NEx samples in S/BLOW5 format](./docs/SG-NEx_blow5_tutorial.md)
+
 Additional, more detailed workflows can be found here:
 
 - [Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data (using Bambu)](https://github.com/GoekeLab/bambu)
@@ -108,7 +111,6 @@ Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, X
 
 **Statistical Modeling and Data Analytics**                     
 Ying Chen, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Min Hao Ling, Yu Song Chuah, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
-
 ## Citing the SG-NEx project
 
 The SG-NEx resource is described in:
