@@ -46,7 +46,7 @@ Next, we will need to download the required data to run Bambu. The required data
 
 Generally, you may want to learn how to get access to these data using the [data
 access
-tutorial](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/docs/AWS_data_access_tutorial.md). Below we only show the necessary steps to download the required data. The following command requires you to have [AWS CLI](https://aws.amazon.com/cli/) installed.
+tutorial](AWS_data_access_tutorial.md). Below we only show the necessary steps to download the required data. The following command requires you to have [AWS CLI](https://aws.amazon.com/cli/) installed.
 
 ``` bash
 # create a directory to store the data
@@ -68,7 +68,7 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/data_tutorial/bam ./bambu_tu
 You may also download the required data directly from the [SG-NEx AWS S3
 bucket](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/) if you are unfamiliar with AWS CLI command. They are stored in the `data/data_tutorial/bam` folder.
 
-**NOTE: We have downsampled the Hg38 genome, A549 and HepG2 samples to ensure this tutorial can be completed in 10 minutes. If you want to run Bambu on the original samples, you can find the sample name [here](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/docs/samples.tsv) and amend it into the following code chunk:**
+**NOTE: We have downsampled the Hg38 genome, A549 and HepG2 samples to ensure this tutorial can be completed in 10 minutes. If you want to run Bambu on the original samples, you can find the sample name [here](samples.tsv) and amend it into the following code chunk:**
 
 ```bash
 # Note: Please make sure to replace the "sample_alias" with your sample name 
