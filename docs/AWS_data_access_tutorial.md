@@ -4,15 +4,18 @@ SG-NEx data source contains long read (Oxford Nanopore) RNA sequencing data for 
 
 The SG-NEx S3 bucket contains the following types of data:
 
-   - [Raw sequencing signal (fast5)](#raw-sequencing-signal)            
-   - [Basecalled sequences (fastq)](#basecalled-sequences)            
-   - [Aligned sequences (bam)](#aligned-sequences)     
-   - [Data visualisation tracks (bigwig/bigbed)](#data-visualisation-tracks)        
-   - [Annotations](#annotations)            
-   - [Processed data for RNA modification detection](#processed-data)     
-   - [Sample and experiment information](#sample-and-experimental-data)               
+   - [Raw sequencing signal (fast5)](#raw-sequencing-signal)
+   - [Basecalled sequences (fastq)](#basecalled-sequences)
+   - [Aligned sequences (bam)](#aligned-sequences)
+   - [Data visualisation tracks (bigwig/bigbed)](#data-visualisation-tracks)
+   - [Annotations](#annotations)
+   - [Processed data for RNA modification detection](#processed-data)
+   - [Sample and experiment information](#sample-and-experimental-data)
 
- Below is the folder index for the open data bucket:
+The SG-NEx S3 BLOW5 bucket contains the following types of data:
+   - [Raw sequencing signal (blow5)](#raw-sequencing-signal-in-blow5-format)
+
+Below is the folder index for the open data buckets:
 
 ![folder indexing\!](/images/folder_index.png)
 
@@ -22,6 +25,14 @@ To access raw sequencing (fast5) files:
 ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fast5/ # list samples 
 aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/fast5/sample_name .    # download fast5 files to your local directory
+```
+
+# Raw sequencing signal in BLOW5 format
+To access raw sequencing (blow5) files:
+
+```bash
+aws s3 ls --no-sign-request s3://sg-nex-data-blow5/ # list samples 
+aws s3 sync --no-sign-request s3://sg-nex-data-blow5/sample_name .    # download blow5 file and the index to your local directory
 ```
 
 # Basecalled sequences
@@ -90,7 +101,6 @@ aws s3 sync --no-sign-request s3://sg-nex-data/data/annotations/gtf_file .  # do
 
 ## RNA modification detection
  Long read direct RNA sequencing has allows the detection of RNA modification with RNA modification tools, such as [xPore](https://github.com/GoekeLab/xpore) and [m6Anet](https://github.com/GoekeLab/m6anet). To simplify the analysis of RNA modifications using the SG-Nex datasets, you can download the processed files to use with xPore and m6Anet. 
- 
  To download the processed data for differential RNA modification analysis with xPore:
  ```bash
 aws s3 ls --no-sign-request s3://sg-nex-data/data/processed_data/xpore/  # list all samples that have processed data for RNA modification detection using xPore
@@ -106,7 +116,7 @@ These files are provided for a subset of samples, please see [here](/docs/sample
 
 # Sample and experimental data 
 
-Detailed information for each sequencing sample is provided [here](/docs/samples.tsv). The data also includes multiplexed samples which share the same fast5 files. The information about the multiplexed samples can be found [here](/docs/multiplexed_samples.tsv). The files can also be accessed directly on S3:
+Detailed information for each sequencing sample is provided [here](/docs/samples.tsv). The data also includes multiplexed samples which share the same fast5/blow5 files. The information about the multiplexed samples can be found [here](/docs/multiplexed_samples.tsv). The files can also be accessed directly on S3:
 
 
  ```bash
