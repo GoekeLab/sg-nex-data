@@ -52,7 +52,7 @@ You can access the following data through the [AWS Open Data Registry](https://r
 - annotation files
 - detailed sample and experiment information
 
-You can browse the S3 data [here](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). 
+You can browse the S3 data here: 1) [fast5, fastq, and bam](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/) and 2) [blow5](http://sg-nex-data-blow5.s3-website-ap-southeast-1.amazonaws.com/). 
 
 Please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) which describes the S3 data structure and how to access files with [AWS CLI](https://docs.aws.amazon.com/cli/latest/reference/s3/). The direct links to the data are listed in the [sample spreadsheet](docs/samples.tsv).
 
