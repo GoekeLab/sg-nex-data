@@ -94,7 +94,7 @@ You can browse a list of articles that review or use the SG-NEx data [here](/doc
 
 The following short tutorials are available that demonstrate how to analyse the SG-NEx data:
 
-- [Transcript discovery and quantification of SG-NEx samples (using Bambu)](./docs/bambu_tutorial.ipynb) <a target="_blank" href="https://colab.research.google.com/github/GoekeLab/sg-nex-data/blob/master/docs/SG-NEx_Bambu_tutorial_notebook.ipynb">
+- [Transcript discovery and quantification of SG-NEx samples (using Bambu)](./docs/SG-NEx_Bambu_tutorial_notebook.ipynb) <a target="_blank" href="https://colab.research.google.com/github/GoekeLab/sg-nex-data/blob/master/docs/SG-NEx_Bambu_tutorial_notebook.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 
