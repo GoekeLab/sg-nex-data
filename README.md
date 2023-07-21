@@ -32,7 +32,7 @@ https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 ## Data Release and Access
 
-**Latest Release (v0.3)**
+**Latest Release (v0.4)**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5574654.svg)](https://doi.org/10.5281/zenodo.5574654)
 
@@ -43,6 +43,7 @@ This release includes 86 samples from 11 different cell lines.
 You can access the following data through the [AWS Open Data Registry](https://registry.opendata.aws/sgnex/):
 
 - raw files (fast5)
+- raw files (blow5)
 - basecalled files (fastq)
 - aligned reads (genome and transcriptome) (bam)
 - tracks for visualisation (bigwig and bigbed)
@@ -51,13 +52,23 @@ You can access the following data through the [AWS Open Data Registry](https://r
 - annotation files
 - detailed sample and experiment information
 
-You can browse the S3 data [here](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). 
+You can browse the S3 data here: 1) [fast5, fastq, and bam](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/) and 2) [blow5](http://sg-nex-data-blow5.s3-website-ap-southeast-1.amazonaws.com/). 
 
 Please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) which describes the S3 data structure and how to access files with [AWS CLI](https://docs.aws.amazon.com/cli/latest/reference/s3/). The direct links to the data are listed in the [sample spreadsheet](docs/samples.tsv).
 
 _**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
 Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
+
+**Release Note**
+
+Version Number: V0.4.0                
+Date: 2023-03-06                          
+Update of the SG-NEx data on AWS. Includes raw signal data in blow5 format. 
+
+Version Number: V0.3.0               
+Date: 2022-07-28                 
+Initial release of the SG-NEx data on AWS. Includes Nanopore direct RNA, cDNA, direct cDNA-Seq, short read RNA-Seq and m6ACE-Seq.
 
 **Release History**
 
@@ -89,6 +100,8 @@ The following short tutorials are available that demonstrate how to analyse the 
 
 - [Identification of m6A with the SG-NEx samples (using m6Anet)](./docs/SG-NEx_m6Anet_tutorial.md)
 
+- [Basecalling and analysing SG-NEx samples in S/BLOW5 format](./docs/SG-NEx_blow5_tutorial.md)
+
 Additional, more detailed workflows can be found here:
 
 - [Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data (using Bambu)](https://github.com/GoekeLab/bambu)
@@ -99,7 +112,6 @@ Additional, more detailed workflows can be found here:
 
 
 ## Contributors
-
 **GIS Sequencing Platform and Data Generation**            
 Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor   
 
@@ -107,8 +119,7 @@ Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor
 Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, Xuewen Ong, Hui Qi Amanda Ng, Suk Yeah Polly Poon, Hoang-Dai Tran, Kok Hao Edwin Lim, Huck Hui Ng, Boon Ooi Patrick Tan, Huck-Hui Ng, N.Gopalakrishna Iyer, Wai Leong Tam, Wee Joo Chng, Leilei Chen, Ramanuj DasGupta, Yun Shen Winston Chan, Qiang Yu, Torsten Wüstefeld, Wee Siong Sho Goh
 
 **Statistical Modeling and Data Analytics**                     
-Ying Chen, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Min Hao Ling, Yu Song Chuah, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
-
+Ying Chen, Hasindu Gamaarachchi, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Min Hao Ling, Yu Song Chuah, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
 ## Citing the SG-NEx project
 
 The SG-NEx resource is described in:

@@ -38,7 +38,7 @@ For this tutorial, we will use the data from the A549_directRNA_replicate6_run1 
 - number of reads for each DRACH position (readcount file).
 
 ### **Download data for m6Anet**
-The data files can be downloaded from the [SG-NEx AWS S3 bucket](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). Please refer to this [page](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/AWS_data_access_tutorial.md) for a comprehensive tutorial to access the SG-NEx dataset.
+The data files can be downloaded from the [SG-NEx AWS S3 bucket](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/). Please refer to this [page](AWS_data_access_tutorial.md) for a comprehensive tutorial to access the SG-NEx dataset.
 
 To begin, we will create a directory to store the required files.
 ```bash
@@ -77,7 +77,7 @@ cd ..
 ```
 
 
-You may refer to this [page](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples_with_RNAmod_data.tsv) for the list of URLs to access the processed data for m6Anet from different samples. 
+You may refer to this [page](samples_with_RNAmod_data.tsv) for the list of URLs to access the processed data for m6Anet from different samples. 
 
 ## **Running m6Anet**
 
@@ -115,7 +115,7 @@ m6anet-run_inference --input_dir ./replicate1 ./replicate2 ./replicate3 --out_di
 
 ### **Access to the required files for the complete workflow** 
 
-If you wish to run the complete workflow of m6Anet, you can access all the required files (fast5, fastq and bam files) from the [SG-NEx S3 bucket](https://github.com/GoekeLab/sg-nex-data/blob/update-docs-aws/docs/samples.tsv). 
+If you wish to run the complete workflow of m6Anet, you can access all the required files (fast5, fastq and bam files) from the [SG-NEx S3 bucket](samples.tsv). 
 
 
 ```bash
