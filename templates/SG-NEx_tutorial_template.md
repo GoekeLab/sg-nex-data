@@ -32,30 +32,29 @@ tutorial](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/doc
 
 ``` bash
 # create a directory to store the data
-mkdir bambu_tutorial
+mkdir tutorial
 
 # download genome fasta file 
-aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.fa ./bambu_tutorial
+aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.fa ./tutorial
 
 # download genome index fastai file 
-aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.fa.fai ./bambu_tutorial
+aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.fa.fai ./tutorial
 
 # download gtf file
-aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.gtf ./bambu_tutorial
+aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.gtf ./tutorial
 
 # download aligned bam files for A549 samples and HepG2 samples
-aws s3 sync --no-sign-request s3://sg-nex-data/data/data_tutorial/bam ./bambu_tutorial --include *.bam 
+aws s3 sync --no-sign-request s3://sg-nex-data/data/data_tutorial/bam ./tutorial --include *.bam 
 ```
 
 You may also download the required data directly from the [SG-NEx AWS S3
 bucket](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/) if you are unfamiliar with AWS CLI command. They are stored in the `data/data_tutorial/bam` folder.
 
-**NOTE: We have downsampled the Hg38 genome, A549 and HepG2 samples to ensure this tutorial can be completed in 10 minutes. If you want to run Bambu on the original samples, you can find the sample name [here](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/docs/samples.tsv) and amend it into the following code chunk:**
 
 ``` bash
 # Note: Please make sure to replace the "sample_alias" with your sample name 
 # To download genome bam files
-aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/genome/<sample_alias> ./bambu_tutorial
+aws s3 sync --no-sign-request s3://sg-nex-data/data/sequencing_data_ont/bam/genome/<sample_alias> ./tutorial
 ```
 
 ## **Running software**
