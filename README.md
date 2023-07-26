@@ -21,7 +21,8 @@ The raw, aligned, and processed data is hosted on the AWS open data registry (se
 - [Data Processing](#data-processing)
 - [Use Cases and Applications](#use-cases-and-applications)
 - [Data Analysis Tutorials](#data-analysis-tutorials-and-workflows)
-- [Contributors](#contributors)
+- [Contributing](#contributing)
+- [Acknowledgements](#acknowledgements)
 - [Citing the SG-NEx project](#citing-the-sg-nex-project)
 - [Contact](#contact)
 
@@ -113,7 +114,16 @@ Additional, more detailed workflows can be found here:
 - [Analysing transcriptome-wide m6A modifications (using m6Anet)](https://m6anet.readthedocs.io/en/latest/)
 
 
-## Contributors
+## Contributing
+We welcome contributions from all long read RNA-seq tool developers! You may follow the steps below to contribute:
+
+- Fork this repository
+- Add your tutorial document to the docs folder 
+- Adding your tutorial workflow link in the Data Analysis Tutorials and Workflows section in README.md in this format: [tutorial title](path_to_the_tutorial)
+- Submit a pull request.
+
+
+## Acknowledgements
 **GIS Sequencing Platform and Data Generation**            
 Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor   
 
