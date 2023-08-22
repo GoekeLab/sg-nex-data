@@ -28,7 +28,7 @@ Next, we will need to download the required data to run XXXX. The required data 
 
 Generally, you may want to learn how to get access to these data using the [data
 access
-tutorial](https://github.com/GoekeLab/sg-nex-data/blob/updated-documentation/docs/AWS_data_access_tutorial.md). Below we only show the necessary steps to download the required data. The following command requires you to have [AWS CLI](https://aws.amazon.com/cli/) installed.
+tutorial](https://github.com/GoekeLab/sg-nex-data/blob/master/docs/AWS_data_access_tutorial.md). Below we only show the necessary steps to download the required data. The following command requires you to have [AWS CLI](https://aws.amazon.com/cli/) installed.
 
 ``` bash
 # create a directory to store the data
