@@ -104,6 +104,10 @@ The following short tutorials are available that demonstrate how to analyse the 
 - [Identification of m6A with the SG-NEx samples (using m6Anet)](./docs/SG-NEx_m6Anet_tutorial.md)
 
 - [Basecalling and analysing SG-NEx samples in S/BLOW5 format](./docs/SG-NEx_blow5_tutorial.md)
+  
+- [Isoform discovery and Quantification with FLAIR](./docs/SG-NEx_FLAIR_tutorial_notebook.ipynb) <a target="_blank" href="https://colab.research.google.com/github/GoekeLab/sg-nex-data/blob/master/docs/SG-NEx_FLAIR_tutorial_notebook.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
 
 Additional, more detailed workflows can be found here:
 
