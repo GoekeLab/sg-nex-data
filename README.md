@@ -109,6 +109,8 @@ The following short tutorials are available that demonstrate how to analyse the 
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 
+- [Transcript reconstruction and quantification of SG-NEx samples with IsoTools](./docs/SG_NEx_IsoTools_tutorial.ipynb)
+
 Additional, more detailed workflows can be found here:
 
 - [Transcript discovery, quantification, and differential transcript expression from long read RNA-Seq data (using Bambu)](https://github.com/GoekeLab/bambu)
