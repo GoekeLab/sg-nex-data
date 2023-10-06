@@ -57,6 +57,11 @@ You can browse the S3 data here: 1) [fast5, fastq, and bam](http://sg-nex-data.s
 
 Please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) which describes the S3 data structure and how to access files with [AWS CLI](https://docs.aws.amazon.com/cli/latest/reference/s3/). The direct links to the data are listed in the [sample spreadsheet](docs/samples.tsv).
 
+Here are the locations for the spike-in concentrations used in SG-NEx samples:
+- [Sequin concentration](docs/RNAsequins_MixA.xlsx)
+- [SIRV-1 concentration](https://www.lexogen.com/wp-content/uploads/2021/10/025UI368V0200_SIRV-Calculator_Set-1_extended.xlsx)
+- [SIRV-4 concentration](https://www.lexogen.com/wp-content/uploads/2021/10/141UI371V0200_SIRV-Calculator_Set-4_extended.xlsx)
+
 _**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
 Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
