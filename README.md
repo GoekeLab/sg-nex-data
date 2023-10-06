@@ -58,7 +58,7 @@ You can browse the S3 data here: 1) [fast5, fastq, and bam](http://sg-nex-data.s
 Please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) which describes the S3 data structure and how to access files with [AWS CLI](https://docs.aws.amazon.com/cli/latest/reference/s3/). The direct links to the data are listed in the [sample spreadsheet](docs/samples.tsv).
 
 Here are the locations for the spike-in concentrations used in SG-NEx samples:
-- [Sequin concentration](docs/RNASequins_MixA.xlsx)
+- [Sequin concentration](docs/RNAsequins_MixA.xlsx)
 - [SIRV-1 concentration](https://www.lexogen.com/wp-content/uploads/2021/10/025UI368V0200_SIRV-Calculator_Set-1_extended.xlsx)
 - [SIRV-4 concentration](https://www.lexogen.com/wp-content/uploads/2021/10/141UI371V0200_SIRV-Calculator_Set-4_extended.xlsx)
 
