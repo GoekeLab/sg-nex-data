@@ -114,7 +114,10 @@ The following short tutorials are available that demonstrate how to analyse the 
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 
-- [Transcript reconstruction and quantification of SG-NEx samples with IsoTools](./docs/SG_NEx_IsoTools_tutorial.ipynb)
+- [Transcript reconstruction and quantification of SG-NEx samples with IsoTools](./docs/SG_NEx_IsoTools_tutorial.ipynb)<a target="_blank" href="https://colab.research.google.com/github/GoekeLab/sg-nex-data/blob/master/docs/SG_NEx_IsoTools_tutorial.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+
+- [Transcript quantification of SG-NEx direct RNA samples with NanoCount](./docs/SG-NEx_NanoCount_tutorial.md)
 
 Additional, more detailed workflows can be found here:
 
@@ -142,7 +145,7 @@ Hwee Meng Low, Yao Fei, Sarah Ng, Wendy Soon, CC Khor
 Viktoriia Iakovleva, Puay Leng Lee, Lixia Xin, Hui En Vanessa Ng, Jia Min Loo, Xuewen Ong, Hui Qi Amanda Ng, Suk Yeah Polly Poon, Hoang-Dai Tran, Kok Hao Edwin Lim, Huck Hui Ng, Boon Ooi Patrick Tan, Huck-Hui Ng, N.Gopalakrishna Iyer, Wai Leong Tam, Wee Joo Chng, Leilei Chen, Ramanuj DasGupta, Yun Shen Winston Chan, Qiang Yu, Torsten Wüstefeld, Wee Siong Sho Goh
 
 **Statistical Modeling and Data Analytics**                     
-Ying Chen, Hasindu Gamaarachchi, Nadia M. Davidson, Harshil Patel, Yuk Kei Wan, Min Hao Ling, Yu Song Chuah, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
+Ying Chen, Nadia M. Davidson, Yuk Kei Wan, Hasindu Gamaarachchi, Andre Sim, Harshil Patel,  Min Hao Ling, Yu Song Chuah, Naruemon Pratanwanich, Christopher Hendra, Laura Watten, Chelsea Sawyer, Dominik Stanojevic, Philip Andrew Ewels, Andreas Wilm, Mile Sikic, Alexandre Thiery, Michael I. Love, Alicia Oshlak, Jonathan Göke
 ## Citing the SG-NEx project
 
 The SG-NEx resource is described in:
