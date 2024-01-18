@@ -66,7 +66,23 @@ _**Citation**_: Please cite the pre-print describing the SG-NEx data resource wh
 
 Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
 
-**Release Note**
+**Release Note & Updates**
+
+Minor Updates
+Date: 2024-01-18
+Release of new samples
+direct RNA data for H9 and HEYA8 samples 
+cDNA and direct cDNA samples for H9 and HEYA8
+cDNA promethion samples of Hct116 samples using SQK-PCS110 (100 million reads on average)
+cDNA sample of Hct116 sampe using the SQK-PCS111
+
+Update of existing sample files 
+SGNex_MCF7_cDNAStranded_replicate2_run1.fastq.gz additional info characters removed before @ for the first read
+SGNex_K562_cDNAStranded_replicate3_run3.fastq.gz  line48000 added 1 character of “ for quality to match sequence length
+SGNex_A549_directRNA_replicate5_run1.tar.gz updated as previous version is incomplete
+SGNex_MCF7-EV_directRNA_replicate1_run1.fastq.gz updated on ENA as it is a duplicated file 
+SGNex_MCF7_directRNA_replicate2_run2  fixed with this command “zcat SGNex_MCF7_directRNA_replicate2_run2.fastq.gz | sed 's/.*@/@/g' | sed '$d' | gzip > SGNex_MCF7_directRNA_replicate2_run2_fixed.fastq.gz” thanks to Alex 
+
 
 Version Number: V0.4.0                
 Date: 2023-03-06                          
