@@ -100,7 +100,7 @@ You can find previous releases here in the [release history](https://github.com/
 
 You can now browse the data using the UCSC genome browser:
 
-[View the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=grch38&hubUrl=https://sg-nex-data.s3.amazonaws.com/data/sequencing_data_ont/genome_browser_data/hub_track/hub-ONT-Grch38-complete-2022-08-15.txt)
+[View the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=grch38&hubUrl=https://sg-nex-data.s3.amazonaws.com/data/sequencing_data_ont/genome_browser_data/hub_track/hub-ONT-Grch38-complete-2024-01-19.txt)
 
 By default only selected tracks are shown, but you can visualise all reads (bigbed tracks) and their coverage tracks (bigwig) from each individual sample.
 
