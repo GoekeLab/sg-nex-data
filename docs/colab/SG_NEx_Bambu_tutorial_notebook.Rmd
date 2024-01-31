@@ -62,11 +62,6 @@ Note that the above steps take about 5 mins
 
 If you want a more recent version of Bambu, you may refer to the [Bambu Github repository](https://github.com/GoekeLab/bambu). Note that if you are running command locally with **bambu** pre-installed, you may skip this section.
 
-```{r}
-# run this to stop the execution here 
-stop("123")
-```
-
 
 ## **Data Access and Preparation**
 
