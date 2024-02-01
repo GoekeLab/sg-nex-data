@@ -1,5 +1,5 @@
 ---
-title: An R Markdown document converted from "docs/colab/SG_NEx_Bambu_tutorial_notebook.ipynb"
+title: An R Markdown document converted from "./docs/colab/SG_NEx_Bambu_tutorial_notebook.ipynb"
 output: html_notebook
 ---
 
@@ -310,13 +310,6 @@ head(mcols(rowRanges(se.filtered))[order(mcols(rowRanges(se.filtered[]))$NDR),])
 
 
 plotBambu(se, type = "annotation", gene_id = "BambuGene1")
-```
-
-```{r}
-# For post-bambu downstream analysis, we will need the following packages.
-BiocManager::install("DESeq2", update = FALSE)
-BiocManager::install("apeglm", update = FALSE)
-BiocManager::install("DEXSeq", update = FALSE)
 ```
 
 Or novel transcripts in annotated genes
