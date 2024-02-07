@@ -68,8 +68,8 @@ Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing f
 
 **Release Note & Updates**
 
-Minor Updates
-Date: 2024-01-18
+Version Number: V0.5.0 
+Date: 2024-01-18         
 Release of new samples
 direct RNA data for H9 and HEYA8 samples 
 cDNA and direct cDNA samples for H9 and HEYA8
