@@ -1,7 +1,7 @@
 ![The Singapore Nanopore-Expression Project\!](
 https://jglaborg.files.wordpress.com/2021/10/sg_nex_textlogo.png)
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-release-and-access) [![cell lines](https://img.shields.io/badge/cell_lines-11-green)](#data-release-and-access) [![Sequencing Experiments](https://img.shields.io/badge/sequencing_runs-84-green)](docs/samples.tsv) 
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-release-and-access) [![cell lines](https://img.shields.io/badge/cell_lines-13-green)](#data-release-and-access) [![Sequencing Experiments](https://img.shields.io/badge/sequencing_runs-112-green)](docs/samples.tsv) 
 
 The SG-NEx project is an international collaboration initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/) to provide reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
 
