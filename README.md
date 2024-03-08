@@ -1,7 +1,7 @@
 ![The Singapore Nanopore-Expression Project\!](
 https://jglaborg.files.wordpress.com/2021/10/sg_nex_textlogo.png)
 
-[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-release-and-access) [![cell lines](https://img.shields.io/badge/cell_lines-11-green)](#data-release-and-access) [![Sequencing Experiments](https://img.shields.io/badge/sequencing_runs-84-green)](docs/samples.tsv) 
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/GoekeLab/sg-nex-data?color=blue&include_prereleases)](#data-release-and-access) [![cell lines](https://img.shields.io/badge/cell_lines-13-green)](#data-release-and-access) [![Sequencing Experiments](https://img.shields.io/badge/sequencing_runs-112-green)](docs/samples.tsv) 
 
 The SG-NEx project is an international collaboration initiated at the [Genome Institute of Singapore](https://www.a-star.edu.sg/gis/) to provide reference transcriptomes for 5 of the most commonly used cancer cell lines using Nanopore long read RNA-Seq data:
 
@@ -66,7 +66,23 @@ _**Citation**_: Please cite the pre-print describing the SG-NEx data resource wh
 
 Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
 
-**Release Note**
+**Release Note & Updates**
+
+Version Number: V0.5.0       
+Date: 2024-01-18         
+Release of new samples      
+- direct RNA data for H9 and HEYA8 samples       
+- cDNA and direct cDNA samples for H9 and HEYA8     
+- cDNA promethion samples of Hct116 samples using SQK-PCS110 (100 million reads on average)     
+- cDNA sample of Hct116 sampe using the SQK-PCS111     
+
+Update of existing sample files      
+- SGNex_MCF7_cDNAStranded_replicate2_run1.fastq.gz additional info characters removed before @ for the first read      
+- SGNex_K562_cDNAStranded_replicate3_run3.fastq.gz  line48000 added 1 character of “ for quality to match sequence length        
+- SGNex_A549_directRNA_replicate5_run1.tar.gz updated as previous version is incomplete        
+- SGNex_MCF7-EV_directRNA_replicate1_run1.fastq.gz updated on ENA as it is a duplicated file        
+- SGNex_MCF7_directRNA_replicate2_run2  fixed with this command “zcat SGNex_MCF7_directRNA_replicate2_run2.fastq.gz | sed 's/.*@/@/g' | sed '$d' | gzip > SGNex_MCF7_directRNA_replicate2_run2_fixed.fastq.gz” thanks to Alex 
+
 
 Version Number: V0.4.0                
 Date: 2023-03-06                          
@@ -84,7 +100,7 @@ You can find previous releases here in the [release history](https://github.com/
 
 You can now browse the data using the UCSC genome browser:
 
-[View the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=grch38&hubUrl=https://sg-nex-data.s3.amazonaws.com/data/sequencing_data_ont/genome_browser_data/hub_track/hub-ONT-Grch38-complete-2022-08-15.txt)
+[View the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=grch38&hubUrl=https://sg-nex-data.s3.amazonaws.com/data/sequencing_data_ont/genome_browser_data/hub_track/hub-ONT-Grch38-complete-2024-01-19.txt)
 
 By default only selected tracks are shown, but you can visualise all reads (bigbed tracks) and their coverage tracks (bigwig) from each individual sample.
 
