@@ -33,11 +33,11 @@ https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 ## Data Release and Access
 
-**Latest Release (v0.4)**
+**Latest Release (v0.5)**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5574654.svg)](https://doi.org/10.5281/zenodo.5574654)
 
-This release includes 86 samples from 11 different cell lines. 
+This release includes 112 samples from 13 different cell lines. 
 
 **Data Access**
 
@@ -69,7 +69,7 @@ Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing f
 **Release Note & Updates**
 
 Version Number: V0.5.0       
-Date: 2024-01-18         
+Date: 2024-03-08         
 Release of new samples      
 - direct RNA data for H9 and HEYA8 samples       
 - cDNA and direct cDNA samples for H9 and HEYA8     
