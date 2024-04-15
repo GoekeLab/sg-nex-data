@@ -68,6 +68,12 @@ Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing f
 
 **Release Note & Updates**
 
+Version Number: V0.5.1       
+Date: 2024-04-15
+Release of new sample     
+- new RNA004 sample of Hek293T (SGNex_Hek293T_directRNA_replicate5_run1)
+- pod5, fastq and transcriptome aligned bam files are included in this release 
+
 Version Number: V0.5.0       
 Date: 2024-03-08         
 Release of new samples      
