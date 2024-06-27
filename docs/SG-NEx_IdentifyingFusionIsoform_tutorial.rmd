@@ -1,0 +1,508 @@
+---
+title: "A tutorial on detecting fusion isoform with bambu"
+output:
+  html_notebook:
+    toc: yes
+---
+
+```{r 0-setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = '', fig.width = 6, fig.height = 6,
+  results = "hide",
+  message = FALSE
+)
+```
+
+One of the useful application of the Long read RNA sequencing being able to sequence full-length reads, is to profile fusion isoforms, in addition to fusion breakpoints detection. Here we present a guidance on detecting fusion isoforms with [bambu](https://github.com/GoekeLab/bambu), a long read RNA-seq transcript discovery and quantification tool, and also how to visualize the fusion isoforms.
+
+To be able to detect the fusion isoforms, it is required to have a list of fusion gene candidates, which can be obtained by running fusion detection tools like [JAFFAL](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02588-5). For demonstration, here we use a sample of the standard output from JAFFAL to start with.
+
+The tutorial will be presented with three sections:
+
+-   firstly, prepare data for bambu processing,
+-   secondly, applying bambu to detect fusion isoforms,
+-   lastly, visualize the fusion isoforms with R functions.
+
+# Prepare required input for bambu processing
+
+Firstly, to be able to run bambu, it is required to have a reference sequence fasta file, a reference annotations(gtf file or grangeslist object), and a genome alignment bam file. For fusion detection, it is recommended to use the fusion sequence fasta file, fusion annotaions file, and also fusion genome aligned reads bam file. Below, we will show how to generate customised sequence fasta and reference annotation file for fusions specifically.
+
+## Generating fusion customized fasta file
+
+To create the fusion sequence fasta file, we first extract the fusion sequences for each of the fusion gene in the fusion gene candidate and then concatenated the gene sequence together. Note that the fusion gene sequence will be reverse complemented when it is on the negative strand.
+
+This code chunk is to load the jaffal results, the `sample_jaffa_results.csv` can be downloaded [here](http://sg-nex-data.s3.amazonaws.com/data/data_tutorial/fusion_sample_data/sample_jaffa_results.csv) from SG-NEx resource. 
+
+```{r}
+library(data.table)
+jaffa_results.csv <- "sample_jaffa_results.csv"
+jaffa_results_table <- fread(jaffa_results.csv)
+fusionGeneNames <- jaffa_results_table$fusion.genes
+```
+
+This chunk of code is to load the annotation information for genes from ensembl-91. The ensembl annotation genes and transcripts can be downloaded here: [ensembl_gene_file](http://sg-nex-data.s3.amazonaws.com/data/annotations/txt_file/Homo_sapiens.GRCh38.91.annotations-genes.txt) and [ensembl_transcript_file](http://sg-nex-data.s3.amazonaws.com/data/annotations/txt_file/Homo_sapiens.GRCh38.91.annotations-transcripts.txt)
+
+```{r}
+library(GenomicRanges)
+library(GenomicFeatures)
+txdb <- txdbmaker::makeTxDbFromEnsembl("Homo sapiens", release=91)
+exonsByGene <- exonsBy(txdb, 'gene')
+exonsByTx <- exonsBy(txdb,"tx", use.names = TRUE)
+
+ensemblAnnotations.genes <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-genes.txt',header=TRUE)
+ensemblAnnotations.genes <- data.table(ensemblAnnotations.genes, keep.rownames = TRUE)
+ensemblAnnotations.txs <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-transcripts.txt',header=TRUE)
+ensemblAnnotations.txs <- data.table(ensemblAnnotations.txs, keep.rownames = TRUE)
+```
+
+This chunk of code is to load human chromosome sequences, where the fasta file can be downloaded from SG-NEx data resource: [here](http://sg-nex-data.s3.amazonaws.com/data/annotations/genome_fasta/hg38_sequins_SIRV_ERCCs_longSIRVs.fa)
+
+```{r}
+library(Biostrings)
+cat('Load transcript sequence information')
+geneSeq <- readDNAStringSet(file='hg38_sequins_SIRV_ERCCs_longSIRVs.fa')
+listNames <- unlist(lapply(strsplit(names(geneSeq)," "),'[[',1))
+```
+
+This chunk of code shows how to generate fusion sequences.
+
+```{r}
+fusionGeneSequence <- unlist(lapply(seq_along(fusionGeneNames), function(s){
+    print(s)
+    tmp <- fusionGeneNames[s]
+    genevec <- unlist(strsplit(tmp, ":"))
+    paste(unlist(lapply(seq_along(genevec), function(g){
+        geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+        tmp_range <- exonsByGene[geneid][[1]]
+        seq_pos <- min(start(tmp_range)):max(end(tmp_range))
+        seqChar <- geneSeq[[match(as.character(unique(seqnames(tmp_range))), listNames)]][seq_pos]
+        if(as.character(unique(strand(tmp_range))) == "-"){
+            seqChar <- reverseComplement(seqChar)
+        }
+        as.character(seqChar)
+    })), collapse = "")
+}))
+```
+
+This chunk of code will write the fusion gene sequences to a file
+
+```{r}
+sink("fusionGene.fasta")
+noprint <- lapply(seq_along(fusionGeneNames), function(s){
+    cat(paste0(">",fusionGeneNames[s]), " \n")
+    cat(fusionGeneSequence[s]," \n")
+})
+sink()
+```
+
+## Generating fusion annotations
+
+We first generate the fusion transcripts granges
+
+```{r}
+fusionTx <- getFusionTxRange(fusionGeneNames, ensemblAnnotations.genes, exonsByGene, ensemblAnnotations.txs, exonsByTx,jaffa_results_table)
+```
+
+To create fusion annotations, we extract the coordinates for each of the fusion genes, and converted the coordinates to fusion coordinates.
+
+```{r}
+anno.file <- "hg38_sequins_SIRV_ERCCs_longSIRVs_corrected.gtf"
+fusionAnnotations <- getFusionAnnotations(fusionGeneNames, anno.file,ensemblAnnotations.genes,ensemblAnnotations.txs,fusionTx)
+```
+
+## Re-align reads to fusion chromosomes
+
+After obtaining the fusion sequence fasta and fusion annotations, we will re-align the reads to fusion sequence fasta file. There are a few ways to do this, for this tutorial, we start by generating bed file from the generated fusion annotation object. Then we use samtools to find out reads that overlapping the bed regions and then convert these reads to fastq file. Following which, we just perform minimap2 to re-align the reads overlapping to fusion regions to fusion sequences. Note that for this step, we increase the maximum gap allowed on the reference to 2200k to take care of the long gaps between fusion breakpoints and we only output mapped reads in the bam file.
+
+This chunk of code will generate bed file from the annotations granges object
+
+```{r}
+full_annotations <- bambu:::prepareAnnotationsFromGTF(anno.file)
+filtered_annotations <- full_annotations[ensemblAnnotations.txs[hgnc_symbol %in% unlist(strsplit(fusionGeneNames, ":"))]$ensembl_transcript_id]
+gr <- unlist(filtered_annotations)
+df <- data.frame(seqnames=seqnames(gr),
+  starts=start(gr)-1,
+  ends=end(gr),
+  names=c(rep(".", length(gr))),
+  scores=c(rep(".", length(gr))),
+  strands=strand(gr))
+write.table(df, file="fusion.bed", quote=F, sep="\t", row.names=F, col.names=F)
+```
+
+This chunk of code will identify reads from original bam file and convert it to fastq file. The sample bam file can be downloaded [here](http://sg-nex-data.s3.amazonaws.com/data/data_tutorial/fusion_sample_data/sample1.bam)
+
+```{bash}
+samtools view -bhL fusion.bed sample1.bam | samtools fastq - > sample1_fusion.fastq
+```
+
+This chunk of code will align the fusion fastq to fusion chromosomes
+
+```{bash}
+minimap2 -ax splice -G2200k -N 5 --sam-hit-only -t 20 fusionGene.fasta sample1_fusion.fastq | samtools sort -O bam -o sample1_fusion.bam -
+samtools index sample1_fusion.bam 
+```
+
+# Processing with Bambu
+
+Lastly we apply re-aligned reads, with fusion sequence fasta file and fusion annotations to bambu to identify fusion isoforms and also quantify the fusion isoforms. Here we use the default recommended NDR. However, in the case when sequencing depth is not very high, one might need to increase NDR to see the potential fusion isoforms.
+
+```{r}
+rcSaveDir <- "readClassSaveDir"
+dir.create(rcSaveDir)
+seFusion <- bambu(reads = "sample1_fusion.bam",rcOutDir = rcSaveDir, annotations = fusionAnnotations, genome = "fusionGene.fasta", 
+                                 fusionMode = TRUE, stranded = FALSE, ncore = 8, yieldSize = 1000000, verbose = FALSE)
+saveRDS(seFusion, file = "seFusion.rds")
+```
+
+# Visualizing the fusion isoforms
+
+It is usually good to check one or two examples of the fusion isoforms identified in the above steps. Below we show you how this can be achieved using R functions.
+
+Load reads alignments, this step is performed for visualizing coverage later
+
+```{r}
+library(GenomicAlignments)
+reads <-  readGAlignments(file="sample1_fusion.bam",
+                              param=ScanBamParam(flag=scanBamFlag(isSecondaryAlignment=FALSE, isDuplicate = FALSE),
+                                                 what=c("qual", "flag","mapq")),use.names=T) 
+readsFiltered <- reads[mcols(reads)$flag %in% c(0,16)]
+```
+
+Load fusion annotations from bambu output, and add a read count column to the metadata, this step is performed for visualizing annotations later
+
+```{r}
+annotations <- rowRanges(seFusion)
+mcols(annotations)$readCount <- NULL
+mcols(annotations)$readCount <- rowSums(assays(seFusion)$CPM)
+```
+
+Load the breakpoints, this step converts the breakpoint to fusion chromosome coordinates, this step is performed for visualizing breakpoint later
+
+```{r}
+break.pointList <- getFusionBreakpoints(fusionGeneNames, ensemblAnnotations.genes, exonByGene, jaffa_results_table)
+```
+
+Load the fusion gene annotations
+
+```{r}
+fusionGene <- getFusionGeneRange(fusionGeneNames, ensemblAnnotations.genes,exonsByGene, jaffa_results_table)
+```
+
+Define 5 prime, 3 prime gene and fusion gene
+
+```{r}
+prime5Gene <- GetPrimeGene(fusionGeneNames, ensemblAnnotations.genes, exonsByGene, jaffa_results_table, prime = 5)
+prime3Gene <- GetPrimeGene(fusionGeneNames, ensemblAnnotations.genes, exonsByGene, jaffa_results_table, prime = 3)
+gene_type <- defineGeneType(fusionGeneNames, annotations, fusionGene,prime3Gene, prime5Gene)
+```
+
+This chunk of code will produce a plot with annotations on top and read coverage in the bottom.
+
+```{r, fig.width = 7, fig.height = 10}
+library(ggbio)
+#gr.tx <- annotations[as.character(unlist(unique(seqnames(annotations))))]
+gene_tmp <- fusionGeneNames[1]
+break.point <- break.pointList[gene_tmp][[1]]
+# strand.info <- as.character(unique(strand(fusionAnnotations[gene_tmp][[1]])))
+fusionGene <- GRangesList(fusionGene)
+names(fusionGene) <- fusionGeneNames
+
+p1 <- ggbio::autoplot(fusionGene[gene_tmp], aes( col = as.factor(score), fill = as.factor(score)), group.selfish = TRUE)+
+      #guides(col = FALSE, fill = FALSE)+
+      geom_vline(xintercept = break.point, col = "red", alpha = 0.3)+
+      # geom_vline(xintercept = validated_breakpoint, col = "blue", alpha = 0.8)+
+      scale_color_brewer(type = "qual", guide = FALSE)+scale_fill_brewer(type = "qual", labels = c("5' Gene","3' Gene"), name = "Gene type")
+    
+    
+p2 <- ggbio::autoplot(GRangesList(fusionTx[[gene_tmp]]), aes(col = as.factor(score), fill = as.factor(score)), group.selfish = TRUE)+geom_vline(xintercept = break.point, col = "red", alpha = 0.3)+scale_color_brewer(type = "qual", guide = FALSE)+scale_fill_brewer(type = "qual", labels = c("5' Gene","3' Gene"), name = "Gene type")
+    
+tmp <- readsFiltered[as.character(seqnames(readsFiltered))==gene_tmp]
+p3 <- ggbio::autoplot(tmp, method = "raw", stat = "coverage", aes(col = coverage, fill = coverage))+scale_fill_distiller(type = "seq",  direction = -1,n.breaks = 3)+scale_color_distiller(type = "seq", direction = -1,n.breaks = 3)
+
+    
+txvec_id <- unlist(lapply(3:1, function(i){
+      gene_pos <- c("5PrimeGene","3PrimeGene","fusion_gene")[i]
+      txvec_id <- which(as.character(unique(seqnames(annotations)))==gene_tmp&(mcols(annotations)$readCount>=10)&names(annotations) %in% gene_type[fusion_gene == gene_tmp &(gene_type == gene_pos)]$tx_name)
+      tmp_anno <- annotations[txvec_id]
+      sort.id <- order(min(start(tmp_anno)),max(end(tmp_anno)))
+      return(txvec_id[sort.id])
+}))
+    
+    
+tmp_anno <- annotations[txvec_id] # 
+tmp_anno <- tmp_anno[!is.na(mcols(tmp_anno)$readCount)]
+p4 <- ggbio::autoplot(tmp_anno,aes(col = log10(readCount), fill = log10(readCount)), group.selfish = TRUE)+scale_fill_distiller(type = "seq",  direction = 1)+scale_color_distiller(type = "seq", direction = 1)
+    
+    
+tracks(Gene = p1,Transcript = p2,  Coverage = p3,Count = p4,
+                heights = c(1,3,3,6))+theme_classic()
+```
+
+# Function resource section
+
+```{r}
+library(devtools)
+install_github("GoekeLab/bambu", ref = "restore_fusion_function")
+library(dplyr)
+library(bambu)
+getFusionAnnotations <- function(fusionGeneNames, anno.file,ensemblAnnotations.genes,ensemblAnnotations.txs,fusionTx){
+    annotationRanges <- prepareAnnotations(anno.file)
+    fusionAnnotation <- lapply(fusionGeneNames, function(s){
+    print(s)
+    genevec <- unlist(strsplit(s, ":"))
+    tmp_range <- do.call("c",lapply(genevec, function(g){
+    geneid <- ensemblAnnotations.genes[hgnc_symbol==g]$ensembl_gene_id
+    txid <- ensemblAnnotations.txs[ensembl_gene_id==geneid]$ensembl_transcript_id
+    print(length(txid))
+    tmp <- do.call("c",lapply(txid, function(t){
+      print(t)
+      tmp <- annotationRanges[t]
+      fusionTmp <- fusionTx[[s]][[t]]
+      seqlevels(tmp, pruning.mode = "tidy") <- as.character(unique(seqnames(tmp)))
+      seqlevels(tmp) <- as.character(unique(seqnames(fusionTmp)))                                 
+      start(tmp[[1]]) <- start(fusionTmp)
+      end(tmp[[1]]) <- end(fusionTmp)
+      # if negative strand
+      if(unique(strand(tmp[[1]]))=="-"){
+        tmp[[1]]$exon_rank <- max(tmp[[1]]$exon_rank)-tmp[[1]]$exon_rank+1
+        tmp[[1]]$exon_endRank <- max(tmp[[1]]$exon_endRank)-tmp[[1]]$exon_endRank+1
+      }
+      strand(tmp[[1]]) <- strand(fusionTmp)
+      return(tmp)
+    }))
+    return(tmp)
+  }))
+  return(tmp_range)
+})
+keep.id <- which(!sapply(fusionAnnotation, is.null))
+fusionAnnotation <- fusionAnnotation[keep.id]
+fusionAnnotation <- do.call("c", fusionAnnotation)
+return(fusionAnnotation)
+}
+
+getFusionTxRange <- function(fusionGeneNames, ensemblAnnotations.genes, exonsByGene, ensemblAnnotations.txs, exonsByTx, jaffa_results_table){
+    fusionTx <- lapply(seq_along(fusionGeneNames), function(s){
+  print(s)
+  tmp <- fusionGeneNames[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[1]]$ensembl_gene_id
+  tmp_range <- exonsByGene[geneid][[1]]
+  min_start <- min(start(tmp_range)) 
+  length_g1 <- max(end(tmp_range)) - min_start + 1
+  tmp_range <- lapply(seq_along(genevec), function(g){
+    geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    tmp_range <- exonsByGene[geneid][[1]]
+    min_start <- min(start(tmp_range)) 
+    length_g_tmp <- max(end(tmp_range)) 
+    strand.info <- as.character(unique(strand(tmp_range)))
+    txid <- ensemblAnnotations.txs[(ensembl_gene_id == geneid)]$ensembl_transcript_id
+    new_range <- lapply(txid, function(t){
+      tmp_range <- exonsByTx[t][[1]]
+      if(g==1){
+        scoreNum = ifelse(strand.info=="-", length_g_tmp-jaffa_results_table[fusion.genes == tmp]$base1+1,
+                          jaffa_results_table[fusion.genes == tmp]$base1-min_start+1)
+      }else{
+        scoreNum = ifelse(strand.info=="-",length_g_tmp-jaffa_results_table[fusion.genes == tmp]$base2+1+length_g1,
+                          jaffa_results_table[fusion.genes == tmp]$base2-min_start+1+length_g1)
+      }
+      if(strand.info=="-"){
+        new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                             ranges = IRanges(start = length_g_tmp - end(tmp_range) + 1, 
+                                              end = length_g_tmp - start(tmp_range) + 1 ),
+                             strand = Rle("+",length(tmp_range)),
+                             score = scoreNum)
+      }else{
+        new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                             ranges = IRanges(start = start(tmp_range) - min_start+1, 
+                                              end = end(tmp_range) - min_start+1),
+                             strand = Rle(strand.info,length(tmp_range)),
+                             score = scoreNum)
+      }
+      if(g == 2){
+        new_range <- GenomicRanges::shift(new_range, shift = length_g1)
+        
+      }
+      return(new_range)  
+    })
+    names(new_range) <- txid
+    return(new_range)
+  })
+  
+  return(do.call("c",tmp_range))
+})
+names(fusionTx) <- fusionGeneNames
+return(fusionTx)
+}
+
+getFusionGeneRange <- function(fusionGeneNames, ensemblAnnotations.genes,exonsByGene, jaffa_results_table){
+  fusionGene <- lapply(seq_along(fusionGeneNames), function(s){
+  print(s)
+  tmp <- fusionGeneNames[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[1]]$ensembl_gene_id
+  tmp_range <- exonsByGene[geneid][[1]]
+  min_start <- min(start(tmp_range)) 
+  length_g1 <- max(end(tmp_range)) - min_start + 1
+  tmp_range <- lapply(seq_along(genevec), function(g){
+    geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    tmp_range <- exonsByGene[geneid][[1]]
+    min_start <- min(start(tmp_range)) 
+    length_g_tmp <- max(end(tmp_range)) 
+    strand.info <- as.character(unique(strand(tmp_range)))
+    if(g==1){
+      scoreNum = ifelse(strand.info=="-", length_g_tmp-jaffa_results_table[fusion.genes == tmp]$base1+1,
+                        jaffa_results_table[fusion.genes == tmp]$base1-min_start+1)
+    }else{
+      scoreNum = ifelse(strand.info=="-",length_g_tmp-jaffa_results_table[fusion.genes == tmp]$base2+1+length_g1,
+                        jaffa_results_table[fusion.genes == tmp]$base2-min_start+1+length_g1)
+    }
+    if(strand.info=="-"){
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = rev(length_g_tmp - end(tmp_range) + 1 ), 
+                                            end = rev(length_g_tmp - start(tmp_range) + 1 )),
+                           strand = Rle("+",length(tmp_range)), # change strand information to +
+                           score = scoreNum)
+    }else{
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = start(tmp_range) - min_start+1, 
+                                            end = end(tmp_range) - min_start+1),
+                           strand = Rle(strand.info,length(tmp_range)),
+                           score = scoreNum)
+    }
+    if(g == 2){
+      new_range <- GenomicRanges::shift(new_range, shift = length_g1)
+      
+    }
+    
+    return(new_range)
+    
+  })
+  
+  return(do.call("c",tmp_range))
+})
+  return(fusionGene)
+}
+
+# Get Fusion Break Points 
+getFusionBreakpoints <- function(fusionGeneNames, ensemblAnnotations.genes, exonByGene, jaffa_results_table){
+    break.pointList <- lapply(seq_along(fusionGeneNames), function(s){
+  print(s)
+  tmp <- fusionGeneNames[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[1]]$ensembl_gene_id
+  tmp_range <- exonsByGene[geneid][[1]]
+  min_start <- min(start(tmp_range)) 
+  length_g1 <- max(end(tmp_range)) - min_start + 1
+  scoreNum <- unlist(lapply(seq_along(genevec), function(g){
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    tmp_range <- exonsByGene[geneid][[1]]
+    min_start <- min(start(tmp_range)) 
+    length_g_tmp <- max(end(tmp_range))
+    strand.info <- as.character(unique(strand(tmp_range)))
+    
+    if(g==1){
+      if(strand.info=="-"){
+        scoreNum <- length_g_tmp-unique(jaffa_results_table[fusion.genes == tmp]$base1)+1
+      }else{
+        scoreNum <-  unique(jaffa_results_table[fusion.genes == tmp]$base1)-min_start+1
+      }
+      
+    }else{
+      if(strand.info=="-"){
+        scoreNum <- length_g_tmp-unique(jaffa_results_table[fusion.genes == tmp]$base2)+1+length_g1
+      }else{
+        scoreNum <- unique(jaffa_results_table[fusion.genes == tmp]$base2)-min_start+1+length_g1
+      }
+      }
+    }))
+    return(scoreNum)
+  })
+  names(break.pointList) <- fusionGeneNames
+  return(break.pointList)
+}
+
+
+GetPrimeGene <- function(fusionGeneNames,ensemblAnnotations.genes,exonsByGene,jaffa_results_table,prime = 5){
+primeGene <- lapply(seq_along(fusionGeneNames), function(s){
+  print(s)
+  tmp <- fusionGeneNames[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[1]]$ensembl_gene_id
+  tmp_range <- exonsByGene[geneid][[1]]
+  min_start <- min(start(tmp_range)) 
+  length_g1 <- max(end(tmp_range)) - min_start + 1
+  tmp_range <- lapply(which(c(5,3)==prime), function(g){
+    
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    tmp_range <- exonsByGene[geneid][[1]]
+    min_start <- min(start(tmp_range)) 
+    length_g_tmp <- max(end(tmp_range)) 
+    strand.info <- as.character(unique(strand(tmp_range)))
+    if(g==1){
+      scoreNum = ifelse(strand.info=="-", length_g_tmp-jaffa_results_table[fusion.genes == tmp]$base1+1,
+                        jaffa_results_table[fusion.genes == tmp]$base1-min_start+1)
+    }else{
+      scoreNum = ifelse(strand.info=="-",length_g_tmp-jaffa_results_table[fusion.genes == tmp]$base2+1+length_g1,
+                        jaffa_results_table[fusion.genes == tmp]$base2-min_start+1+length_g1)
+    }
+    if(strand.info=="-"){
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = rev(length_g_tmp - end(tmp_range) + 1 ), 
+                                            end = rev(length_g_tmp - start(tmp_range) + 1 )),
+                           strand = Rle("+",length(tmp_range)),
+                           score = scoreNum)
+    }else{
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = start(tmp_range) - min_start+1, 
+                                            end = end(tmp_range) - min_start+1),
+                           strand = Rle(strand.info,length(tmp_range)),
+                           score = scoreNum)
+    }
+    if(g == 2){
+      new_range <- GenomicRanges::shift(new_range, shift = length_g1)
+      
+    }
+    
+    return(new_range)
+    
+  })
+  
+  return(do.call("c",tmp_range))
+})
+    return(primeGene)
+}
+
+defineGeneType <- function(fusionGeneNames, annotations, fusionGene,prime3Gene, prime5Gene){
+    gene_type <- do.call("rbind",lapply(seq_along(fusionGeneNames), function(s){
+  
+  print(s)
+  genevec <- unlist(strsplit(fusionGeneNames[s], ":"))
+  fusionHits <- unique(c(which(overlapsAny(annotations, range(GRangesList(fusionGene[s])), type = "within", ignore.strand = TRUE)),
+                         queryHits(findOverlaps(annotations, range(GRangesList(fusionGene[s])), type = "within", ignore.strand = TRUE))))
+  match_type <- data.table(fusion_gene = fusionGeneNames[s],
+                           gene_type = "fusion_gene",
+                           tx_name = names(annotations)[fusionHits])
+  prime5Hits <- unique(c(which(overlapsAny(annotations, range(GRangesList(prime5Gene[s])), type = "within", ignore.strand = TRUE)),
+                         queryHits(findOverlaps(annotations, range(GRangesList(prime5Gene[s])), type = "within", ignore.strand = TRUE))))
+  prime3Hits <- unique(c(which(overlapsAny(annotations, range(GRangesList(prime3Gene[s])), type = "within", ignore.strand = TRUE)),
+                         queryHits(findOverlaps(annotations, range(GRangesList(prime3Gene[s])), type = "within", ignore.strand = TRUE))))
+  match_type[tx_name %in% names(annotations)[prime5Hits], gene_type := "5PrimeGene"]
+  match_type[tx_name %in% names(annotations)[prime3Hits], gene_type := "3PrimeGene"]
+  return(match_type)
+}))
+    return(gene_type)
+}
+
+```
+
+# Citations {#cite-bambu}
+
+Chen, Y., Sim, A., Wan, Y.K. et al. Context-aware transcript quantification from long-read RNA-seq data with Bambu. Nat Methods (2023). <https://doi.org/10.1038/s41592-023-01908-w>
+
+Davidson, N.M., Chen, Y., Sadras, T. *et al.* JAFFAL: detecting fusion genes with long-read transcriptome sequencing. *Genome Biol* **23**, 10 (2022). <https://doi.org/10.1186/s13059-021-02588-5>
+
+# Session Information {#session-info}
+
+```{r, include = TRUE}
+sessionInfo()
+```
