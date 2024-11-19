@@ -1,0 +1,2966 @@
+---
+title: "Figure 5" 
+output: html_notebook
+---
+# load libraries
+```{r}
+library(GenomicAlignments) ##readGAlignments
+library(AnnotationDbi)#loadDb
+library(data.table)#fast large dataset manipulation
+library(readxl)#load in google master document
+library(limma) #limma
+library(DEXSeq)
+library(stageR)
+# for generating plots
+library(ggplot2)
+library(RColorBrewer)
+library(GGally)
+library(gridExtra)
+
+library(cowplot) # ggdraw
+library(ggplotify) # as.ggplot
+devtools::load_all("bambu")
+```
+# load general data
+```{r}
+general_list <- readRDS("general_list2023-04-27.rds")
+cellLines <- general_list$cellLines
+combMat <- combn(7,2)
+cellLineVec <- cellLines
+cellLinePair <- sapply(1:ncol(combMat), function(s) paste(cellLineVec[combMat[,s]], collapse = "vs"))
+```
+# load data
+```{r}
+txLengths.tbldf <- general_list$txLengths.tbldf
+geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype, nisoform)]
+setnames(geneTxTable, "gene_id","gene_name")
+geneTxTable[grepl("R",tx_name), gene_biotype := "Spike-in"]
+geneTxTable[, nisoform:=NULL]
+seOutput <- readRDS("bambuOutput_May25.rds")
+geneTxTable_extended <- as.data.table(rowData(seOutput))
+setnames(geneTxTable_extended, c("GENEID","TXNAME"),c("gene_name","tx_name"))
+geneTxTable_extended[,nisoform:=length(unique(tx_name)), by = gene_name]
+geneTxTable_extended <- geneTxTable[geneTxTable_extended, on = c("gene_name","tx_name")]
+pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
+## transcripts that are matched in salmon sr and genomeem_lr
+txvec <- fread(paste0("txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
+txvec <- gsub("\\..*","",txvec$V1)
+ensemblAnnotations.transcripts <- copy(general_list$ensemblAnnotations.transcripts)
+setnames(ensemblAnnotations.transcripts, "ensembl_gene_id","gene_name")
+ensemblAnnotations.transcripts <- data.table(tx_name = txvec, status = TRUE)[ensemblAnnotations.transcripts, on = "tx_name"]
+ensemblAnnotations.transcripts[is.na(status), status := FALSE]
+ensemblAnnotations.transcripts[, all_in := all(status), by = gene_name]
+genevec <- unique(ensemblAnnotations.transcripts[which(all_in)]$gene_name)
+salmon_sr <- readRDS("salmon_sr.rds")
+salmon_sr[, cellLine := gsub('k562','K562',unlist(strsplit(runname,'_'))[2]), by = runname]
+salmon_lr <- readRDS("salmon_lr.rds")
+salmon_lr[, cellLine := gsub("-EV","",unlist(strsplit(runname,'_'))[2]), by = runname]
+nanocount_lr <- readRDS("nanocount_lr.rds")
+nanocount_lr[, cellLine := gsub("-EV","",unlist(strsplit(runname,'_'))[2]), by = runname]
+## matched table
+dt <- data.table(as.data.frame(rowData(seOutput)))
+setnames(dt, c("TXNAME","GENEID"),c("tx_name","gene_name"))
+dt[, txCount:=length(unique(tx_name)), by = gene_name]
+com_data_filter_fullLength <- readRDS("com_data_filter_fullLength.rds")
+runnameVec <- unique(com_data_filter_fullLength$runname)
+```
+# load count data for bambu
+```{r}
+## LR to get mean CPM and fullLengthCounts for each cell line bambu version============
+lr_ave <- unique(com_data_filter_fullLength[, list(aveExp = mean(totalCounts/ntotal*10^6),
+                                                   fullLengthCounts = mean(fullLengthCounts)), by = list(tx_name, gene_name, cellLine)], by = NULL)
+lr_ave[, cpm.rank := order(aveExp, decreasing = TRUE), by = list(gene_name, cellLine)]
+lr_ave[, cpm.major := (cpm.rank==1)]
+```
+
+# load count data for short read
+```{r}
+## SR to get mean CPM and fullLengthCounts for each cell line
+sr_ave <- unique(salmon_sr[, list(aveExp = mean(estimates)), by = list(tx_name, gene_name, cellLine)], by = NULL)
+sr_ave[, cpm.rank := order(aveExp, decreasing = TRUE), by = list(gene_name, cellLine)]
+sr_ave[, cpm.major := (cpm.rank==1)]
+```
+# splicing results within cell line
+```{r}
+library(dplyr)
+splicingDT <- do.call("rbind",lapply(cellLineVec, function(s){
+  dt <- data.table(as.data.frame(rowData(seOutput)))#data.table(as.data.frame(rowData(seOutput[which(apply(assays(seOutput)$CPM>=1,1,sum)>=1)])))#
+setnames(dt, c("TXNAME","GENEID"),c("tx_name","gene_name"))
+dt[, txCount:=length(unique(tx_name)), by = gene_name] # txCount should be based on active isoforms, active across samples, at least 1 cpm in any samples
+  dt <- lr_ave[cellLine==s,.(tx_name,gene_name, aveExp, fullLengthCounts,cpm.major)][dt,on = c("tx_name","gene_name")]
+  setnames(dt, c("aveExp","fullLengthCounts","cpm.major"),
+           paste0("LongRead.",c("cpm","fullLengthCounts","cpm.major")))
+# dt <- lr_ave[cellLine==s,.(tx_name,gene_name, aveExp,cpm.major)][dt,on = c("tx_name","gene_name")] # for salmon and nanocount, there is no fulllengthcounts
+# setnames(dt, c("aveExp","cpm.major"),
+#          paste0("LongRead.",c("cpm","cpm.major")))
+  dt <- sr_ave[cellLine==s,.(tx_name,gene_name, aveExp, cpm.major)][dt, on = c("tx_name","gene_name")]
+  setnames(dt, c("aveExp","cpm.major"),
+           paste0("ShortRead.",c("cpm","cpm.major")))
+  majorMinorIsoformMatchTable <- as_tibble(dt[gene_name %in% genevec & (gene_name %in% unique(ensemblAnnotations.transcripts[gene_biotype %in% pro_types]$gene_name))]) %>%
+  select(gene_name, tx_name, NDR,novelGene, novelTranscript, txClassDescription, txCount, LongRead.cpm,
+         LongRead.fullLengthCounts,#
+         LongRead.cpm.major, ShortRead.cpm.major,ShortRead.cpm) %>%
+  group_by(gene_name) %>%
+  arrange(gene_name,
+          -LongRead.fullLengthCounts, #
+          -LongRead.cpm) %>%
+  mutate(txMajor = tx_name[which(LongRead.cpm.major==1)[1]],
+         txMajor.short = tx_name[which(ShortRead.cpm.major==1)[1]],
+         cpm.major = LongRead.fullLengthCounts[which(LongRead.cpm.major==1)[1]],
+         #cpm.major = LongRead.cpm[which(LongRead.cpm.major==1)[1]],
+         cpm.major.short = ShortRead.cpm[which(ShortRead.cpm.major==1)[1]],
+         cpm=LongRead.fullLengthCounts,
+         #cpm = LongRead.cpm,
+         cpm.short = ShortRead.cpm,
+      #cpm.gene = sum(LongRead.cpm)) %>%
+         cpm.gene = sum(LongRead.fullLengthCounts)) %>% # in the case of salmon and nanocount the cpm gene will just be based on cpm not on fulllength counts
+  filter(cpm.major>2 & ! LongRead.cpm.major & cpm>2 & cpm/cpm.gene>0.05)
+  splicingTableMajorMinor <- compareTranscripts(rowRanges(seOutput)[majorMinorIsoformMatchTable$txMajor],rowRanges(seOutput)[majorMinorIsoformMatchTable$tx_name])
+splicingTableMajorMinor$gene_name <- majorMinorIsoformMatchTable$gene_name
+## results 1: # of events for each cell line
+splicingDT <- data.table(splicingTableMajorMinor)
+setnames(splicingDT, c("queryId","subjectId"),c("txMajor","txMinor"))
+tss_threshold <- tes_threshold <- 0
+splicingDT.sum <- unique(splicingDT[, list(alternativeFirstExon = any(alternativeFirstExon),
+                                   alternativeLastExon = any(alternativeLastExon),
+                                   TSS = any(abs(alternativeTSS)>tss_threshold),
+                                   TES = any(abs(alternativeTES)>tes_threshold),
+                                   internalFirstExon = any(internalFirstExon.query+internalFirstExon.subject),
+                                   internalLastExon = any(internalLastExon.query + internalLastExon.subject),
+                                   intronRetention = any(intronRetention.subject+intronRetention.query),
+                                   exonSkipping = any(exonSkipping.query + exonSkipping.subject),
+                                   altSplicing3Prime = any(exon3Prime),
+                                   altSplicing5Prime = any(exon5Prime)), by = list(txMajor, txMinor, gene_name, strand)],by=NULL)
+splicingDT.agg <-unique(splicingDT.sum[,list(altFirstExon = any(alternativeFirstExon|internalFirstExon),
+                           altLastExon = any(alternativeLastExon|internalLastExon),
+                           # altTSS = any(TSS),
+                           # altTES = any(TES),
+                           intronRetention = any(intronRetention),
+                           exonSkipping = any(exonSkipping),
+                           altSplicing5Prime = any(altSplicing5Prime),
+                           altSplicing3Prime = any(altSplicing3Prime)), by = list(gene_name,txMajor,txMinor,strand)], by = NULL)
+splicingDT.count <- melt(splicingDT.agg, id.vars = c("gene_name","txMajor","txMinor","strand"), measure.vars = colnames(splicingDT.agg)[-c(1:4)])
+splicingDT.count[, cellLine := s]
+return(splicingDT.count)
+}))
+saveRDS(splicingDT, file = paste0("splicing_summaryDT_withinCellLine_bambu_filterBycpm.rds"))
+```
+
+
+
+
+# Fig. 5a-c
+```{r}
+splicingDT <- readRDS("splicing_summaryDT_withinCellLine.rds")
+```
+
+## a splicing summary
+```{r}
+plotdata <- unique(splicingDT[, list(count = sum(value)), by =list(cellLine,variable)],by=NULL)
+p_within_cellLine <- ggplot(plotdata, aes(x = variable, y = count))+
+  geom_bar(stat = "identity")+ facet_grid(.~cellLine)+
+  coord_flip()+
+  scale_x_discrete(limits = rev(c("exonSkipping",
+                                  "altFirstExon",
+                              "altLastExon",
+                              "intronRetention",
+                              "altSplicing3Prime",
+                              "altSplicing5Prime")))+
+  theme_classic()
+# pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/splicing_summary_withinCellLines.pdf"), width = 13, height = 4)
+# print(p)
+# dev.off()
+# total percentage 
+percentageData <- unique(plotdata[,list(sumCount = sum(count)), by = list(variable)])
+percentageData[, perc := sumCount/sum(sumCount)]
+# > percentageData
+#             variable sumCount       perc
+# 1:      altFirstExon     4037 0.20959452
+# 2:       altLastExon     3235 0.16795597
+# 3:   intronRetention     1866 0.09687971
+# 4:      exonSkipping     7782 0.40402887
+# 5: altSplicing5Prime      908 0.04714189
+# 6: altSplicing3Prime     1433 0.07439904
+
+```
+
+
+## b splicing upset plot
+```{r}
+#splicingDT <- readRDS("splicing_summaryDT_withinCellLine_bambu_filterBycpm.rds")
+library(ComplexHeatmap)
+#set.seed(123)
+lt = dcast(splicingDT, gene_name+txMajor+txMinor+strand+cellLine ~ variable, value.var = "value")
+lt[, novel:= any(c(grepl("Bambu",txMajor),grepl("Bambu",txMinor))), by = list(txMajor,txMinor, gene_name, cellLine)]
+lt[, pat:= paste0(as.numeric(altFirstExon),as.numeric(altLastExon),
+                  as.numeric(intronRetention), as.numeric(exonSkipping),
+                  as.numeric(altSplicing5Prime), as.numeric(altSplicing3Prime)), by = list(altFirstExon, altLastExon,
+                                                                                          intronRetention, exonSkipping,
+                                                                                           altSplicing5Prime, altSplicing3Prime)]
+novelCount <- unique(lt[,list(count = sum(novel)), by = pat],by = NULL)
+lt <- as.data.frame(lt[,6:11, with = FALSE])
+lt <- lt[apply(lt,1,sum)>0,]
+prop.table(table(apply(lt, 1,sum)>1))
+
+table(lt$altFirstExon,lt$altLastExon)
+
+m = make_comb_mat(lt) # default mode is distinct,  mutually exclusive
+
+nGenesColor = brewer.pal(8,"Dark2")[1:2]
+names(nGenesColor) <- c("canonical","novel")
+nonordered_names <- unlist(lapply(seq_along(comb_size(m)), function(i){
+  paste(gsub("altTES","TES",gsub("altTSS","TSS",set_name(m)))[which(as.numeric(unlist(strsplit(names(comb_size(m))[i],"")))==1)], collapse = "&")
+}))
+barplot_top <- comb_size(m)
+# barplot_top[is.na(barplot_top)] <- 0
+# ht <- UpSet(m, top_annotation = upset_top_annotation(m,
+#     gp = gpar(col = comb_degree(m))),
+#       right_annotation = upset_right_annotation(m,
+#     ylim = c(0, 150),
+#     width = unit(4,"cm"),
+#     gp = gpar(fill = "gray60")))
+ss = set_size(m)
+cs = cbind(comb_size(m),novelCount[match(comb_name(m),pat)]$count)
+cs <- cbind(cs, cs[,1]-cs[,2])
+plotdata_wide = unique(dcast(splicingDT,txMajor + txMinor + gene_name + cellLine ~ variable, value.var = "value")[,list(altFirstExon = any(altFirstExon),
+                           altLastExon = any(altLastExon),
+                           exonSkipping = any(exonSkipping),
+                           intronRetention = any(intronRetention),
+                           altSplicing5Prime = any(altSplicing5Prime),
+                           altSplicing3Prime = any(altSplicing3Prime)), by = list(gene_name,cellLine)])
+plotdata <- unique(melt(plotdata_wide, id.vars = colnames(plotdata_wide)[c(1,2)], measure.vars = colnames(plotdata_wide)[-c(1:2)])[, list(count = sum(value)), by =list(cellLine,variable)],by=NULL)
+sbox <- as.matrix(dcast(plotdata, variable ~ cellLine, value.var = "count")[match(colnames(lt),variable),2:6,with=FALSE]) #match(set_name(m)[order(ss, decreasing = TRUE)], variable)
+snumber <- apply(apply(do.call("rbind",strsplit(rownames(cs),"")),c(1,2),as.numeric),1,sum)
+cs_single <- cs[,c(3,2)]
+cs_single[snumber>1,] <- 0  
+cs_double <- cs[,c(3,2)]
+cs_double[snumber !=2,] <- 0
+cs_others <- cs[,c(3,2)]
+cs_others[snumber<=2,] <- 0
+ht = UpSet(m,
+    set_order = order(ss, decreasing = TRUE),
+    comb_order = order(comb_degree(m), -cs[,1]),
+    top_annotation = HeatmapAnnotation(
+        "single" = anno_barplot(cs_single,
+            ylim =c(0, max(apply(cs_single,1,sum))*1.1),#
+            border = FALSE,
+            gp = gpar(fill = brewer.pal(8,"Dark2")[c(1:2)]),
+            height = unit(4, "cm")
+        ),
+        "double" = anno_barplot(cs_double,
+                                ylim =c(0, max(apply(cs_double,1,sum))*1.1),#
+                                border = FALSE,
+                                gp = gpar(fill = brewer.pal(8,"Dark2")[c(1:2)]),
+                                height = unit(4, "cm")
+        ),
+        # "10>=" = anno_barplot(cs10,
+        #                        ylim =c(0, max(cs10)*1.1),#
+        #                        border = FALSE,
+        #                        gp = gpar(fill = brewer.pal(8,"Dark2")[c(1:2)]),
+        #                        height = unit(4, "cm")
+        # ),
+        "multiple" = anno_barplot(cs_others,
+                              ylim =c(0, max(apply(cs_others,1,sum))*1.1),#
+                              border = FALSE,
+                              gp = gpar(fill = brewer.pal(8,"Dark2")[c(1:2)]),
+                              height = unit(4, "cm")
+        ),
+        annotation_name_side = "left",
+        annotation_name_rot = 90),
+    left_annotation = rowAnnotation(
+        "Genes per cellLine" = anno_boxplot(sbox,
+            baseline = 0,
+            axis_param = list(
+                at = c(0, 400, 800, 1200),
+                labels = c(0, 400, 800, 1200),
+                labels_rot = 0),
+            border = FALSE,
+            gp = gpar(fill = "black"),
+            width = unit(4, "cm")
+        ),
+        set_name = anno_text(set_name(m),
+            location = 0.5,
+            just = "center",
+            width = max_text_width(set_name(m)) + unit(4, "mm"))
+    ),
+    right_annotation = NULL,
+    show_row_names = FALSE)
+# decorate_annotation("Event Intersections", {
+#     grid.text(cs[od], x = seq_along(cs), y = unit(cs[od], "native") + unit(2, "pt"),
+#         default.units = "native", just = c("left", "bottom"),
+#         gp = gpar(fontsize = 6, col = "#404040"), rot = 45)
+# })
+# pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/DE_IsoSwtType_UpSetPlot_withinCellLines_novel",saveDate,"_bambu_filterByCPM.pdf"), width = 12, height = 10)
+ht = draw(ht)
+od = column_order(ht)
+# decorate_annotation("Event Intersections", {
+#     grid.text(cs[od,1], x = seq_along(cs), y = unit(cs[od], "native") + unit(2, "pt"),
+#         default.units = "native", just = c("left", "bottom"),
+#         gp = gpar(fontsize = 6, col = "#404040"), rot = 45)
+# })
+# dev.off()
+
+
+
+## percentage of co-observed events in all alternative events
+sum(apply(lt,1,sum)>1)/nrow(lt)
+## percentage of co-occuring events 
+sum((lt[,2]+lt[,1]>=2))/sum(lt[,2]) ## percentage of altLastExon co-observed with alternative promoter
+sum((lt[,4]+lt[,1]>=2))/sum(lt[,4]) ## percentage of exon skipping co-observed with alternative promoter
+```
+
+## c heatmap plot for cell-type specific dominant isoform switching based on dexseq and stageR
+```{r}
+#dtuGenes_1vs1 <- readRDS(paste0("/mnt/projects/SGNExManuscript/output_guppy6.4.2/dtuGenes_1vs1.rds"))
+dtuGenes_1vsall <- readRDS(paste0("/mnt/projects/SGNExManuscript/output_guppy6.4.2/dtuGenes_1vsall.rds"))
+table_1vsall <- fread(paste0("/mnt/projects/SGNExManuscript/output_guppy6.4.2/spliced_output_1vsall_bambu.csv"), header = TRUE)
+tss_threshold <- 0
+tes_threshold <- 0
+aggCases_1vsall <- table_1vsall[, list(alternativeFirstExon = any(alternativeFirstExon),
+                                   alternativeLastExon = any(alternativeLastExon),
+                                   TSS = any(abs(alternativeTSS)>tss_threshold),
+                                   TES = any(abs(alternativeTES)>tes_threshold),
+                                   internalFirstExon = any(internalFirstExon.query+internalFirstExon.subject),
+                                   internalLastExon = any(internalLastExon.query + internalLastExon.subject),
+                                   intronRetention = any(intronRetention.subject+intronRetention.query),
+                                   exonSkipping = any(exonSkipping.query + exonSkipping.subject),
+                                   altSplicing3Prime = any(exon3Prime),
+                                   altSplicing5Prime = any(exon5Prime)), by = list(gene, ref_tx, ref_cellLine)]
+## 9.1 Heatmap
+library(ComplexHeatmap)
+library(circlize)
+#col_fun = colorRamp2(c(0,2), c("white", "red"))
+geneTxTable_extended[, newTxClassAggregated:=ifelse(grepl("newFirstExon",txClassDescription)&(grepl("newLastExon",txClassDescription)),
+                                                    "newFirstLastExon",
+                                             ifelse(grepl("newFirstExon",txClassDescription), "newFirstExon",
+                                             ifelse(grepl("newLastExon",txClassDescription), "newLastExon",
+                                             ifelse(grepl("Junction|allNew",txClassDescription),"newJunction",
+                                             ifelse(grepl("unspliced",txClassDescription),"unspliced",
+                                             ifelse(grepl("newGene-",txClassDescription),"newGene",txClassDescription))))))]
+tmp <- geneTxTable_extended[match(unique(aggCases_1vsall$gene),gene_name)]
+tmpGeneInfo <- unique(txLengths.tbldf[,.(gene_id,hgnc_symbol,gene_biotype)])
+geneTxTable_extended[, `:=`(gene_biotype_corrected=gene_biotype,
+               hgnc_symbol_corrected=hgnc_symbol)]
+geneTxTable_extended[is.na(gene_biotype), gene_biotype_corrected:=tmpGeneInfo[gene_id == gene_name]$gene_biotype, by = gene_name]
+geneTxTable_extended[grepl("gene.", gene_name), gene_biotype_corrected:="Not sure"]
+geneTxTable_extended[is.na(hgnc_symbol), hgnc_symbol_corrected:=tmpGeneInfo[gene_id == gene_name]$hgnc_symbol, by = gene_name]
+geneTxTable_extended[grepl("gene.",gene_name), hgnc_symbol_corrected:=gene_name]
+geneTxTable_extended[hgnc_symbol_corrected=="", hgnc_symbol_corrected:=gene_name]
+tmpAll <- copy(com_data_filter_fullLength)
+tmpAll[,estNorm:=totalCounts/ntotal*10^6]
+# filtering by major isoform switcing 
+tmpFilter <- tmpAll[,.(tx_name,gene_name,runname, estNorm,cellLine)][dtuGenes_1vsall[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(isoRank==1)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)], on = c("tx_name","gene_name")]
+setnames(tmpFilter, old = c("cellLine","i.cellLine"), new = c("expCellLine","cellLine"))
+ setnames(aggCases_1vsall, c("gene","ref_tx","ref_cellLine"),c("gene_name","tx_name","cellLine"))
+tmp <- tmpFilter[aggCases_1vsall, on = c("gene_name","tx_name","cellLine")]
+# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype)]
+# setnames(geneTxTable, "gene_id","gene_name")
+tmp <- geneTxTable_extended[tmp, on = c("tx_name","gene_name")]
+tmp[grepl("R",tx_name), gene_biotype := "Spike-in"]
+tmp <- tmp[!is.na(runname)]
+tmp[, eqClassById := NULL]
+tmp_wide <- dcast(tmp[,-19,with = FALSE], ...~runname, value.var = "estNorm")
+tmp_wide[is.na(tmp_wide)] <- 0
+#tmp_wide <- unique(tmp_wide)
+tmp_final <- tmp_wide[tmp_wide[,.I[order(log2fold_1_0)], by = cellLine]$V1]
+plotdata <- as.data.frame(tmp_final[,-c(1:35),with=FALSE])
+col_fun = colorRamp2(c(0,15), c("white", "cornflowerblue"))
+colInfo <- unique(tmp[,.(runname, expCellLine)])[match(colnames(plotdata), runname)]
+rowInfo <- tmp_final[,c(1:35),with=FALSE]
+nrow(rowInfo)
+source(paste0('/mnt/projects/SGNExManuscript/R/gene_cluster_code.R'))
+rowInfo[, gene_cluster:=ifelse(gene_biotype_corrected %in% tr_gene_list,'TR gene',
+                                ifelse(gene_biotype_corrected %in% long_noncoding_rna_list, 'lncRNA',
+                                       ifelse(gene_biotype_corrected %in% noncoding_rna_list, 'ncRNA',
+                                              ifelse(gene_biotype_corrected %in% pseudogene_list,'Pseudogene',
+                                                     ifelse(gene_biotype_corrected %in% ig_gene_list, 'IG gene',gene_biotype_corrected)))))]
+rowInfo[, gene_cluster := ifelse(gene_cluster %in% c("IG gene","TR gene", "Mt_tRNA","Mt_rRNA","ribozyme"),"others", gene_cluster)]
+# write.csv(rowInfo, file = paste0("/mnt/projects/SGNExManuscript/output_guppy6.4.2/splicing_heatmap_rowinfo.csv"))
+pvalue_col_fun = colorRamp2(c(0, 2, 3), c("green", "white", "red"))
+colCellLines <- brewer.pal(8,"Dark2")[seq_along(sort(unique(colInfo$expCellLine)))]
+colRowCellLines <- brewer.pal(8,"Dark2")[seq_along(sort(unique(rowInfo$cellLine)))]
+colBiotype <- brewer.pal(8,"Accent")[seq_along(unique(rowInfo$gene_cluster))]
+colEvt = c("#FF8080","white")
+colAnno = c(brewer.pal(8,"Paired"),brewer.pal(8,"Dark2"))[seq_along(unique(rowInfo$newTxClassAggregated))]
+col_fun_nisoform <- colorRamp2(c(3,50), c("darkseagreen4","grey70"))
+names(colEvt) <- c("TRUE","FALSE")
+names(colBiotype) <- unique(rowInfo$gene_cluster)
+names(colCellLines) <- sort(unique(colInfo$expCellLine))
+names(colAnno) <- unique(rowInfo$newTxClassAggregated)
+names(colRowCellLines) <- sort(unique(rowInfo$cellLine))
+cellLine_anno = rowAnnotation(
+    cellLine = as.factor(colInfo$expCellLine),
+    col = list(cellLine = colCellLines),
+    annotation_name_side = "bottom")
+hgncTypes = columnAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated),
+                            biotype = as.factor(rowInfo$gene_cluster),
+                           nisoform = rowInfo$nisoform,
+                           altFirstExon = as.factor(rowInfo$alternativeFirstExon|rowInfo$internalFirstExon),
+                           altLastExon = as.factor(rowInfo$alternativeLastExon|rowInfo$internalLastExon),
+                           # altTSS = as.factor(rowInfo$TSS),
+                           # altTES = as.factor(rowInfo$TES),
+                           altSplicing5Prime = as.factor(rowInfo$altSplicing5Prime),
+                           altSplicing3Prime = as.factor(rowInfo$altSplicing3Prime),
+                           exonSkipping = as.factor(rowInfo$exonSkipping),
+                           intronRetention = as.factor(rowInfo$intronRetention),
+                          refcellLine = as.factor(rowInfo$cellLine),
+                           col = list(newTxClass = colAnno,
+                                      biotype = colBiotype,
+                                      nisoform = col_fun_nisoform,
+                                      altFirstExon = colEvt,
+                                      altLastExon = colEvt,
+                                      # altTSS = colEvt,
+                                      # altTES = colEvt,
+                                      altSplicing5Prime = colEvt,
+                                      altSplicing3Prime = colEvt,
+                                      exonSkipping = colEvt,
+                                      intronRetention = colEvt,
+                                      refcellLine = colRowCellLines),
+  foo = anno_text(rowInfo$hgnc_symbol_corrected, gp = gpar(fontsize = 8)),
+  annotation_name_side = "left")
+  #show_annotation_name = ,
+  #show_legend = c(rep(TRUE,11),FALSE))
+plotmat <- (as.matrix(log2(plotdata+1)))
+colnames(plotmat) <- NULL
+p <- Heatmap(t(plotmat), name = "Counts", col = col_fun, bottom_annotation = hgncTypes,
+        column_split = factor(rowInfo$cellLine, levels =  rev(c("HEYA8","HepG2",
+        "A549","MCF7","Hct116","H9","K562"))),
+        cluster_column_slices = TRUE,
+        cluster_columns = FALSE,
+        right_annotation = cellLine_anno)
+print(p)
+pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/DmntIsoSwt_Heatmap17Aug2023.pdf"), width = 13, height = 12)#
+p
+dev.off()
+```
+
+
+## arrange main figure
+```{r}
+pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/Figure5_draft_17Aug2023.pdf"), width = 8.2, height = 20)#
+
+    ggdraw()+
+    draw_plot(p_within_cellLine, 0,4/5,1,1/5)+
+    draw_plot(as.ggplot(grid.grabExpr(draw(ht@ht_list[[1]], show_annotation_legend = FALSE, show_heatmap_legend = FALSE)))+ theme(legend.position="none"), 0,2/5,1,2/5)+
+ draw_plot(as.ggplot(grid.grabExpr(draw(p, show_annotation_legend = FALSE, show_heatmap_legend = FALSE)))+ coord_flip()+ theme(legend.position="none"),0,0,1 , 2/5)
+
+dev.off()
+```
+
+
+
+# Supplementary Fig. 6
+## a within cell line results from salmon 
+# load count data for salmon
+```{r}
+## LR to get mean CPM and fullLengthCounts for each cell line salmon version============
+lr_ave <- unique(salmon_lr[runname %in% runnameVec, list(aveExp = mean(estimates/ntotal*10^6)), by = list(tx_name, gene_name, cellLine)], by = NULL)
+lr_ave[, cpm.rank := order(aveExp, decreasing = TRUE), by = list(gene_name, cellLine)]
+lr_ave[, cpm.major := (cpm.rank==1)]
+```
+
+```{r}
+splicingDT_salmon <- readRDS("splicing_summaryDT_withinCellLine_salmon.rds")
+```
+
+
+```{r}
+plotdata_salmon <- unique(splicingDT_salmon[, list(count = sum(value)), by =list(cellLine,variable)],by=NULL)
+p_within_cellLine_salmon <- ggplot(plotdata_salmon, aes(x = variable, y = count))+
+  geom_bar(stat = "identity")+ facet_grid(.~cellLine)+
+  coord_flip()+
+  scale_x_discrete(limits = rev(c("exonSkipping",
+                                  "altFirstExon",
+                              "altLastExon",
+                              "intronRetention",
+                              "altSplicing3Prime",
+                              "altSplicing5Prime")))+
+  theme_classic()
+# pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/splicing_summary_withinCellLines.pdf"), width = 13, height = 4)
+# print(p)
+# dev.off()
+# total percentage 
+percentageData_salmon <- unique(plotdata_salmon[,list(sumCount = sum(count)), by = list(variable)])
+percentageData_salmon[, perc := sumCount/sum(sumCount)]
+# > percentageData_salmon
+#             variable sumCount       perc
+# 1:      altFirstExon     8660 0.28942883
+# 2:       altLastExon     2484 0.08301862
+# 3:   intronRetention     4364 0.14585074
+# 4:      exonSkipping     9902 0.33093814
+# 5: altSplicing5Prime     2274 0.07600013
+# 6: altSplicing3Prime     2237 0.07476354
+
+
+```
+
+
+## b within cell line results from nanocount 
+# load count data for nanocount
+```{r}
+## LR to get mean CPM and fullLengthCounts for each cell line nanocount version============
+lr_ave <- unique(nanocount_lr[runname %in% runnameVec, list(aveExp = mean(estimates/ntotal*10^6)), by = list(tx_name, gene_name, cellLine)], by = NULL)
+lr_ave[, cpm.rank := order(aveExp, decreasing = TRUE), by = list(gene_name, cellLine)]
+lr_ave[, cpm.major := (cpm.rank==1)]
+```
+
+```{r}
+splicingDT_nanocount <- readRDS("splicing_summaryDT_withinCellLine_nanocount.rds")
+```
+
+
+```{r}
+plotdata_nanocount <- unique(splicingDT_nanocount[, list(count = sum(value)), by =list(cellLine,variable)],by=NULL)
+p_within_cellLine_nanocount <- ggplot(plotdata_nanocount, aes(x = variable, y = count))+
+  geom_bar(stat = "identity")+ facet_grid(.~cellLine)+
+  coord_flip()+
+  scale_x_discrete(limits = rev(c("exonSkipping",
+                                  "altFirstExon",
+                              "altLastExon",
+                              "intronRetention",
+                              "altSplicing3Prime",
+                              "altSplicing5Prime")))+
+  theme_classic()
+# pdf(paste0("splicing_summary_withinCellLines.pdf"), width = 13, height = 4)
+# print(p)
+# dev.off()
+# total percentage 
+percentageData_nanocount <- unique(plotdata_nanocount[,list(sumCount = sum(count)), by = list(variable)])
+percentageData_nanocount[, perc := sumCount/sum(sumCount)]
+# > percentageData_nanocount
+#             variable sumCount       perc
+# 1:      altFirstExon     4391 0.31946162
+# 2:       altLastExon     2259 0.16435067
+# 3:   intronRetention     1577 0.11473263
+# 4:      exonSkipping     3748 0.27268097
+# 5: altSplicing5Prime      813 0.05914878
+# 6: altSplicing3Prime      957 0.06962532
+
+## results from nanocount can be ignored??
+
+
+```
+
+
+## c bambu with full-length filtered 
+```{r}
+splicingDT_filterbambu <- readRDS("splicing_summaryDT_withinCellLine_bambu_filterBycpm.rds")
+```
+
+
+```{r}
+plotdata_filterbambu <- unique(splicingDT_filterbambu[, list(count = sum(value)), by =list(cellLine,variable)],by=NULL)
+p_within_cellLine_filterbambu <- ggplot(plotdata_filterbambu, aes(x = variable, y = count))+
+  geom_bar(stat = "identity")+ facet_grid(.~cellLine)+
+  coord_flip()+
+  scale_x_discrete(limits = rev(c("exonSkipping",
+                                  "altFirstExon",
+                              "altLastExon",
+                              "intronRetention",
+                              "altSplicing3Prime",
+                              "altSplicing5Prime")))+
+  theme_classic()
+# pdf(paste0("splicing_summary_withinCellLines.pdf"), width = 13, height = 4)
+# print(p)
+# dev.off()
+# total percentage 
+percentageData_filterbambu <- unique(plotdata_filterbambu[,list(sumCount = sum(count)), by = list(variable)])
+percentageData_filterbambu[, perc := sumCount/sum(sumCount)]
+# > percentageData_filterbambu
+#             variable sumCount       perc
+# 1:      altFirstExon     4391 0.31946162
+# 2:       altLastExon     2259 0.16435067
+# 3:   intronRetention     1577 0.11473263
+# 4:      exonSkipping     3748 0.27268097
+# 5: altSplicing5Prime      813 0.05914878
+# 6: altSplicing3Prime      957 0.06962532
+
+## results from nanocount can be ignored??
+
+
+```
+
+## c rank of genes by number of isoforms where alternative events presented for 
+#exon skipping and alternative promoters but not others 
+```{r}
+library(dplyr)
+#saveRDS(splicingDT, file = paste0("output/splicingDT.rds"))
+splicingDT <- readRDS("splicing_summaryDT_withinCellLine.rds")
+
+txCount <- data.table(as.data.frame(rowData(seOutput[which(apply(assays(seOutput)$CPM>=1,1,sum)>=5)]))) # at least 1 CPM reads in 5 samples
+txCount[, txCount := length(unique(TXNAME)), by = GENEID]
+setnames(txCount, "GENEID","gene_name")
+
+## suppl figures  ===================
+
+table(splicingDT[which(value)]$variable)
+prop.table(table(splicingDT[which(value)]$variable))
+m <- prop.table(table(splicingDT[which(value)]$variable))
+
+genevec <- unique(splicingDT[which(value)]$gene_name)
+plotdata_nisoforms <- do.call("rbind",lapply(genevec, function(s){
+  txvec <- unique(c(splicingDT[gene_name == s &(value)]$txMajor,
+             splicingDT[gene_name == s &(value)]$txMinor))
+  txranges <- unlist(rowRanges(seOutput)[txvec])
+  eventSummary <- data.table(gene_name = s, 
+             altFirstExon = length(reduce(txranges[txranges$exon_rank==1])),
+             altLastExon = length(reduce(txranges[txranges$exon_endRank==1])))
+  # eventSummary[, others := paste0(splicingDT[gene_name == s & value]]
+  return(eventSummary)
+}))
+
+
+
+plotdata_wide <- unique(txCount[,.(gene_name, txCount)], by = NULL)[plotdata_nisoforms, on = "gene_name"]
+plotdata_long <- melt(plotdata_nisoforms, id.vars = "gene_name",  measure.vars = c("altFirstExon","altLastExon"))
+
+plotdata_long <- unique(txCount[,.(gene_name, txCount)], by = NULL)[plotdata_long, on = "gene_name"]
+
+plotdata_long <- plotdata_long[!is.na(txCount)] # those that are filtered by expression levels
+
+library(ggplot2)
+colPat <- brewer.pal(8,"Dark2")
+tmpdata <- unique(plotdata_long[,.(gene_name,txCount)],by= NULL)
+p_gene_rank_nisoforms <- ggplot(tmpdata, aes(x = gene_name))+
+  geom_bar(aes(y = txCount), stat = "identity", col = "grey70")+
+  geom_abline(intercept = 2:10, slope = 0, size = 1, col = "grey 70")+
+  # geom_point(data = plotdata_long[variable == "altFirstExon"], aes(x = gene_name, y = value), stat = "identity", col = colPat[1], alpha = 0.5)+
+  geom_bar(data = plotdata_long, aes(x = gene_name, y = value, fill = variable), stat = "identity",alpha = 0.5)+
+  scale_fill_brewer(type = "qual", palette = 6)+
+  
+  scale_x_discrete(limits = plotdata_wide[order(txCount,altFirstExon, altLastExon)]$gene_name)+
+  theme_classic()+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+
+# pdf(paste0("figures/DE_IsoSwtType_GeneRanks",saveDate,".pdf"), width = 12, height = 5)
+# print(p)
+# dev.off()
+
+write.csv(plotdata_wide[!is.na(txCount)][order(txCount)], file = paste0("geneRanksByIsoforms.csv"))
+
+```
+
+
+
+## arrange supplementary figure
+```{r}
+library(cowplot)
+library(ggfortify)
+library(ggpubr) # as_ggplot
+# redraw plot for scale_y_break type figure
+#https://cran.r-project.org/web/packages/ggbreak/vignettes/ggbreak.html#feature-12-compatible-with-patchwork 
+pdf("suppl_figure4_draft_21Aug2023.pdf", width = 14, height = 10)
+ggdraw() +
+     draw_plot(p_within_cellLine_salmon+ theme(legend.position="none"),0,4/7, 1/3, 3/7) +
+    draw_plot(p_within_cellLine_nanocount+ theme(legend.position="none"),1/3,4/7, 1/3, 3/7) +
+    draw_plot(p_within_cellLine_filterbambu+ theme(legend.position="none"),2/3, 4/7, 1/3,3/7) +
+     draw_plot(p_gene_rank_nisoforms+ theme(legend.position="none"),0, 1/7, 1/3,3/7) +
+    draw_plot(as.ggplot(grid.grabExpr(draw(p_heatmap_including_minorIsoforms, show_annotation_legend = FALSE, show_heatmap_legend = FALSE)))+ coord_flip()+ theme(legend.position="none"),1/3,1/7,2/3 , 3/7)
+     draw_plot(as_ggplot(get_legend(p_gene_rank_nisoforms)),0,0,1/6,1/7)
+    
+dev.off()
+```
+
+
+# Function code for running dexseq
+```{r}
+## code for alternative splicing analysis===============
+#.libPaths("/mnt/dataSSD/software/R/site-library")
+rm(list = ls())
+# 1. load data ============================
+### load library =====================
+# for data extraction and manipulation
+library(GenomicAlignments) ##readGAlignments
+library(AnnotationDbi)#loadDb
+library(data.table)#fast large dataset manipulation
+library(readxl)#load in google master document
+library(limma) #limma
+library(DEXSeq)
+library(stageR)
+# for generating plots
+library(ggplot2)
+library(RColorBrewer)
+library(GGally)
+library(ggbio)
+library(gridExtra)
+### load misc prepared data ===============================
+general_list <- readRDS("general_list2023-04-27.rds")
+cellLines <- general_list$cellLines
+saveDate <- as.character(as.Date(Sys.time()))
+sampleData <- data.table(as.data.frame(read_xlsx('ONT Master Table.xlsx', sheet = 1)))
+ensemblAnnotations.transcripts <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-transcripts.txt',header=TRUE)
+txdbEnsembl91 <- loadDb('hg38_sequins_SIRV_ERCCs_longSIRVs-txdb.sqlite')
+samples_wSpikein <- general_list$samples_wSpikein
+#c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8")
+protocolCol <-  general_list$protocolCol#adjustcolor(brewer.pal(8,"Dark2")[1:5],0.7)
+protocolVec <-  general_list$protocolVec#c("directRNA","directcDNA","cDNA","PacBio","Illumina")
+protocolLabel <- general_list$protocolLabel#c("RNA","PCR-free cDNA","cDNA","PacBio","Illumina")
+txvec <- fread(paste0("txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
+#txvec <- fread(paste0(wkdir,"txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
+txvec <- gsub("\\..*","",txvec$V1)
+ensemblAnnotations.transcripts <- copy(general_list$ensemblAnnotations.transcripts)
+setnames(ensemblAnnotations.transcripts, "ensembl_gene_id","gene_name")
+ensemblAnnotations.transcripts <- data.table(tx_name = txvec, status = TRUE)[ensemblAnnotations.transcripts, on = "tx_name"]
+ensemblAnnotations.transcripts[is.na(status), status := FALSE]
+ensemblAnnotations.transcripts[, all_in := all(status), by = gene_name]
+genevec <- unique(ensemblAnnotations.transcripts[which(all_in)]$gene_name)
+samples <- general_list$samples
+ensemblAnnotations.transcripts <- data.table(ensemblAnnotations.transcripts, keep.rownames = TRUE)
+setnames(ensemblAnnotations.transcripts,'rn','tx_name')
+exonsByTx <- exonsBy(txdbEnsembl91, 'tx',use.names=T)
+exonsRanges <- unlist(exonsByTx)
+tmp <- data.table(exon_rank = exonsRanges$exon_rank,
+                  strand = as.character(strand(exonsRanges)),
+                  txId = names(exonsRanges),
+                  exonId = exonsRanges$exon_id,
+                  mergeExonId = exonsRanges$er.MergedExonId)
+tmp[, `:=`(exon_end_rank = max(exon_rank)-exon_rank+1), by = txId]
+tmp[, `:=`(exonMaxRank=max(exon_rank),
+           exonEndMaxRank = max(exon_end_rank)), by = exonId]
+# exonsRanges$exon_rank_adjust <- tmp$exon_rank_adjust
+exonsRanges$exon_end_rank <- tmp$exon_end_rank
+exonsRanges$exonMaxRank <- tmp$exonMaxRank
+exonsRanges$exonEndMaxRank <- tmp$exonEndMaxRank
+exonsByTx <- relist(exonsRanges, exonsByTx)
+intronsByTx <- intronsByTranscript(txdbEnsembl91, use.names=TRUE)
+intronsRanges <- unlist(intronsByTx)
+tmp <- data.table(strand = as.character(strand(intronsRanges)),
+                  txId = names(intronsRanges),
+                  intronSt = start(intronsRanges),
+                  intronEnd = end(intronsRanges))
+tmp[, intron_rank:=cumsum(rep(1,.N)), by = txId]
+tmp[, intronMaxRank:=max(intron_rank), by = txId]
+tmp[, intron_rank:=ifelse(strand == "-", intronMaxRank-intron_rank+1, intron_rank)]
+tmp[, intron_end_rank:=(intronMaxRank-intron_rank+1)]
+intronsRanges$intron_end_rank <- tmp$intron_end_rank
+intronsRanges$intron_rank <- tmp$intron_rank
+intronsRanges$intronMaxRank <- tmp$intronMaxRank
+intronsByTx <- relist(intronsRanges, intronsByTx)
+exonsByGene <- exonsBy(txdbEnsembl91, 'gene')
+txLengths <- transcriptLengths(txdbEnsembl91)
+txLengths.tbldf <- data.table(txLengths)
+txLengths.tbldf [, `:=`(nisoform = length(unique(tx_id))),
+                 by = gene_id]
+txLengths.tbldf <- ensemblAnnotations.transcripts[txLengths.tbldf, on = c('tx_name','gene_id','nexon','tx_len')]
+geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, nisoform)]
+setnames(geneTxTable, 'gene_id', 'gene_name')
+### load count data-----bambu version ================================
+seOutput <- readRDS("bambuOutput_May25.rds")
+fullLengthCounts <- as.data.table(assays(seOutput)$fullLengthCounts, keep.rownames = TRUE)
+uniqueCounts <- as.data.table(assays(seOutput)$uniqueCounts, keep.rownames = TRUE)
+totalCounts <- as.data.table(assays(seOutput)$counts, keep.rownames = TRUE)
+geneTxTable <- as.data.table(rowData(seOutput))
+setnames(fullLengthCounts, "rn","tx_name")
+setnames(uniqueCounts, "rn","tx_name")
+setnames(totalCounts, "rn","tx_name")
+setnames(geneTxTable, c("GENEID","TXNAME"),c("gene_name","tx_name"))
+fullLengthCounts_lr <- melt(fullLengthCounts, id.vars = "tx_name", measure.vars = colnames(fullLengthCounts)[-1])
+setnames(fullLengthCounts_lr, c("variable","value"),c("runname","fullLengthCounts"))
+uniqueCounts_lr <- melt(uniqueCounts, id.vars = "tx_name", measure.vars = colnames(uniqueCounts)[-1])
+setnames(uniqueCounts_lr, c("variable","value"),c("runname","uniqueCounts"))
+totalCounts_lr <- melt(totalCounts, id.vars = "tx_name", measure.vars = colnames(totalCounts)[-1])
+setnames(totalCounts_lr, c("variable","value"),c("runname","totalCounts"))
+dataList <- list(fullLengthCounts_lr, uniqueCounts_lr, totalCounts_lr)
+lapply(dataList, function(i) setkey(i, tx_name,runname))
+genomeem_lr <- Reduce(merge,dataList)
+library(bambu)
+seGene <- transcriptToGeneExpression(seOutput)
+sumCount <- apply(assays(seGene)$counts, 2,sum)
+ntotalDt <- data.table(runname = names(sumCount),
+                       ntotal = as.numeric(sumCount))
+genomeem_lr <- ntotalDt[genomeem_lr, on = "runname"]
+genomeem_lr <- geneTxTable[genomeem_lr, on = "tx_name"]
+merge.colnames <- c('tx_name','gene_name','fullLengthCounts','uniqueCounts','totalCounts','runname','ntotal')
+com_data <- genomeem_lr[, merge.colnames, with =FALSE]
+rm(genomeem_lr)
+com_data[, protocol:=gsub('PromethionDirect','direct',gsub('cDNAStranded','cDNA',unlist(strsplit(runname, '_'))[3])), by = runname]
+com_data[, cellLine := gsub("-EV","",unlist(strsplit(runname,'_'))[2]), by = runname]
+# filter samples that have few reads
+com_data_filter_fullLength <- com_data[ntotal>400000&(cellLine %in% cellLines)]
+saveRDS(com_data_filter_fullLength, file = "com_data_filter_fullLength.rds")
+rm(com_data)
+rm(seGene)
+rm(ntotalDt)
+### load salmon long read count data ========================
+salmonLR <- readRDS("salmon_lr.rds")
+com_data_filter_fullLength <- readRDS("com_data_filter_fullLength.rds")
+runnameVec <- unique(com_data_filter_fullLength$runname)
+rm(com_data_filter_fullLength)
+salmonLR <- salmonLR[runname %in% runnameVec]
+salmonLR[, protocol:=gsub('PromethionDirect','direct',gsub('cDNAStranded','cDNA',unlist(strsplit(runname, '_'))[3])), by = runname]
+salmonLR[, cellLine := gsub("-EV","",unlist(strsplit(runname,'_'))[2]), by = runname]
+### load nanocount long read count data =============================
+nanocountLR <- readRDS("nanocount_lr.rds")
+com_data_filter_fullLength <- readRDS("com_data_filter_fullLength.rds")
+runnameVec <- unique(com_data_filter_fullLength$runname)
+rm(com_data_filter_fullLength)
+nanocountLR <- nanocountLR[runname %in% runnameVec]
+nanocountLR[, protocol:=gsub('PromethionDirect','direct',gsub('cDNAStranded','cDNA',unlist(strsplit(runname, '_'))[3])), by = runname]
+nanocountLR[, cellLine := gsub("-EV","",unlist(strsplit(runname,'_'))[2]), by = runname]
+### load short read rsem data ==========================
+#rsem_sr
+### load short read salmon data ==============================
+#salmon_sr
+### general annotation information ================================
+combMat <- combn(7,2)
+cellLineVec <- cellLines
+cellLinePair <- sapply(1:ncol(combMat), function(s) paste(cellLineVec[combMat[,s]], collapse = "vs"))
+geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype, nisoform)]
+setnames(geneTxTable, "gene_id","gene_name")
+geneTxTable[grepl("R",tx_name), gene_biotype := "Spike-in"]
+geneTxTable[, nisoform:=NULL]
+geneTxTable_extended <- as.data.table(rowData(seOutput))
+setnames(geneTxTable_extended, c("GENEID","TXNAME"),c("gene_name","tx_name"))
+geneTxTable_extended[,nisoform:=length(unique(tx_name)), by = gene_name]
+#
+#
+geneTxTable_extended <- geneTxTable[geneTxTable_extended, on = c("gene_name","tx_name")]
+# 2. Run DEXSeq ======================
+# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, nisoform)]
+# setnames(geneTxTable, 'gene_id', 'gene_name')
+# 2.1 DEXSeq for 1 vs all cell line==========================
+library(DRIMSeq)
+geneTxTableRaw <- as.data.table(rowData(seOutput))
+setnames(geneTxTableRaw, c("GENEID","TXNAME"),c("gene_name","tx_name"))
+geneTxTableRaw[, nisoform:=length(unique(tx_name)), by = gene_name]
+rm(seOutput)
+#final_data <- copy(com_data_filter_fullLength)
+###prepare data for dexseq ==================
+#count.data <- dcast(com_data_filter_fullLength, tx_name ~ runname, value.var = 'totalCounts')
+#count.data <- dcast(salmonLR, tx_name ~ runname, value.var = 'counts')
+count.data <- dcast(nanocountLR, tx_name ~ runname, value.var = 'est_count')
+count.data <- setDF(count.data)
+rownames(count.data) <- count.data$tx_name
+count.data$tx_name <- NULL
+count.data[is.na(count.data)] <- 0
+geneTxTable <- geneTxTableRaw[match(rownames(count.data),tx_name)]
+na.id <- which(is.na(geneTxTable$tx_name))
+if(length(na.id)>0){
+  count.data <- count.data[-na.id,]
+  geneTxTable <- geneTxTable[-na.id]
+}
+count.data <- data.frame(gene_id = geneTxTable$gene_name,
+                         feature_id = geneTxTable$tx_name,
+                         count.data)
+colnames(count.data) <- gsub('\\.','-',colnames(count.data))
+## filter out genes that are not expressed in the target cell lines
+geneCount <- data.table(count.data)
+geneCount <- melt(geneCount, id.vars = colnames(geneCount)[c(1,2)], measure.vars = colnames(geneCount)[-c(1,2)])
+geneCount[, gene_count:=sum(value), by = list(gene_id, variable)]
+geneCount <- unique(geneCount[,.(gene_id, gene_count, variable)])
+geneCount <- dcast(geneCount, gene_id ~ variable, value.var = "gene_count")
+### Filtering =================
+dFilterList <- lapply(cellLineVec, function(s){
+  print(s)
+sample.data <- unique(nanocountLR[,.(runname, protocol,cellLine)])
+sample.data <- sample.data[match(colnames(count.data)[-c(1,2)],runname)]
+sample.data[, ref:=as.numeric(cellLine==s)]
+sample.data[, ref:=factor(ref)]
+sample.data <- setDF(sample.data)
+rownames(sample.data) <- sample.data$runname
+colnames(sample.data)[1] <- 'sample_id'
+genesUnexpList <- geneCount[which(apply(geneCount[, which(sample.data$ref==1)+1,with=FALSE],1,sum)==0)]$gene_id
+if(length(genesUnexpList)==0){
+  count.dataFinal <- count.data
+}else{
+  count.dataFinal <- count.data[!(count.data$gene_id %in% genesUnexpList),]
+}
+d <- dmDSdata(counts=count.dataFinal, samples=sample.data)
+n_samp_gene <- 12
+n_samp_feature <- 9
+min_count_gene <- 10
+min_count_feature <- 10
+dFilter <- dmFilter(d,
+              min_samps_feature_expr = n_samp_feature,
+              min_samps_feature_prop = n_samp_feature,
+              min_samps_gene_expr = n_samp_gene,
+              min_feature_expr = min_count_feature,
+              min_gene_expr = min_count_gene,
+              min_feature_prop=0.1)
+table(table(counts(dFilter)$gene_id)) ## number of isoforms
+return(dFilter)
+})
+names(dFilterList) <- cellLineVec
+### Run DEXSeq Model ==========================
+formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
+formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
+#design_full <- model.matrix(~cellLine, data=DRIMSeq::samples(dFilter))
+dxdList <- lapply(cellLineVec, function(s){
+  print(s)
+  dFilter <- dFilterList[[s]]
+  dxd <- DEXSeqDataSet(countData=round(as.matrix(counts(dFilter)[,-c(1:2)])),
+                     sampleData=DRIMSeq::samples(dFilter),
+                     design=formulaFullModel,
+                     featureID = counts(dFilter)$feature_id,
+                     groupID=counts(dFilter)$gene_id)
+system.time({
+  BPPARAM <- MulticoreParam(12)
+  dxd <- estimateSizeFactors(dxd)
+  print('Size factor estimated')
+  dxd <- estimateDispersions(dxd, formula = formulaFullModel, BPPARAM=BPPARAM, quiet = FALSE)
+  print('Dispersion estimated')
+  #dxd <- estimateExonFoldChanges( dxd )
+  dxd <- testForDEU(dxd, reducedModel=formulaReducedModel, fullModel = formulaFullModel, BPPARAM=BPPARAM)
+  print('DEU tested')
+  dxd <- estimateExonFoldChanges(dxd, fitExpToVar="ref",
+                                 BPPARAM=BPPARAM)
+  print('Exon fold changes estimated')
+})
+return(dxd)
+})
+names(dxdList) <- cellLineVec
+saveRDS(dxdList, file = paste0("dxdList",saveDate,"_1vsall_nanocountLR.rds"))
+# 2.2 DEXSeq for 1 vs 1 ====================
+library(DRIMSeq)
+count.dataList <- lapply(1:ncol(combMat), function(s){
+  # count.data <- dcast(com_data_filter_fullLength[(cellLine %in% cellLineVec[combMat[,s]])],
+  #   tx_name ~ runname, value.var = 'totalCounts')
+    #count.data <- dcast(salmonLR[(cellLine %in% cellLineVec[combMat[,s]])],
+      # tx_name ~ runname, value.var = 'counts')
+count.data <- dcast(nanocountLR[(cellLine %in% cellLineVec[combMat[,s]])],
+                    tx_name ~ runname, value.var = 'est_count')
+count.data <- setDF(count.data)
+rownames(count.data) <- count.data$tx_name
+count.data$tx_name <- NULL
+count.data[is.na(count.data)] <- 0
+# geneTxTable <- as.data.table(rowData(seOutput))
+# setnames(geneTxTable, c("GENEID","TXNAME"),c("gene_name","tx_name"))
+# geneTxTable[, nisoform:=length(unique(tx_name)), by = gene_name]
+geneTxTable <- geneTxTableRaw[match(rownames(count.data),tx_name)]
+na.id <- which(is.na(geneTxTable$tx_name))
+if(length(na.id)>0){
+  count.data <- count.data[-na.id,]
+  geneTxTable <- geneTxTable[-na.id]
+}
+count.data <- data.frame(gene_id = geneTxTable$gene_name,
+                         feature_id = geneTxTable$tx_name,
+                         count.data)
+colnames(count.data) <- gsub('\\.','-',colnames(count.data))
+return(count.data)
+})
+names(count.dataList) <- cellLinePair
+geneCountList <- lapply(1:ncol(combMat), function(s){
+## filter out genes that are not expressed in the target cell lines
+geneCount <- data.table(count.dataList[[s]])
+geneCount <- melt(geneCount, id.vars = colnames(geneCount)[c(1,2)], measure.vars = colnames(geneCount)[-c(1,2)])
+geneCount[, gene_count:=sum(value), by = list(gene_id, variable)]
+geneCount <- unique(geneCount[,.(gene_id, gene_count, variable)])
+geneCount <- dcast(geneCount, gene_id ~ variable, value.var = "gene_count")
+return(geneCount)
+})
+names(geneCountList) <- cellLinePair
+dFilterList <- lapply(1:ncol(combMat), function(s){
+  sample.data <- unique(nanocountLR[(cellLine %in% cellLineVec[combMat[,s]]),.(runname,  protocol,cellLine)])
+  sample.data <- sample.data[match(colnames(count.dataList[[cellLinePair[s]]])[-c(1,2)],runname)]
+sample.data[, ref:=as.numeric(cellLine==cellLineVec[combMat[1,s]])]
+sample.data[, ref:=factor(ref)]
+sample.data <- setDF(sample.data)
+rownames(sample.data) <- sample.data$runname
+colnames(sample.data)[1] <- 'sample_id'
+count.data <- count.dataList[[cellLinePair[s]]]
+genesUnexpList <- geneCountList[[cellLinePair[s]]][which(apply(geneCountList[[cellLinePair[s]]][, which(sample.data$ref==1)+1,with=FALSE],1,sum)==0)]$gene_id
+if(length(genesUnexpList)==0){
+  count.dataFinal <- count.data
+}else{
+  count.dataFinal <- count.data[!(count.data$gene_id %in% genesUnexpList),]
+}
+d <- dmDSdata(counts=count.dataFinal, samples=sample.data)
+n_samp_gene <- min(table(sample.data$ref))
+print(n_samp_gene)
+n_samp_feature <- min(table(sample.data$ref))
+min_count_gene <- 10
+min_count_feature <- 10
+dFilter <- dmFilter(d,
+              min_samps_feature_expr = n_samp_feature,
+              min_samps_feature_prop = n_samp_feature,
+              min_samps_gene_expr = n_samp_gene,
+              min_feature_expr = min_count_feature,
+              min_gene_expr = min_count_gene,
+              min_feature_prop=0.1)
+table(table(counts(dFilter)$gene_id)) ## number of isoforms
+return(dFilter)
+})
+names(dFilterList) <- cellLinePair
+formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
+formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
+#design_full <- model.matrix(~cellLine, data=DRIMSeq::samples(dFilter))
+dxdList <- lapply(cellLinePair, function(s){
+  print(s)
+  dFilter <- dFilterList[[s]]
+  dxd <- DEXSeqDataSet(countData=round(as.matrix(counts(dFilterList[[s]])[,-c(1:2)])),
+                     sampleData=DRIMSeq::samples(dFilterList[[s]]),
+                     design=formulaFullModel,
+                     featureID = counts(dFilterList[[s]])$feature_id,
+                     groupID=counts(dFilterList[[s]])$gene_id)
+system.time({
+  BPPARAM <- MulticoreParam(8)
+  dxd <- estimateSizeFactors(dxd)
+  print('Size factor estimated')
+  dxd <- estimateDispersions(dxd, formula = formulaFullModel, BPPARAM=BPPARAM)
+  print('Dispersion estimated')
+  #dxd <- estimateExonFoldChanges( dxd )
+  dxd <- testForDEU(dxd, reducedModel=formulaReducedModel, fullModel = formulaFullModel, BPPARAM=BPPARAM)
+  print('DEU tested')
+  dxd <- estimateExonFoldChanges(dxd, fitExpToVar="ref",
+                                 BPPARAM=BPPARAM)
+  print('Exon fold changes estimated')
+})
+return(dxd)
+})
+names(dxdList) <- cellLinePair
+saveRDS(dxdList, file = paste0("dxdList",saveDate,"_1vs1_nanocountLR.rds"))
+```
+## processing data
+```{r}
+# 3. Adjust by StageR ====================
+## running locally
+library(GenomicAlignments) ##readGAlignments
+library(AnnotationDbi)#loadDb
+library(data.table)#fast large dataset manipulation
+library(readxl)#load in google master document
+library(limma) #limma
+library(DEXSeq)
+library(stageR)
+# for generating plots
+library(ggplot2)
+library(RColorBrewer)
+library(GGally)
+library(gridExtra)
+general_list <- readRDS("general_list2023-04-27.rds")
+cellLines <- general_list$cellLines
+combMat <- combn(7,2)
+cellLineVec <- cellLines
+cellLinePair <- sapply(1:ncol(combMat), function(s) paste(cellLineVec[combMat[,s]], collapse = "vs"))
+## 3.1 1 vs all =======================
+#dxdList2021-07-30_1vsall
+dxdList_1vsall <- readRDS("dxdList2023-07-19_1vsall.rds")
+com_data_filter_fullLength <- readRDS("com_data_filter_fullLength.rds")
+dxrList_1vsall <- lapply(cellLineVec, function(s){
+  dxr <- DEXSeqResults(dxdList_1vsall[[s]], independentFiltering=FALSE)
+})
+names(dxrList_1vsall) <- cellLineVec
+library(stageR)
+strp <- function(x) substr(x,1,15)
+dxrDTList_1vsall <- lapply(cellLineVec, function(s){
+  dxr <- dxrList_1vsall[[s]]
+  qval <- perGeneQValue(dxr)
+dxr.g <- data.frame(gene=names(qval),qval)
+columns <- c("featureID","groupID","pvalue")
+dxr_pval <- as.data.frame(dxr[,columns])
+head(dxr_pval)
+pConfirmation <- matrix(dxr_pval$pvalue,ncol=1)
+dimnames(pConfirmation) <- list(strp(dxr_pval$featureID),"transcript")
+pScreen <- qval
+names(pScreen) <- strp(names(pScreen))
+tx2gene <- as.data.frame(dxr_pval[,c("featureID", "groupID")])
+for (i in 1:2) tx2gene[,i] <- strp(tx2gene[,i])
+stageRObj <- stageRTx(pScreen=pScreen, pConfirmation=pConfirmation,
+                      pScreenAdjusted=TRUE, tx2gene=tx2gene)
+stageRObj <- stageWiseAdjustment(stageRObj, method="dtu", alpha=0.05)
+suppressWarnings({
+  dex.padj <- getAdjustedPValues(stageRObj, order=FALSE,
+                                 onlySignificantGenes=TRUE)
+})
+dxrDT <- data.table(as.data.frame(dxr))
+setnames(dxrDT, old = c('groupID','featureID'), new = c('geneID','txID'))
+dex.padj <- data.table(dex.padj)
+dxrDT <- dex.padj[dxrDT, on = c('geneID','txID')]
+})
+names(dxrDTList_1vsall) <- cellLineVec
+## 3.2 1 vs 1========================
+#dxdList2021-07-30_1vs1.rds
+dxdList_1vs1 <- readRDS(paste0("dxdList2023-07-19_1vs1.rds"))
+dxrList_1vs1 <- lapply(cellLinePair, function(s){
+  dxr <- DEXSeqResults(dxdList_1vs1[[s]], independentFiltering=FALSE)
+})
+names(dxrList_1vs1) <- cellLinePair
+library(stageR)
+strp <- function(x) substr(x,1,15)
+dxrDTList_1vs1 <- lapply(cellLinePair, function(s){
+  dxr <- dxrList_1vs1[[s]]
+  qval <- perGeneQValue(dxr)
+dxr.g <- data.frame(gene=names(qval),qval)
+columns <- c("featureID","groupID","pvalue")
+dxr_pval <- as.data.frame(dxr[,columns])
+head(dxr_pval)
+pConfirmation <- matrix(dxr_pval$pvalue,ncol=1)
+dimnames(pConfirmation) <- list(strp(dxr_pval$featureID),"transcript")
+pScreen <- qval
+names(pScreen) <- strp(names(pScreen))
+tx2gene <- as.data.frame(dxr_pval[,c("featureID", "groupID")])
+for (i in 1:2) tx2gene[,i] <- strp(tx2gene[,i])
+stageRObj <- stageRTx(pScreen=pScreen, pConfirmation=pConfirmation,
+                      pScreenAdjusted=TRUE, tx2gene=tx2gene)
+stageRObj <- stageWiseAdjustment(stageRObj, method="dtu", alpha=0.05)
+suppressWarnings({
+  dex.padj <- getAdjustedPValues(stageRObj, order=FALSE,
+                                 onlySignificantGenes=TRUE)
+})
+dxrDT <- data.table(as.data.frame(dxr))
+setnames(dxrDT, old = c('groupID','featureID'), new = c('geneID','txID'))
+dex.padj <- data.table(dex.padj)
+dxrDT <- dex.padj[dxrDT, on = c('geneID','txID')]
+})
+names(dxrDTList_1vs1) <- cellLinePair
+# 4. Identify dominant and full length reads across transcripts ==================
+dmnTx <- copy(com_data_filter_fullLength)
+dmnTx[,estNorm:=totalCounts/ntotal*10^6]
+dmnTx[, estAve:=median(estNorm), by = list(cellLine, tx_name, gene_name)] ## dominant isoforms are
+dmnTx <- unique(dmnTx[,.(cellLine, estAve,  tx_name, gene_name)])
+dmnTx[, isoRank:=match(estAve, sort(estAve,decreasing = TRUE)), by = list(cellLine, gene_name)]
+dmnTx[, nIsoRank:=length(unique(isoRank)),by = list(gene_name, tx_name) ] ##not always dominant isoform
+## full length read support: at least 5 full length read support across samples (to avoid partial adds up, floor of counts are used)
+fLTx <- copy(com_data_filter_fullLength)
+fLTx[, fullLengthSupport := sum(floor(fullLengthCounts)), by = list(gene_name, tx_name,cellLine)]
+fLTx <- unique(fLTx[,.(gene_name, tx_name, fullLengthSupport, cellLine)])
+flAveTx <- copy(com_data_filter_fullLength)
+flAveTx[,estNorm:=fullLengthCounts/ntotal*10^6]
+flAveTx[, estAve:=median(estNorm), by = list(cellLine, tx_name, gene_name)] ## dominant isoforms are
+flAveTx <- unique(flAveTx[,.(cellLine, estAve,  tx_name, gene_name)])
+aveGene <- copy(com_data_filter_fullLength)
+aveGene[,estNorm:=totalCounts/ntotal*10^6]
+aveGene[, estNorm:=sum(estNorm), by = list(cellLine, gene_name,runname)]
+aveGene <- unique(aveGene[,.(estNorm, cellLine, gene_name, runname)])
+aveGene[, estAve:=median(estNorm), by = list(cellLine, gene_name)]
+# 5. dtuGenes tables ======================
+dtuGenes_1vs1 <- do.call("rbind",lapply(1:length(cellLinePair), function(s){ #cellLineVec
+  tmp <- dxrDTList_1vs1[[cellLinePair[s]]][log2fold_1_0>=0,.(geneID, txID, gene, transcript,padj,log2fold_1_0)]
+  tmp[, `:=`(cellLine = cellLineVec[combMat[1,s]])]
+   tmp[, `:=`(cellLineNonRef = cellLineVec[combMat[2,s]])]
+  tmp2 <- dxrDTList_1vs1[[cellLinePair[s]]][log2fold_1_0<0,.(geneID, txID, gene, transcript,padj,log2fold_1_0)]
+  tmp2[, `:=`(cellLine = cellLineVec[combMat[2,s]])]
+  tmp2[, `:=`(cellLineNonRef = cellLineVec[combMat[1,s]])]
+  return(rbind(tmp,tmp2))
+}))
+setnames(dtuGenes_1vs1, c("geneID","txID"),c("gene_name","tx_name"))
+dtuGenes_1vsall <- do.call("rbind",lapply(1:length(cellLineVec), function(s){ #cellLineVec
+  tmp <- dxrDTList_1vsall[[cellLineVec[s]]][,.(geneID, txID, gene, transcript,padj,log2fold_1_0)]
+  tmp[, `:=`(cellLine = cellLineVec[s])]
+  return(tmp)
+}))
+setnames(dtuGenes_1vsall, c("geneID","txID"),c("gene_name","tx_name"))
+dtuGenes_1vs1 <- dmnTx[dtuGenes_1vs1, on = c("gene_name","tx_name","cellLine")]
+dtuGenes_1vs1 <- fLTx[dtuGenes_1vs1, on = c("gene_name","tx_name","cellLine")]
+dtuGenes_1vsall <- dmnTx[dtuGenes_1vsall, on = c("gene_name","tx_name","cellLine")]
+dtuGenes_1vsall <- fLTx[dtuGenes_1vsall, on = c("gene_name","tx_name","cellLine")]
+dtuGenes_1vsall[gene_name == "ENSG00000042493"]
+# 6. Get the two tables for DTU analysis=========================
+## 6.1 Short list signficant and LFC > 2 transcripts
+# * stageR adjusted gene p-value < 0.05
+# * stageR adjusted transcript p-value < 0.05
+# * padj < 0.05
+# * abs(LFC) >=2
+# * dominant isoform
+geneList_1vs1 <- unique(dtuGenes_1vs1[gene<0.05&(transcript<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(isoRank==1)&(nIsoRank>1)&(estAve>0)][,.(gene_name, cellLine,cellLineNonRef)])
+geneList_1vsall <- unique(dtuGenes_1vsall[gene<0.05&(transcript<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(isoRank==1)&(nIsoRank>1)&(estAve>0)][,.(gene_name, cellLine)])
+devtools::load_all("bambu")
+## 6.2 Find the dominant isoform switching pairs ========================
+txVecMatch_1vs1 <- do.call("rbind",lapply(1:nrow(geneList_1vs1), function(g){
+    tmpGene <- geneList_1vs1[g]$gene_name
+    tmpCellline <- geneList_1vs1[g]$cellLine
+    tmpNonRefCellLine <- geneList_1vs1[g]$cellLineNonRef
+    txref <- dmnTx[isoRank==1&(gene_name == tmpGene)&(cellLine == tmpCellline)]$tx_name
+    txvec <- setdiff(unique(dmnTx[isoRank==1&(gene_name == tmpGene)&(cellLine == tmpNonRefCellLine)&(estAve>0)]$tx_name),txref)
+    if(length(txvec)>0){
+      return(data.table(ref_tx=txref,
+               alt_tx = txvec,
+               ref_cellLine = tmpCellline,
+               alt_cellLine = tmpNonRefCellLine,
+               gene = tmpGene))
+    }
+}))
+txVecMatch_1vsall <- do.call("rbind",lapply(1:nrow(geneList_1vsall), function(g){
+    tmpGene <- geneList_1vsall[g]$gene_name
+    tmpCellline <- geneList_1vsall[g]$cellLine
+    txref <- dmnTx[isoRank==1&(gene_name == tmpGene)&(cellLine == tmpCellline)]$tx_name
+    txvec <- dmnTx[isoRank==1&(gene_name == tmpGene)&(cellLine != tmpCellline)&(estAve>0)&(tx_name != txref)]$tx_name
+    tmpNonRefCellLine <- dmnTx[isoRank==1&(gene_name == tmpGene)&(cellLine != tmpCellline)&(estAve>0)&(tx_name != txref)]$cellLine
+    return(data.table(ref_tx=txref,
+               alt_tx = txvec,
+               ref_cellLine = tmpCellline,
+               alt_cellLine = tmpNonRefCellLine,
+               gene = tmpGene))
+}))
+seOutput <- readRDS("bambuOutput_May25.rds")
+query <- rowRanges(seOutput)[txVecMatch_1vs1$ref_tx]
+subject <- rowRanges(seOutput)[txVecMatch_1vs1$alt_tx]
+spliceOutput_1vs1 <- compareTranscripts(query, subject)
+spliceOutput_1vs1 <- data.table(as.data.frame(spliceOutput_1vs1))
+spliceOutput_1vs1 <- cbind(txVecMatch_1vs1, spliceOutput_1vs1)
+query <- rowRanges(seOutput)[txVecMatch_1vsall$ref_tx]
+subject <- rowRanges(seOutput)[txVecMatch_1vsall$alt_tx]
+spliceOutput_1vsall <- compareTranscripts(query, subject)
+spliceOutput_1vsall <- data.table(as.data.frame(spliceOutput_1vsall))
+spliceOutput_1vsall <- cbind(txVecMatch_1vsall, spliceOutput_1vsall)
+setnames(dtuGenes_1vs1, "fullLengthSupport",paste0("ref_","fullLengthSupport"))
+## splice output table
+setnames(dtuGenes_1vs1, c("gene","transcript"),c("stageR_gene_padj","stageR_tx_padj"))
+table_1vs1 <- merge(spliceOutput_1vs1,dtuGenes_1vs1[,.(gene_name, tx_name, ref_fullLengthSupport,stageR_gene_padj, stageR_tx_padj, padj, log2fold_1_0,cellLine,cellLineNonRef)], by.y = c("gene_name","tx_name","cellLine","cellLineNonRef"), by.x = c("gene","ref_tx","ref_cellLine","alt_cellLine"), all.x = TRUE)
+table_1vs1 <- merge(table_1vs1, fLTx, by.x = c("alt_cellLine","alt_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vs1, "fullLengthSupport",paste0("alt_","fullLengthSupport"))
+table_1vs1 <- merge(table_1vs1, dmnTx[,.(cellLine, estAve, tx_name,gene_name,isoRank, nIsoRank)], by.x = c("ref_cellLine","ref_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vs1, c("estAve","isoRank","nIsoRank"),paste0("ref_",c("estTx","isoRank","nIsoRank")))
+table_1vs1 <- merge(table_1vs1, dmnTx[,.(cellLine, estAve, tx_name,gene_name,isoRank, nIsoRank)], by.x = c("alt_cellLine","alt_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vs1, c("estAve","isoRank","nIsoRank"),paste0("alt_",c("estTx","isoRank","nIsoRank")))
+table_1vs1 <- merge(table_1vs1, flAveTx[,.(cellLine, estAve, tx_name,gene_name)], by.x = c("ref_cellLine","ref_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vs1, "estAve","ref_fullLengthEstTx")
+table_1vs1 <- merge(table_1vs1, flAveTx[,.(cellLine, estAve, tx_name,gene_name)], by.x = c("alt_cellLine","alt_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vs1, "estAve","alt_fullLengthEstTx")
+table_1vs1 <- merge(table_1vs1, unique(aveGene[,.(cellLine, estAve,gene_name)]), by.x = c("ref_cellLine","gene"),
+                    by.y = c("cellLine","gene_name"), all.x = TRUE)
+setnames(table_1vs1, "estAve","ref_estGene")
+table_1vs1 <- merge(table_1vs1, unique(aveGene[,.(cellLine, estAve,gene_name)]), by.x = c("alt_cellLine","gene"),
+                    by.y = c("cellLine","gene_name"), all.x = TRUE)
+setnames(table_1vs1, "estAve","alt_estGene")
+write.table(table_1vs1, file = paste0("spliced_output_1vs1_bambu.csv"),row.names = FALSE, col.names = TRUE, sep = ",")
+setnames(dtuGenes_1vsall, "fullLengthSupport",paste0("ref_","fullLengthSupport"))
+## splice output table
+setnames(dtuGenes_1vsall, c("gene","transcript"),c("stageR_gene_padj","stageR_tx_padj"))
+table_1vsall <- merge(spliceOutput_1vsall,dtuGenes_1vsall[,.(gene_name, tx_name, ref_fullLengthSupport,stageR_gene_padj, stageR_tx_padj, padj, log2fold_1_0,cellLine)], by.y = c("gene_name","tx_name","cellLine"), by.x = c("gene","ref_tx","ref_cellLine"), all.x = TRUE)
+table_1vsall <- merge(table_1vsall, fLTx, by.x = c("alt_cellLine","alt_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "fullLengthSupport",paste0("alt_","fullLengthSupport"))
+table_1vsall <- merge(table_1vsall, dmnTx[,.(cellLine, estAve, tx_name,gene_name,isoRank, nIsoRank)], by.x = c("ref_cellLine","ref_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, c("estAve","isoRank","nIsoRank"),paste0("ref_",c("estTx","isoRank","nIsoRank")))
+table_1vsall <- merge(table_1vsall, dmnTx[,.(cellLine, estAve, tx_name,gene_name,isoRank, nIsoRank)], by.x = c("alt_cellLine","alt_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, c("estAve","isoRank","nIsoRank"),paste0("alt_",c("estTx","isoRank","nIsoRank")))
+table_1vsall <- merge(table_1vsall, flAveTx[,.(cellLine, estAve, tx_name,gene_name)], by.x = c("ref_cellLine","ref_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "estAve","ref_fullLengthEstTx")
+table_1vsall <- merge(table_1vsall, flAveTx[,.(cellLine, estAve, tx_name,gene_name)], by.x = c("alt_cellLine","alt_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "estAve","alt_fullLengthEstTx")
+table_1vsall <- merge(table_1vsall, unique(aveGene[,.(cellLine, estAve,gene_name)]), by.x = c("ref_cellLine","gene"),
+                    by.y = c("cellLine","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "estAve","ref_estGene")
+table_1vsall <- merge(table_1vsall, unique(aveGene[,.(cellLine, estAve,gene_name)]), by.x = c("alt_cellLine","gene"),
+                    by.y = c("cellLine","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "estAve","alt_estGene")
+write.table(table_1vsall, file = paste0("spliced_output_1vsall_bambu.csv"),row.names = FALSE, col.names = TRUE, sep = ",")
+saveRDS(dtuGenes_1vs1, file = paste0("dtuGenes_1vs1.rds"))
+saveRDS(dtuGenes_1vsall, file = paste0("dtuGenes_1vsall.rds"))
+```
+
+## prepare table_1vsall including minor isoforms 
+```{r}
+dmnTx <- copy(com_data_filter_fullLength)
+dmnTx[,estNorm:=totalCounts/ntotal*10^6]
+dmnTx[, estAve:=median(estNorm), by = list(cellLine, tx_name, gene_name)] ## dominant isoforms are
+dmnTx <- unique(dmnTx[,.(cellLine, estAve,  tx_name, gene_name)])
+dmnTx[, isoRank:=match(estAve, sort(estAve,decreasing = TRUE)), by = list(cellLine, gene_name)]
+dmnTx[, nIsoRank:=length(unique(isoRank)),by = list(gene_name, tx_name) ]
+dtuGenes_1vsall <- readRDS(paste0("output_guppy6.4.2/dtuGenes_1vsall.rds"))
+dtuGenes_1vs1 <- readRDS(paste0("output_guppy6.4.2/dtuGenes_1vs1.rds"))
+geneList_1vs1 <- unique(dtuGenes_1vs1[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)][,.(gene_name, cellLine,cellLineNonRef)])
+geneList_1vsall <- unique(dtuGenes_1vsall[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)][,.(gene_name, cellLine)])
+devtools::load_all("bambu")
+## 6.2 Find the isoform switching pairs ========================
+txVecMatch_1vsall <- do.call("rbind",lapply(1:nrow(geneList_1vsall), function(g){
+    tmpGene <- geneList_1vsall[g]$gene_name
+    tmpCellline <- geneList_1vsall[g]$cellLine
+     txref <- dtuGenes_1vsall[(gene_name == tmpGene)&(cellLine == tmpCellline)&(stageR_gene_padj<0.05)&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)]$tx_name
+     if(length(txref)==0){
+         return(NULL)
+     }
+     txref_rank <- dtuGenes_1vsall[(gene_name == tmpGene)&(cellLine == tmpCellline)]$isoRank
+     out <- do.call("rbind",lapply(seq_along(txref_rank), function(x){
+         txvec <- dmnTx[isoRank==txref_rank[x]&(gene_name == tmpGene)&(cellLine != tmpCellline)&(estAve>0)&(tx_name != txref[x])][,.(cellLine, tx_name)]
+       return(data.table(ref_tx=txref[x],
+               alt_tx = txvec$tx_name,
+               ref_isoRank = txvec$isoRank, 
+               ref_cellLine = tmpCellline,
+               alt_cellLine = txvec$cellLine,
+               gene = tmpGene))
+         
+     }))
+    return(out)
+    
+}))
+
+seOutput <- readRDS("bambuOutput_May25.rds")
+query <- rowRanges(seOutput)[txVecMatch_1vsall$ref_tx]
+subject <- rowRanges(seOutput)[txVecMatch_1vsall$alt_tx]
+spliceOutput_1vsall <- compareTranscripts(query, subject)
+spliceOutput_1vsall <- data.table(as.data.frame(spliceOutput_1vsall))
+spliceOutput_1vsall <- cbind(txVecMatch_1vsall, spliceOutput_1vsall)
+table_1vsall <- merge(spliceOutput_1vsall,dtuGenes_1vsall[,.(gene_name, tx_name, ref_fullLengthSupport,stageR_gene_padj, stageR_tx_padj, padj, log2fold_1_0,cellLine)], by.y = c("gene_name","tx_name","cellLine"), by.x = c("gene","ref_tx","ref_cellLine"), all.x = TRUE)
+table_1vsall <- merge(table_1vsall, fLTx, by.x = c("alt_cellLine","alt_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "fullLengthSupport",paste0("alt_","fullLengthSupport"))
+table_1vsall <- merge(table_1vsall, dmnTx[,.(cellLine, estAve, tx_name,gene_name,isoRank, nIsoRank)], by.x = c("ref_cellLine","ref_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, c("estAve","isoRank","nIsoRank"),paste0("ref_",c("estTx","isoRank","nIsoRank")))
+table_1vsall <- merge(table_1vsall, dmnTx[,.(cellLine, estAve, tx_name,gene_name,isoRank, nIsoRank)], by.x = c("alt_cellLine","alt_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, c("estAve","isoRank","nIsoRank"),paste0("alt_",c("estTx","isoRank","nIsoRank")))
+table_1vsall <- merge(table_1vsall, flAveTx[,.(cellLine, estAve, tx_name,gene_name)], by.x = c("ref_cellLine","ref_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "estAve","ref_fullLengthEstTx")
+table_1vsall <- merge(table_1vsall, flAveTx[,.(cellLine, estAve, tx_name,gene_name)], by.x = c("alt_cellLine","alt_tx","gene"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "estAve","alt_fullLengthEstTx")
+table_1vsall <- merge(table_1vsall, unique(aveGene[,.(cellLine, estAve,gene_name)]), by.x = c("ref_cellLine","gene"),
+                    by.y = c("cellLine","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "estAve","ref_estGene")
+table_1vsall <- merge(table_1vsall, unique(aveGene[,.(cellLine, estAve,gene_name)]), by.x = c("alt_cellLine","gene"),
+                    by.y = c("cellLine","gene_name"), all.x = TRUE)
+setnames(table_1vsall, "estAve","alt_estGene")
+write.table(table_1vsall, file = paste0("spliced_output_1vsall_bambu_includingMinorIsoforms.csv"),row.names = FALSE, col.names = TRUE, sep = ",")
+
+```
+
+### heatmap
+```{r}
+dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall.rds"))
+table_1vsall <- fread(paste0("spliced_output_1vsall_bambu_includingMinorIsoforms.csv"), header = TRUE)
+tss_threshold <- 0
+tes_threshold <- 0
+aggCases_1vsall <- table_1vsall[, list(alternativeFirstExon = any(alternativeFirstExon),
+                                   alternativeLastExon = any(alternativeLastExon),
+                                   TSS = any(abs(alternativeTSS)>tss_threshold),
+                                   TES = any(abs(alternativeTES)>tes_threshold),
+                                   internalFirstExon = any(internalFirstExon.query+internalFirstExon.subject),
+                                   internalLastExon = any(internalLastExon.query + internalLastExon.subject),
+                                   intronRetention = any(intronRetention.subject+intronRetention.query),
+                                   exonSkipping = any(exonSkipping.query + exonSkipping.subject),
+                                   altSplicing3Prime = any(exon3Prime),
+                                   altSplicing5Prime = any(exon5Prime)), by = list(gene, ref_tx, ref_cellLine)]
+## 9.1 Heatmap
+library(ComplexHeatmap)
+library(circlize)
+#col_fun = colorRamp2(c(0,2), c("white", "red"))
+geneTxTable_extended[, newTxClassAggregated:=ifelse(grepl("newFirstExon",txClassDescription)&(grepl("newLastExon",txClassDescription)),
+                                                    "newFirstLastExon",
+                                             ifelse(grepl("newFirstExon",txClassDescription), "newFirstExon",
+                                             ifelse(grepl("newLastExon",txClassDescription), "newLastExon",
+                                             ifelse(grepl("Junction|allNew",txClassDescription),"newJunction",
+                                             ifelse(grepl("unspliced",txClassDescription),"unspliced",
+                                             ifelse(grepl("newGene-",txClassDescription),"newGene",txClassDescription))))))]
+tmp <- geneTxTable_extended[match(unique(aggCases_1vsall$gene),gene_name)]
+tmpGeneInfo <- unique(txLengths.tbldf[,.(gene_id,hgnc_symbol,gene_biotype)])
+geneTxTable_extended[, `:=`(gene_biotype_corrected=gene_biotype,
+               hgnc_symbol_corrected=hgnc_symbol)]
+geneTxTable_extended[is.na(gene_biotype), gene_biotype_corrected:=tmpGeneInfo[gene_id == gene_name]$gene_biotype, by = gene_name]
+geneTxTable_extended[grepl("gene.", gene_name), gene_biotype_corrected:="Not sure"]
+geneTxTable_extended[is.na(hgnc_symbol), hgnc_symbol_corrected:=tmpGeneInfo[gene_id == gene_name]$hgnc_symbol, by = gene_name]
+geneTxTable_extended[grepl("gene.",gene_name), hgnc_symbol_corrected:=gene_name]
+geneTxTable_extended[hgnc_symbol_corrected=="", hgnc_symbol_corrected:=gene_name]
+tmpAll <- copy(com_data_filter_fullLength)
+tmpAll[,estNorm:=totalCounts/ntotal*10^6]
+# filtering by major isoform switcing 
+tmpFilter <- tmpAll[,.(tx_name,gene_name,runname, estNorm,cellLine)][dtuGenes_1vsall[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(isoRank==1)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)], on = c("tx_name","gene_name")]
+# including non-major isoform switching
+tmpFilterMinorIncluded <- tmpAll[,.(tx_name,gene_name,runname, estNorm,cellLine)][dtuGenes_1vsall[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)], on = c("tx_name","gene_name")] # has to be more than 1 isoform
+# otherwise isoform switching does not make sense 
+setnames(tmpFilter, old = c("cellLine","i.cellLine"), new = c("expCellLine","cellLine"))
+setnames(tmpFilterMinorIncluded, old = c("cellLine","i.cellLine"), new = c("expCellLine","cellLine"))
+setnames(aggCases_1vsall, c("gene","ref_tx","ref_cellLine"),c("gene_name","tx_name","cellLine"))
+tmp <- tmpFilterMinorIncluded[aggCases_1vsall, on = c("gene_name","tx_name","cellLine")]
+# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype)]
+# setnames(geneTxTable, "gene_id","gene_name")
+tmp <- geneTxTable_extended[tmp, on = c("tx_name","gene_name")]
+tmp[grepl("R",tx_name), gene_biotype := "Spike-in"]
+tmp <- tmp[!is.na(runname)]
+tmp[, eqClassById := NULL]
+tmp_wide <- dcast(tmp[,-19,with = FALSE], ...~runname, value.var = "estNorm")
+tmp_wide[is.na(tmp_wide)] <- 0
+#tmp_wide <- unique(tmp_wide)
+tmp_final <- tmp_wide[tmp_wide[,.I[order(log2fold_1_0)], by = cellLine]$V1]
+plotdata <- as.data.frame(tmp_final[,-c(1:35),with=FALSE])
+col_fun = colorRamp2(c(0,15), c("white", "cornflowerblue"))
+colInfo <- unique(tmp[,.(runname, expCellLine)])[match(colnames(plotdata), runname)]
+rowInfo <- tmp_final[,c(1:35),with=FALSE]
+nrow(rowInfo)
+source(paste0('gene_cluster_code.R'))
+rowInfo[, gene_cluster:=ifelse(gene_biotype_corrected %in% tr_gene_list,'TR gene',
+                                ifelse(gene_biotype_corrected %in% long_noncoding_rna_list, 'lncRNA',
+                                       ifelse(gene_biotype_corrected %in% noncoding_rna_list, 'ncRNA',
+                                              ifelse(gene_biotype_corrected %in% pseudogene_list,'Pseudogene',
+                                                     ifelse(gene_biotype_corrected %in% ig_gene_list, 'IG gene',gene_biotype_corrected)))))]
+rowInfo[, gene_cluster := ifelse(gene_cluster %in% c("IG gene","TR gene", "Mt_tRNA","Mt_rRNA","ribozyme"),"others", gene_cluster)]
+rowInfo[newTxClassAggregated=="newGene", gene_cluster := "newGene"]
+write.csv(rowInfo, file = paste0("splicing_heatmap_rowinfo_IncludingMinorIsoforms.csv"))
+pvalue_col_fun = colorRamp2(c(0, 2, 3), c("green", "white", "red"))
+colCellLines <- brewer.pal(8,"Dark2")[seq_along(sort(unique(colInfo$expCellLine)))]
+colRowCellLines <- brewer.pal(8,"Dark2")[seq_along(sort(unique(rowInfo$cellLine)))]
+colBiotype <- brewer.pal(8,"Accent")[seq_along(unique(rowInfo$gene_cluster))]
+colEvt = c("#FF8080","white")
+colAnno = c(brewer.pal(8,"Paired"),brewer.pal(8,"Dark2"))[seq_along(unique(rowInfo$newTxClassAggregated))]
+col_fun_nisoform <- colorRamp2(c(3,50), c("darkseagreen4","grey70"))
+names(colEvt) <- c("TRUE","FALSE")
+names(colBiotype) <- unique(rowInfo$gene_cluster)
+names(colCellLines) <- sort(unique(colInfo$expCellLine))
+names(colAnno) <- unique(rowInfo$newTxClassAggregated)
+names(colRowCellLines) <- sort(unique(rowInfo$cellLine))
+cellLine_anno = rowAnnotation(
+    cellLine = as.factor(colInfo$expCellLine),
+    col = list(cellLine = colCellLines),
+    annotation_name_side = "bottom")
+hgncTypes = columnAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated),
+                            biotype = as.factor(rowInfo$gene_cluster),
+                           nisoform = rowInfo$nisoform,
+                           altFirstExon = as.factor(rowInfo$alternativeFirstExon|rowInfo$internalFirstExon),
+                           altLastExon = as.factor(rowInfo$alternativeLastExon|rowInfo$internalLastExon),
+                           # altTSS = as.factor(rowInfo$TSS),
+                           # altTES = as.factor(rowInfo$TES),
+                           altSplicing5Prime = as.factor(rowInfo$altSplicing5Prime),
+                           altSplicing3Prime = as.factor(rowInfo$altSplicing3Prime),
+                           exonSkipping = as.factor(rowInfo$exonSkipping),
+                           intronRetention = as.factor(rowInfo$intronRetention),
+                          refcellLine = as.factor(rowInfo$cellLine),
+                           col = list(newTxClass = colAnno,
+                                      biotype = colBiotype,
+                                      nisoform = col_fun_nisoform,
+                                      altFirstExon = colEvt,
+                                      altLastExon = colEvt,
+                                      # altTSS = colEvt,
+                                      # altTES = colEvt,
+                                      altSplicing5Prime = colEvt,
+                                      altSplicing3Prime = colEvt,
+                                      exonSkipping = colEvt,
+                                      intronRetention = colEvt,
+                                      refcellLine = colRowCellLines),
+  foo = anno_text(rowInfo$hgnc_symbol_corrected, gp = gpar(fontsize = 8)),
+  annotation_name_side = "left")
+  #show_annotation_name = ,
+  #show_legend = c(rep(TRUE,11),FALSE))
+plotmat <- (as.matrix(log2(plotdata+1)))
+colnames(plotmat) <- NULL
+p_heatmap_including_minorIsoforms <- Heatmap(t(plotmat), name = "Counts", col = col_fun, bottom_annotation = hgncTypes,
+        column_split = factor(rowInfo$cellLine, levels =  rev(c("HEYA8","HepG2",
+        "H9","A549","MCF7","Hct116","K562"))),
+        cluster_column_slices = TRUE,
+        cluster_columns = FALSE,
+        right_annotation = cellLine_anno)
+print(p_heatmap_including_minorIsoforms)
+pdf(paste0("DmntIsoSwt_Heatmap17Aug2023_IncludingMinorIsoforms.pdf"), width = 13, height = 12)#
+p_heatmap_including_minorIsoforms
+dev.off()
+```
+
+
+# supplementary tables
+# prepare results for supplementary table
+```{r}
+splicingDT <- readRDS("splicing_summaryDT_withinCellLine.rds")
+
+splicingDT_long <- dcast(splicingDT, gene_name + txMajor + txMinor + strand + cellLine ~ variable, value.var = "value")
+table_wtCellLine <- merge(splicingDT_long, fLTx, by.x = c("cellLine","gene_name","txMajor"),
+                    by.y = c("cellLine","gene_name","tx_name"), all.x = TRUE)
+setnames(table_wtCellLine, "fullLengthSupport",paste0("txMajorFullLengthSupport"))
+table_wtCellLine <- merge(table_wtCellLine, fLTx, by.x = c("cellLine","gene_name","txMinor"),
+                    by.y = c("cellLine","gene_name","tx_name"), all.x = TRUE)
+setnames(table_wtCellLine, "fullLengthSupport",paste0("txMinorFullLengthSupport"))
+table_wtCellLine <- merge(table_wtCellLine, flAveTx[,.(cellLine, estAve, tx_name,gene_name)], by.x = c("cellLine","txMajor","gene_name"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_wtCellLine, "estAve","txMajorFullLengthAveEstimates")
+table_wtCellLine <- merge(table_wtCellLine, flAveTx[,.(cellLine, estAve, tx_name,gene_name)], by.x = c("cellLine","txMinor","gene_name"),
+                    by.y = c("cellLine","tx_name","gene_name"), all.x = TRUE)
+setnames(table_wtCellLine, "estAve","txMinorFullLengthAveEstimates")
+table_wtCellLine <- merge(table_wtCellLine, unique(aveGene[,.(cellLine, estAve,gene_name)]), by.x = c("cellLine","gene_name"),
+                    by.y = c("cellLine","gene_name"), all.x = TRUE)
+setnames(table_wtCellLine, "estAve","geneAverageEstimates")
+cols <- c("altFirstExon","altLastExon","intronRetention",
+          "exonSkipping","altSplicing5Prime","altSplicing3Prime")
+table_wtCellLine[ , (cols) := lapply(.SD,as.numeric), .SDcols = cols]
+#setnames(geneTxTable_extended, "gene","gene_name")
+setnames(table_wtCellLine,"gene_name","gene")
+table_wtCellLine[, GeneBiotype := setdiff(unique(geneTxTable_extended[gene_name == gene]$gene_biotype),NA), by = gene]
+table_wtCellLine[, HgncSymbol := setdiff(unique(geneTxTable_extended[gene_name == gene]$hgnc_symbol),NA), by = gene]
+write.table(table_wtCellLine[,c(2,17,18,5,1,3,4,6:16),with = FALSE], file = paste0("output/de_wtCellLine.csv"),row.names = FALSE, col.names = TRUE, sep = ",")
+```
+```{r}
+## supple tables
+lapply(1:2, function(k){
+  comparison <- c("1vsall","1vs1")[k]
+  tmp <- fread(paste0("spliced_output_",comparison,"_bambu.csv"))
+  tmp[,fullLengthSupportMoreThan5:=(ref_fullLengthSupport > 5 &( alt_fullLengthSupport >5 ))]
+  tmp[, `:=`(alternativeFirstExon = (alternativeFirstExon|internalFirstExon.query|internalFirstExon.subject),
+             alternativeLastExon = (alternativeLastExon|internalLastExon.query|internalLastExon.subject),
+             intronRetention = (intronRetention.subject|intronRetention.query),
+             exonSkipping = (exonSkipping.query|exonSkipping.subject),
+             altSplicing3Prime = exon3Prime,
+             altSplicing5Prime = exon5Prime)]
+  saveMat <- tmp[,c(1:5,8:10,23:43),with=FALSE]
+  colnames(saveMat) <- gsub("ref_","v1_",gsub("alt_","v2_",colnames(saveMat)))
+  cols <- c("alternativeFirstExon","fullLengthSupportMoreThan5",
+            "intronRetention","exonSkipping")
+  saveMat[ , (cols) := lapply(.SD,as.numeric), .SDcols = cols]
+  saveMat[, GeneBiotype := setdiff(unique(geneTxTable_extended[gene_name == gene]$gene_biotype),NA), by = gene]
+  saveMat[, HgncSymbol := setdiff(unique(geneTxTable_extended[gene_name == gene]$hgnc_symbol),NA), by = gene]
+  write.csv(saveMat[,c(2,30,31,6,5,3,4,1,13,12,10,11,7,8,26,27,28,29,25,16,19,9,14,15,18,21,22,23,24),with=FALSE], file = paste0("output/de_",comparison,".csv"))
+})
+## 8.1 1 vs all ================
+table_1vsall <- fread(paste0("spliced_output_1vsall_bambu.csv"))
+table_1vsall <- table_1vsall[ref_fullLengthSupport > 5 &( alt_fullLengthSupport >5 )]
+tss_threshold <- 0
+tes_threshold <- 0
+aggCases_1vsall <- table_1vsall[, list(alternativeFirstExon = any(alternativeFirstExon),
+                                   alternativeLastExon = any(alternativeLastExon),
+                                   TSS = any(abs(alternativeTSS)>tss_threshold),
+                                   TES = any(abs(alternativeTES)>tes_threshold),
+                                   internalFirstExon = any(internalFirstExon.query+internalFirstExon.subject),
+                                   internalLastExon = any(internalLastExon.query + internalLastExon.subject),
+                                   intronRetention = any(intronRetention.subject+intronRetention.query),
+                                   exonSkipping = any(exonSkipping.query + exonSkipping.subject),
+                                   altSplicing3Prime = any(exon3Prime),
+                                   altSplicing5Prime = any(exon5Prime)), by = list(gene, ref_tx, ref_cellLine)]
+aggCases_1vsall_long <- melt(aggCases_1vsall, id.vars = c("gene","ref_tx","ref_cellLine"), measure.vars = colnames(aggCases_1vsall)[-c(1:3)])
+aggCases_1vsall_long <- aggCases_1vsall_long[which(value)]
+aggCases_1vsall_long[, splicing_type:=paste(sort(variable), collapse = "&"), by = list(gene, ref_tx, ref_cellLine)]
+saveRDS(aggCases_1vsall_long, file = paste0("spliced_output_aggCases_1vsall_bambu.rds"))
+## 8.2 1 vs 1======================
+table_1vs1 <- fread(paste0("spliced_output_1vs1_bambu.csv"))
+table_1vs1 <- table_1vs1[(ref_fullLengthSupport>5) &( alt_fullLengthSupport >5)]
+tss_threshold <- 0
+tes_threshold <- 0
+aggCases_1vs1 <- table_1vs1[, list(alternativeFirstExon = any(alternativeFirstExon),
+                                   alternativeLastExon = any(alternativeLastExon),
+                                   TSS = any(abs(alternativeTSS)>tss_threshold),
+                                   TES = any(abs(alternativeTES)>tes_threshold),
+                                   internalFirstExon = any(internalFirstExon.query+internalFirstExon.subject),
+                                   internalLastExon = any(internalLastExon.query + internalLastExon.subject),
+                                   intronRetention = any(intronRetention.subject+intronRetention.query),
+                                   exonSkipping = any(exonSkipping.query + exonSkipping.subject),
+                                   altSplicing3Prime = any(exon3Prime),
+                                   altSplicing5Prime = any(exon5Prime)), by = list(gene, ref_tx, ref_cellLine)]
+aggCases_1vs1_long <- melt(aggCases_1vs1, id.vars = c("gene","ref_tx","ref_cellLine"), measure.vars = colnames(aggCases_1vs1)[-c(1:3)])
+aggCases_1vs1_long <- aggCases_1vs1_long[which(value)]
+aggCases_1vs1_long[, splicing_type:=paste(sort(variable), collapse = "&"), by = list(gene, ref_tx, ref_cellLine)]
+saveRDS(aggCases_1vs1_long, file = paste0("spliced_output_aggCases_1vs1_bambu.rds"))
+```
+# figures
+```{r}
+dtuGenes_1vs1 <- readRDS(paste0("dtuGenes_1vs1.rds"))
+dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall.rds"))
+## 9.1 Heatmap
+library(ComplexHeatmap)
+library(circlize)
+#col_fun = colorRamp2(c(0,2), c("white", "red"))
+geneTxTable_extended[, newTxClassAggregated:=ifelse(grepl("newFirstExon",txClassDescription)&(grepl("newLastExon",txClassDescription)),
+                                                    "newFirstLastExon",
+                                             ifelse(grepl("newFirstExon",txClassDescription), "newFirstExon",
+                                             ifelse(grepl("newLastExon",txClassDescription), "newLastExon",
+                                             ifelse(grepl("Junction|allNew",txClassDescription),"newJunction",
+                                             ifelse(grepl("unspliced",txClassDescription),"unspliced",
+                                             ifelse(grepl("newGene-",txClassDescription),"newGene",txClassDescription))))))]
+tmp <- geneTxTable_extended[match(unique(aggCases_1vsall$gene),gene_name)]
+tmpGeneInfo <- unique(txLengths.tbldf[,.(gene_id,hgnc_symbol,gene_biotype)])
+geneTxTable_extended[, `:=`(gene_biotype_corrected=gene_biotype,
+               hgnc_symbol_corrected=hgnc_symbol)]
+geneTxTable_extended[is.na(gene_biotype), gene_biotype_corrected:=tmpGeneInfo[gene_id == gene_name]$gene_biotype, by = gene_name]
+geneTxTable_extended[grepl("gene.", gene_name), gene_biotype_corrected:="Not sure"]
+geneTxTable_extended[is.na(hgnc_symbol), hgnc_symbol_corrected:=tmpGeneInfo[gene_id == gene_name]$hgnc_symbol, by = gene_name]
+geneTxTable_extended[grepl("gene.",gene_name), hgnc_symbol_corrected:=gene_name]
+geneTxTable_extended[hgnc_symbol_corrected=="", hgnc_symbol_corrected:=gene_name]
+tmp <- copy(com_data_filter_fullLength)
+tmp[,estNorm:=totalCounts/ntotal*10^6]
+tmp <- tmp[,.(tx_name,gene_name,runname, estNorm,cellLine)][dtuGenes_1vsall[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(isoRank==1)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)], on = c("tx_name","gene_name")]
+setnames(tmp, old = c("cellLine","i.cellLine"), new = c("expCellLine","cellLine"))
+ setnames(aggCases_1vsall, c("gene","ref_tx","ref_cellLine"),c("gene_name","tx_name","cellLine"))
+tmp <- tmp[aggCases_1vsall, on = c("gene_name","tx_name","cellLine")]
+# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype)]
+# setnames(geneTxTable, "gene_id","gene_name")
+tmp <- geneTxTable_extended[tmp, on = c("tx_name","gene_name")]
+tmp[grepl("R",tx_name), gene_biotype := "Spike-in"]
+tmp <- tmp[!is.na(runname)]
+tmp[, eqClassById := NULL]
+tmp_wide <- dcast(tmp[,-19,with = FALSE], ...~runname, value.var = "estNorm")
+tmp_wide[is.na(tmp_wide)] <- 0
+#tmp_wide <- unique(tmp_wide)
+tmp_final <- tmp_wide[tmp_wide[,.I[order(log2fold_1_0)], by = cellLine]$V1]
+plotdata <- as.data.frame(tmp_final[,-c(1:35),with=FALSE])
+col_fun = colorRamp2(c(0,15), c("white", "blue"))
+colInfo <- unique(tmp[,.(runname, expCellLine)])[match(colnames(plotdata), runname)]
+rowInfo <- tmp_final[,c(1:35),with=FALSE]
+nrow(rowInfo)
+source(paste0('/mnt/projects/SGNExManuscript/R/gene_cluster_code.R'))
+rowInfo[, gene_cluster:=ifelse(gene_biotype_corrected %in% tr_gene_list,'TR gene',
+                                ifelse(gene_biotype_corrected %in% long_noncoding_rna_list, 'lncRNA',
+                                       ifelse(gene_biotype_corrected %in% noncoding_rna_list, 'ncRNA',
+                                              ifelse(gene_biotype_corrected %in% pseudogene_list,'Pseudogene',
+                                                     ifelse(gene_biotype_corrected %in% ig_gene_list, 'IG gene',gene_biotype_corrected)))))]
+rowInfo[, gene_cluster := ifelse(gene_cluster %in% c("IG gene","TR gene", "Mt_tRNA","Mt_rRNA","ribozyme"),"others", gene_cluster)]
+write.csv(rowInfo, file = paste0("splicing_heatmap_rowinfo.csv"))
+pvalue_col_fun = colorRamp2(c(0, 2, 3), c("green", "white", "red"))
+colCellLines <- brewer.pal(8,"Dark2")[seq_along(sort(unique(colInfo$expCellLine)))]
+colRowCellLines <- brewer.pal(8,"Dark2")[seq_along(sort(unique(rowInfo$cellLine)))]
+colBiotype <- brewer.pal(8,"Accent")[seq_along(unique(rowInfo$gene_cluster))]
+colEvt = c("#FF8080","white")
+colAnno = c(brewer.pal(8,"Paired"),brewer.pal(8,"Dark2"))[seq_along(unique(rowInfo$newTxClassAggregated))]
+col_fun_nisoform <- colorRamp2(c(3,50), c("darkseagreen4","grey70"))
+names(colEvt) <- c("TRUE","FALSE")
+names(colBiotype) <- unique(rowInfo$gene_cluster)
+names(colCellLines) <- sort(unique(colInfo$expCellLine))
+names(colAnno) <- unique(rowInfo$newTxClassAggregated)
+names(colRowCellLines) <- sort(unique(rowInfo$cellLine))
+cellLine_anno = HeatmapAnnotation(
+    cellLine = as.factor(colInfo$expCellLine),
+    col = list(cellLine = colCellLines),
+    annotation_name_side = "left")
+hgncTypes = rowAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated),
+                            biotype = as.factor(rowInfo$gene_cluster),
+                           nisoform = rowInfo$nisoform,
+                           altFirstExon = as.factor(rowInfo$alternativeFirstExon|rowInfo$internalFirstExon),
+                           altLastExon = as.factor(rowInfo$alternativeLastExon|rowInfo$internalLastExon),
+                           # altTSS = as.factor(rowInfo$TSS),
+                           # altTES = as.factor(rowInfo$TES),
+                           altSplicing5Prime = as.factor(rowInfo$altSplicing5Prime),
+                           altSplicing3Prime = as.factor(rowInfo$altSplicing3Prime),
+                           exonSkipping = as.factor(rowInfo$exonSkipping),
+                           intronRetention = as.factor(rowInfo$intronRetention),
+                          refcellLine = as.factor(rowInfo$cellLine),
+                           col = list(newTxClass = colAnno,
+                                      biotype = colBiotype,
+                                      nisoform = col_fun_nisoform,
+                                      altFirstExon = colEvt,
+                                      altLastExon = colEvt,
+                                      # altTSS = colEvt,
+                                      # altTES = colEvt,
+                                      altSplicing5Prime = colEvt,
+                                      altSplicing3Prime = colEvt,
+                                      exonSkipping = colEvt,
+                                      intronRetention = colEvt,
+                                      refcellLine = colRowCellLines),
+  foo = anno_text(rowInfo$hgnc_symbol_corrected, gp = gpar(fontsize = 8)),
+  annotation_name_side = "top")
+  #show_annotation_name = ,
+  #show_legend = c(rep(TRUE,11),FALSE))
+plotmat <- (as.matrix(log2(plotdata+1)))
+colnames(plotmat) <- NULL
+p <- Heatmap(plotmat, name = "Counts", col = col_fun, right_annotation = hgncTypes,
+        row_split = factor(rowInfo$cellLine, levels =  rev(c("K562","MCF7",
+        "Hct116","A549","HEYA8","H9","HepG2"))),
+        # cluster_row_slices = TRUE,
+        # cluster_rows = FALSE,
+        top_annotation = cellLine_anno)
+print(p)
+pdf(paste0("DmntIsoSwt_Heatmap",saveDate,".pdf"), width = 13, height = 12)#
+p
+dev.off()
+## 9.2
+aggCases_1vsall[,`:=`(altFirstExon = alternativeFirstExon|internalFirstExon,
+                      altLastExon = alternativeLastExon|internalLastExon)]
+aggCases_1vsall[, swtType:=paste(c("","altFirstExon")[any(altFirstExon)+1],
+                           c("","altLastExon")[any(altLastExon)+1],
+                           # c("","TSS")[any(TSS)+1],
+                           # c("","TES")[any(TES)+1],
+                           c("","intronRetention")[any(intronRetention)+1],
+                           c("","exonSkipping")[any(exonSkipping)+1],
+                           c("","altSplicing5Prime")[any(altSplicing5Prime)+1],
+                           c("","altSplicing3Prime")[any(altSplicing3Prime)+1],sep=""), by = gene_name]
+swtTypeVec <- unique(aggCases_1vsall$swtType)
+noType <- do.call("rbind",lapply(swtTypeVec, function(x){
+  geneVec <- unique(aggCases_1vsall[swtType == x]$gene_name)
+  noType <- unlist(lapply(geneVec, function(s){
+    print(paste(x,s))
+     txVec <- unique(c(table_1vsall[ref_fullLengthSupport > 5 &( alt_fullLengthSupport >5 )][gene==s]$ref_tx,
+                table_1vsall[ref_fullLengthSupport > 5 &( alt_fullLengthSupport >5 )][gene==s]$alt_tx))
+    return(any(grepl("tx.",txVec)))
+  }))
+  return(data.table(type = c("canonical","novel"),
+             count = c(sum(!noType),sum(noType)),
+             swtType = x))
+}))
+# upset plot
+set.seed(123)
+lt = unique(aggCases_1vsall[,list(altFirstExon = any(altFirstExon),
+                           altLastExon = any(altLastExon),
+                           # altTSS = any(TSS),
+                           # altTES = any(TES),
+                           intronRetention = any(intronRetention),
+                           exonSkipping = any(exonSkipping),
+                           altSplicing5Prime = any(altSplicing5Prime),
+                           altSplicing3Prime = any(altSplicing3Prime)), by = gene_name])
+lt[, gene_name:=NULL]
+lt <- lt[apply(lt,1,sum)>0]
+prop.table(table(apply(lt, 1,sum)>1))
+# FALSE      TRUE
+# 0.7231638 0.2768362
+# table(lt$altFirstExon,lt$altLastExon)
+#
+# FALSE TRUE
+# FALSE    43   20
+# TRUE     98   16
+# ##> table(lt$altFirstExon,lt$exonSkipping)
+#
+# FALSE TRUE
+# FALSE    16   47
+# TRUE    100   14
+m = make_comb_mat(lt)
+#
+nGenesColor = brewer.pal(8,"Dark2")[1:2]
+names(nGenesColor) <- c("canonical","novel")
+nonordered_names <- unlist(lapply(seq_along(comb_size(m)), function(i){
+  paste(gsub("altTES","TES",gsub("altTSS","TSS",set_name(m)))[which(as.numeric(unlist(strsplit(names(comb_size(m))[i],"")))==1)], collapse = "")
+}))
+ht <- UpSet(m, top_annotation = HeatmapAnnotation(Genes = anno_barplot(as.matrix(dcast(noType, swtType ~ type, value.var = "count")[nonordered_names,2:3,with=FALSE]), #c(4,8,7,2,5,3,6)
+        gp = gpar(fill =  nGenesColor, col = nGenesColor), height = unit(4,"cm"))),
+      right_annotation = upset_right_annotation(m,
+    ylim = c(0, 150),
+    width = unit(4,"cm"),
+    gp = gpar(fill = "gray60")))
+pdf(paste0("figures/DE_IsoSwtType_UpSetPlot",saveDate,".pdf"), width = 9, height = 5)
+draw(ht, annotation_legend_list = list(Legend(
+        title = "TxClass",
+        labels = rev(c("canonical","novel")),
+        legend_gp = gpar(fill = rev(nGenesColor))
+    ))
+)
+dev.off()
+```
+
+
+## de_analysis with other methods
+can follow this link to perform dtu using other methods:
+edgeR
+swich
+sleuth
+https://plbaldoni.rbind.io/TranscriptDE-code/simulation-complete.html
+
+
+#### edgeR
+```{r}
+library(edgeR)
+# choose two cell lines: start from salmon
+# filesList <- list.files("/mnt/processMachine2/chenying/salmon_fastq6.4.2/count/","quant.sf",recursive = TRUE,full.names = TRUE)
+# filesList <- list.files("/mnt/processMachine2/chenying/salmon_fastq6.4.2/count/","quant.sf",recursive = TRUE,full.names = TRUE)
+filesList <- filesList[grep("SGNex_(A549|K562)",filesList)]
+quant <- dirname(filesList)
+catch <- catchSalmon(paths = quant)
+
+targets <- samples[match(basename(quant), runname)]
+
+# raw counts used here as there is no boostrap samples for salmon, hence overdispersion is not calculated 
+# unable to get scaled count version 
+# scaled.counts <- catch$counts/catch$annotation$Overdispersion # not able to run
+
+y <- DGEList(counts = catch$counts,
+samples = targets,
+group = targets$cellLine,
+genes = rownames(catch$counts))
+#
+
+
+keep <- filterByExpr(y) # default value seems to be min.count = 10, min.total.count = 15, large.n = 10, min.prop = 0.7
+table(keep) 
+# default filter filtered out 190k transcript candidates 
+# false 190312 true 10336
+
+y <- y[keep, , keep.lib.sizes=FALSE]
+y <- normLibSizes(y)
+y$samples
+
+
+#
+pdf("MDS.pdf")
+plotMDS(y,col = c(1:2)[y$samples$group],labels = basename(y$samples$Sample),xlim = c(-4,4))
+dev.off()
+
+design <- model.matrix(~ 0 + cellLine + protocol_type ,data = y$samples)
+colnames(design) <- gsub("group", "", colnames(design))
+
+#y1 <- calcNormFactors(y) # does not have any effect now post and pre same value 
+y <- estimateDisp(y, design, robust=TRUE)
+y$common.dispersion
+
+pdf("BCV.pdf")
+plotBCV(y)
+dev.off()
+
+
+fit <- glmQLFit(y, design, robust=TRUE)
+pdf("QLDisp.pdf")
+plotQLDisp(fit)
+dev.off()
+
+contr <- makeContrasts(cellLineA549 - cellLineK562, levels=design)
+qlf <- glmQLFTest(fit, contrast=contr)
+is.de <- decideTestsDGE(qlf)
+pdf("DE.pdf")
+plotMD(qlf, status = is.de, values = c(1, -1),
+      col = c("red","blue"), legend = "topright")
+dev.off()
+# x_human <- lapply(x, function(x){
+#   human <- grepl("^ENST", rownames(x))
+#   x_human <- x[human, ]
+#   return(calcNormFactors(x_human))
+# })
+# qlres_human <- lapply(x_human, function(x){
+#   design <- model.matrix(~x$samples$group)
+#   x <- estimateDisp(x, design)
+#   qlfit <- glmQLFit(x, design)
+#   res <- glmQLFTest(qlfit)
+#   return(res)
+# })
+
+edger_res <- topTags(qlf, n=nrow(y), sort.by="PValue")[[1]]
+
+```
+
+
+## counts based, to check for all methods 
+```{r}
+salmonLR <- readRDS("salmon_lr.rds")
+com_data_filter_fullLength <- readRDS("com_data_filter_fullLength.rds")
+runnameVec <- unique(com_data_filter_fullLength$runname)
+rm(com_data_filter_fullLength)
+salmonLR <- salmonLR[runname %in% runnameVec]
+salmonLR[, protocol:=gsub('PromethionDirect','direct',gsub('cDNAStranded','cDNA',unlist(strsplit(runname, '_'))[3])), by = runname]
+salmonLR[, cellLine := gsub("-EV","",unlist(strsplit(runname,'_'))[2]), by = runname]
+```
+
+
+```{r}
+combMat <- combn(7,2)
+cellLineVec <- cellLines
+cellLinePair <- sapply(1:ncol(combMat), function(s) paste(cellLineVec[combMat[,s]], collapse = "vs"))
+geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype, nisoform)]
+setnames(geneTxTable, "gene_id","gene_name")
+geneTxTable[grepl("R",tx_name), gene_biotype := "Spike-in"]
+geneTxTable[, nisoform:=NULL]
+geneTxTable_extended <- as.data.table(rowData(seOutput))
+setnames(geneTxTable_extended, c("GENEID","TXNAME"),c("gene_name","tx_name"))
+geneTxTable_extended[,nisoform:=length(unique(tx_name)), by = gene_name]
+#
+#
+geneTxTable_extended <- geneTxTable[geneTxTable_extended, on = c("gene_name","tx_name")]
+# 2. Run DEXSeq ======================
+# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, nisoform)]
+# setnames(geneTxTable, 'gene_id', 'gene_name')
+# 2.1 DEXSeq for 1 vs all cell line==========================
+count.dataList <- lapply(1:ncol(combMat), function(s){
+  # count.data <- dcast(com_data_filter_fullLength[(cellLine %in% cellLineVec[combMat[,s]])],
+  #   tx_name ~ runname, value.var = 'totalCounts')
+    count.data <- dcast(salmonLR[(cellLine %in% cellLineVec[combMat[,s]])],
+    tx_name ~ runname, value.var = 'counts')
+# count.data <- dcast(nanocountLR[(cellLine %in% cellLineVec[combMat[,s]])],
+#                     tx_name ~ runname, value.var = 'est_count')
+count.data <- setDF(count.data)
+rownames(count.data) <- count.data$tx_name
+count.data$tx_name <- NULL
+count.data[is.na(count.data)] <- 0
+# geneTxTable <- as.data.table(rowData(seOutput))
+# setnames(geneTxTable, c("GENEID","TXNAME"),c("gene_name","tx_name"))
+# geneTxTable[, nisoform:=length(unique(tx_name)), by = gene_name]
+geneTxTable <- geneTxTableRaw[match(rownames(count.data),tx_name)]
+na.id <- which(is.na(geneTxTable$tx_name))
+if(length(na.id)>0){
+  count.data <- count.data[-na.id,]
+  geneTxTable <- geneTxTable[-na.id]
+}
+count.data <- data.frame(gene_id = geneTxTable$gene_name,
+                         feature_id = geneTxTable$tx_name,
+                         count.data)
+colnames(count.data) <- gsub('\\.','-',colnames(count.data))
+return(count.data)
+})
+names(count.dataList) <- cellLinePair
+geneCountList <- lapply(1:ncol(combMat), function(s){
+## filter out genes that are not expressed in the target cell lines
+geneCount <- data.table(count.dataList[[s]])
+geneCount <- melt(geneCount, id.vars = colnames(geneCount)[c(1,2)], measure.vars = colnames(geneCount)[-c(1,2)])
+geneCount[, gene_count:=sum(value), by = list(gene_id, variable)]
+geneCount <- unique(geneCount[,.(gene_id, gene_count, variable)])
+geneCount <- dcast(geneCount, gene_id ~ variable, value.var = "gene_count")
+return(geneCount)
+})
+names(geneCountList) <- cellLinePair
+dFilterList <- lapply(1:ncol(combMat), function(s){
+  sample.data <- unique(salmonLR[(cellLine %in% cellLineVec[combMat[,s]]),.(runname,  protocol,cellLine)])
+  sample.data <- sample.data[match(colnames(count.dataList[[cellLinePair[s]]])[-c(1,2)],runname)]
+sample.data[, ref:=as.numeric(cellLine==cellLineVec[combMat[1,s]])]
+sample.data[, ref:=factor(ref)]
+sample.data <- setDF(sample.data)
+rownames(sample.data) <- sample.data$runname
+colnames(sample.data)[1] <- 'sample_id'
+count.data <- count.dataList[[cellLinePair[s]]]
+genesUnexpList <- geneCountList[[cellLinePair[s]]][which(apply(geneCountList[[cellLinePair[s]]][, which(sample.data$ref==1)+1,with=FALSE],1,sum)==0)]$gene_id
+if(length(genesUnexpList)==0){
+  count.dataFinal <- count.data
+}else{
+  count.dataFinal <- count.data[!(count.data$gene_id %in% genesUnexpList),]
+}
+d <- dmDSdata(counts=count.dataFinal, samples=sample.data)
+n_samp_gene <- min(table(sample.data$ref))
+print(n_samp_gene)
+n_samp_feature <- min(table(sample.data$ref))
+min_count_gene <- 10
+min_count_feature <- 10
+dFilter <- dmFilter(d,
+              min_samps_feature_expr = n_samp_feature,
+              min_samps_feature_prop = n_samp_feature,
+              min_samps_gene_expr = n_samp_gene,
+              min_feature_expr = min_count_feature,
+              min_gene_expr = min_count_gene,
+              min_feature_prop=0.1)
+table(table(counts(dFilter)$gene_id)) ## number of isoforms
+return(dFilter)
+})
+names(dFilterList) <- cellLinePair
+```
+
+
+```{r}
+yobj <- DGEList(counts = counts(dFilterList[[1]])[,-c(1,2)],
+samples = samples(dFilterList[[1]]),
+group = samples(dFilterList[[1]])$cellLine,
+genes = counts(dFilterList[[1]])[,2])
+
+yobj <- normLibSizes(yobj)
+yobj$samples
+
+
+plotMDS(yobj,col = c(1:2)[y$samples$group],labels = basename(colnames(y$samples)),xlim = c(-4,4))
+
+
+#dexseq formula
+#formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
+#formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
+design <- model.matrix(~ 0 + group + protocol ,data = yobj$samples)
+colnames(design) <- gsub("group", "", colnames(design))
+
+#y1 <- calcNormFactors(y) # does not have any effect now post and pre same value 
+yobj <- estimateDisp(yobj, design, robust=TRUE)
+yobj$common.dispersion
+
+
+plotBCV(yobj)
+
+
+
+fit <- glmQLFit(yobj, design, robust=TRUE)
+plotQLDisp(fit)
+
+contr <- makeContrasts(Hct116 - HepG2, levels=design)
+qlf <- glmQLFTest(fit, contrast=contr)
+de_res <- topTags(qlf, n=nrow(yobj$counts), sort.by="PValue")
+is.de <- decideTests(qlf)
+plotMD(qlf, status = is.de, values = c(1, -1),
+      col = c("red","blue"), legend = "topright")
+
+edger_results <- data.table(de_res@.Data[[1]])
+```
+
+
+## compare with dexseq results 
+```{r}
+dxdList_1vs1 <- readRDS(paste0("dxdList2023-07-19_1vs1_salmonLR.rds"))
+strp <- function(x) substr(x,1,15)
+dxr <- DEXSeqResults(dxdList_1vs1[[1]], independentFiltering=FALSE)
+qval <- perGeneQValue(dxr)
+dxr.g <- data.frame(gene=names(qval),qval)
+columns <- c("featureID","groupID","pvalue")
+dxr_pval <- as.data.frame(dxr[,columns])
+head(dxr_pval)
+pConfirmation <- matrix(dxr_pval$pvalue,ncol=1)
+dimnames(pConfirmation) <- list(strp(dxr_pval$featureID),"transcript")
+pScreen <- qval
+names(pScreen) <- strp(names(pScreen))
+tx2gene <- as.data.frame(dxr_pval[,c("featureID", "groupID")])
+for (i in 1:2) tx2gene[,i] <- strp(tx2gene[,i])
+stageRObj <- stageRTx(pScreen=pScreen, pConfirmation=pConfirmation,
+                      pScreenAdjusted=TRUE, tx2gene=tx2gene)
+stageRObj <- stageWiseAdjustment(stageRObj, method="dtu", alpha=0.05)
+suppressWarnings({
+  dex.padj <- getAdjustedPValues(stageRObj, order=FALSE,
+                                 onlySignificantGenes=TRUE)
+})
+dxrDT <- data.table(as.data.frame(dxr))
+setnames(dxrDT, old = c('groupID','featureID'), new = c('geneID','txID'))
+dex.padj <- data.table(dex.padj)
+dxrDT <- dex.padj[dxrDT, on = c('geneID','txID')]
+
+
+tmp <- dxrDT[log2fold_1_0>=0,.(geneID, txID, gene, transcript,padj,log2fold_1_0)]
+tmp[, `:=`(cellLine = cellLineVec[combMat[1,s]])]
+tmp[, `:=`(cellLineNonRef = cellLineVec[combMat[2,s]])]
+tmp2 <- dxrDT[log2fold_1_0<0,.(geneID, txID, gene, transcript,padj,log2fold_1_0)]
+tmp2[, `:=`(cellLine = cellLineVec[combMat[2,s]])]
+tmp2[, `:=`(cellLineNonRef = cellLineVec[combMat[1,s]])]
+```
+
+
+```{r}
+dge.sleuth_lrt <- runSleuth(targets = df.example.targets,test = 'lrt',quantifier = 'salmon')
+```
+
+
+## start from counts 
+```{r}
+#count.data <- dcast(com_data_filter_fullLength, tx_name ~ runname, value.var = 'totalCounts')
+#count.data <- dcast(salmonLR, tx_name ~ runname, value.var = 'counts')
+count.data <- dcast(nanocountLR, tx_name ~ runname, value.var = 'est_count')
+```
+
+
+```{r}
+counts <- round(final_data)
+# counts$gene_id <- tmp_wide$gene_name
+# counts <- as.data.frame(counts)
+coldata <- as.data.frame(runname_infoDT)
+setnames(coldata, "sample_name","sample_id")
+# d <- dmDSdata(counts=counts,
+#               samples=coldata)
+# trs_cts_unfiltered <- counts(d)
+# gene_cts <- trs_cts_unfiltered %>% 
+#     dplyr::select(c(1, 3:ncol(trs_cts)))  %>% 
+#     group_by(gene_id) %>% 
+#     summarise_all(tibble::lst(sum)) %>% 
+#     data.frame()
+gene_cts <- counts
+design <- model.matrix(~cellLine + protocol_general + cellLine:protocol_general + 1, data=coldata)
+y <- DGEList(gene_cts)
+y <- calcNormFactors(y)
+y <- estimateDisp(y,design)
+fit <- glmQLFit(y,design)
+qlf <- glmQLFTest(fit)
+edger_res <- topTags(qlf, n=nrow(y), sort.by="PValue")[[1]]
+
+
+
+edgeR_wide <- data.table(rn = tmp_wide$gene_name,
+           no_batch = qlf_no_batch$coefficients[,4],
+           no_mod = qlf_no_mod$coefficients[,4],
+           cdna = qlf_mod$coefficients[,4],
+           dcdna = apply(qlf_mod$coefficients[,c(4,13)],1,sum),
+           drna = apply(qlf_mod$coefficients[,c(4,19)],1,sum),
+           illumina = apply(qlf_mod$coefficients[,c(4,25)],1,sum))
+```
+
+## e-f
+```{r}
+general_list <- readRDS("general_list2023-04-27.rds")
+cellLines <- general_list$cellLines
+combMat <- combn(7,2)
+cellLineVec <- cellLines
+cellLinePair <- sapply(1:ncol(combMat), function(s) paste(cellLineVec[combMat[,s]], collapse = "vs"))
+txLengths.tbldf <- general_list$txLengths.tbldf
+```
+
+load data
+```{r}
+seOutput <- readRDS("bambuOutput_May25.rds")
+com_data_filter_fullLength <- readRDS("com_data_filter_fullLength.rds")
+runnameVec <- unique(com_data_filter_fullLength$runname)
+dmnTx <- copy(com_data_filter_fullLength)
+dmnTx[,estNorm:=totalCounts/ntotal*10^6]
+dmnTx[, estAve:=median(estNorm), by = list(cellLine, tx_name, gene_name)] ## dominant isoforms are
+dmnTx <- unique(dmnTx[,.(cellLine, estAve,  tx_name, gene_name)])
+dmnTx[, isoRank:=match(estAve, sort(estAve,decreasing = TRUE)), by = list(cellLine, gene_name)]
+dmnTx[, nIsoRank:=length(unique(isoRank)),by = list(gene_name, tx_name) ] ##not always dominant isoform
+## full length read support: at least 5 full length read support across samples (to avoid partial adds up, floor of counts are used)
+fLTx <- copy(com_data_filter_fullLength)
+fLTx[, fullLengthSupport := sum(floor(fullLengthCounts)), by = list(gene_name, tx_name,cellLine)]
+fLTx <- unique(fLTx[,.(gene_name, tx_name, fullLengthSupport, cellLine)])
+flAveTx <- copy(com_data_filter_fullLength)
+flAveTx[,estNorm:=fullLengthCounts/ntotal*10^6]
+flAveTx[, estAve:=median(estNorm), by = list(cellLine, tx_name, gene_name)] ## dominant isoforms are
+flAveTx <- unique(flAveTx[,.(cellLine, estAve,  tx_name, gene_name)])
+aveGene <- copy(com_data_filter_fullLength)
+aveGene[,estNorm:=totalCounts/ntotal*10^6]
+aveGene[, estNorm:=sum(estNorm), by = list(cellLine, gene_name,runname)]
+aveGene <- unique(aveGene[,.(estNorm, cellLine, gene_name, runname)])
+aveGene[, estAve:=median(estNorm), by = list(cellLine, gene_name)]
+
+#rm(com_data_filter_fullLength)
+salmonLR <- readRDS("salmon_lr.rds")
+salmonLR <- salmonLR[runname %in% runnameVec]
+salmonLR[, protocol:=gsub('PromethionDirect','direct',gsub('cDNAStranded','cDNA',unlist(strsplit(runname, '_'))[3])), by = runname]
+salmonLR[, cellLine := gsub("-EV","",unlist(strsplit(runname,'_'))[2]), by = runname]
+### load nanocount long read count data =============================
+nanocountLR <- readRDS("nanocount_lr.rds")
+nanocountLR <- nanocountLR[runname %in% runnameVec]
+nanocountLR[, protocol:=gsub('PromethionDirect','direct',gsub('cDNAStranded','cDNA',unlist(strsplit(runname, '_'))[3])), by = runname]
+nanocountLR[, cellLine := gsub("-EV","",unlist(strsplit(runname,'_'))[2]), by = runname]
+```
+
+
+preparing data
+all methods make use of similar count table and samples, so we can just re-use what we have done for dexseq 
+```{r}
+combMat <- combn(7,2)
+cellLineVec <- cellLines
+cellLinePair <- sapply(1:ncol(combMat), function(s) paste(cellLineVec[combMat[,s]], collapse = "vs"))
+geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype, nisoform)]
+setnames(geneTxTable, "gene_id","gene_name")
+geneTxTable[grepl("R",tx_name), gene_biotype := "Spike-in"]
+geneTxTable[, nisoform:=NULL]
+geneTxTable_extended <- as.data.table(rowData(seOutput))
+setnames(geneTxTable_extended, c("GENEID","TXNAME"),c("gene_name","tx_name"))
+geneTxTable_extended[,nisoform:=length(unique(tx_name)), by = gene_name]
+geneTxTable_extended <- geneTxTable[geneTxTable_extended, on = c("gene_name","tx_name")]
+geneTxTableRaw <- as.data.table(rowData(seOutput))
+setnames(geneTxTableRaw, c("GENEID","TXNAME"),c("gene_name","tx_name"))
+geneTxTableRaw[, nisoform:=length(unique(tx_name)), by = gene_name]
+rm(seOutput)
+```
+
+
+ 1 vs 1 
+```{r}
+count.dataList <- lapply(1:ncol(combMat), function(s){
+  count.data <- dcast(com_data_filter_fullLength[(cellLine %in% cellLineVec[combMat[,s]])],
+    tx_name ~ runname, value.var = 'totalCounts')
+    # count.data <- dcast(salmonLR[(cellLine %in% cellLineVec[combMat[,s]])],
+    # tx_name ~ runname, value.var = 'counts')
+# count.data <- dcast(nanocountLR[(cellLine %in% cellLineVec[combMat[,s]])],
+#                     tx_name ~ runname, value.var = 'est_count')
+count.data <- setDF(count.data)
+rownames(count.data) <- count.data$tx_name
+count.data$tx_name <- NULL
+count.data[is.na(count.data)] <- 0
+geneTxTable <- geneTxTableRaw[match(rownames(count.data),tx_name)]
+na.id <- which(is.na(geneTxTable$tx_name))
+if(length(na.id)>0){
+  count.data <- count.data[-na.id,]
+  geneTxTable <- geneTxTable[-na.id]
+}
+count.data <- data.frame(gene_id = geneTxTable$gene_name,
+                         feature_id = geneTxTable$tx_name,
+                         count.data)
+colnames(count.data) <- gsub('\\.','-',colnames(count.data))
+return(count.data)
+})
+names(count.dataList) <- cellLinePair
+geneCountList <- lapply(1:ncol(combMat), function(s){
+## filter out genes that are not expressed in the target cell lines
+geneCount <- data.table(count.dataList[[s]])
+geneCount <- melt(geneCount, id.vars = colnames(geneCount)[c(1,2)], measure.vars = colnames(geneCount)[-c(1,2)])
+geneCount[, gene_count:=sum(value), by = list(gene_id, variable)]
+geneCount <- unique(geneCount[,.(gene_id, gene_count, variable)])
+geneCount <- dcast(geneCount, gene_id ~ variable, value.var = "gene_count")
+return(geneCount)
+})
+names(geneCountList) <- cellLinePair
+dFilterList1vs1 <- lapply(1:ncol(combMat), function(s){
+    sample.data <- unique(com_data_filter_fullLength[(cellLine %in% cellLineVec[combMat[,s]]),.(runname,  protocol,cellLine)])
+  # sample.data <- unique(salmonLR[(cellLine %in% cellLineVec[combMat[,s]]),.(runname,  protocol,cellLine)])
+  sample.data <- sample.data[match(colnames(count.dataList[[cellLinePair[s]]])[-c(1,2)],runname)]
+sample.data[, ref:=as.numeric(cellLine==cellLineVec[combMat[1,s]])]
+sample.data[, ref:=factor(ref)]
+sample.data <- setDF(sample.data)
+rownames(sample.data) <- sample.data$runname
+colnames(sample.data)[1] <- 'sample_id'
+count.data <- count.dataList[[cellLinePair[s]]]
+genesUnexpList <- geneCountList[[cellLinePair[s]]][which(apply(geneCountList[[cellLinePair[s]]][, which(sample.data$ref==1)+1,with=FALSE],1,sum)==0)]$gene_id
+if(length(genesUnexpList)==0){
+  count.dataFinal <- count.data
+}else{
+  count.dataFinal <- count.data[!(count.data$gene_id %in% genesUnexpList),]
+}
+d <- dmDSdata(counts=count.dataFinal, samples=sample.data)
+n_samp_gene <- min(table(sample.data$ref))
+print(n_samp_gene)
+n_samp_feature <- min(table(sample.data$ref))
+min_count_gene <- 10
+min_count_feature <- 10
+dFilter <- dmFilter(d,
+              min_samps_feature_expr = n_samp_feature,
+              min_samps_feature_prop = n_samp_feature,
+              min_samps_gene_expr = n_samp_gene,
+              min_feature_expr = min_count_feature,
+              min_gene_expr = min_count_gene,
+              min_feature_prop=0.1)
+table(table(counts(dFilter)$gene_id)) ## number of isoforms
+return(dFilter)
+})
+names(dFilterList1vs1) <- cellLinePair
+```
+
+
+ 1 vs all 
+```{r}
+###prepare data for dexseq ==================
+count.data <- dcast(com_data_filter_fullLength, tx_name ~ runname, value.var = 'totalCounts')
+#count.data <- dcast(salmonLR, tx_name ~ runname, value.var = 'counts')
+#count.data <- dcast(nanocountLR, tx_name ~ runname, value.var = 'est_count')
+count.data <- setDF(count.data)
+rownames(count.data) <- count.data$tx_name
+count.data$tx_name <- NULL
+count.data[is.na(count.data)] <- 0
+geneTxTable <- geneTxTableRaw[match(rownames(count.data),tx_name)]
+na.id <- which(is.na(geneTxTable$tx_name))
+if(length(na.id)>0){
+  count.data <- count.data[-na.id,]
+  geneTxTable <- geneTxTable[-na.id]
+}
+count.data <- data.frame(gene_id = geneTxTable$gene_name,
+                         feature_id = geneTxTable$tx_name,
+                         count.data)
+colnames(count.data) <- gsub('\\.','-',colnames(count.data))
+## filter out genes that are not expressed in the target cell lines
+geneCount <- data.table(count.data)
+geneCount <- melt(geneCount, id.vars = colnames(geneCount)[c(1,2)], measure.vars = colnames(geneCount)[-c(1,2)])
+geneCount[, gene_count:=sum(value), by = list(gene_id, variable)]
+geneCount <- unique(geneCount[,.(gene_id, gene_count, variable)])
+geneCount <- dcast(geneCount, gene_id ~ variable, value.var = "gene_count")
+### Filtering =================
+dFilterList1vsall <- lapply(cellLineVec, function(s){
+  print(s)
+    sample.data <- unique(com_data_filter_fullLength[,.(runname, protocol,cellLine)])#nanocountLR
+#sample.data <- unique(salmonLR[,.(runname, protocol,cellLine)])#nanocountLR
+sample.data <- sample.data[match(colnames(count.data)[-c(1,2)],runname)]
+sample.data[, ref:=as.numeric(cellLine==s)]
+sample.data[, ref:=factor(ref)]
+sample.data <- setDF(sample.data)
+rownames(sample.data) <- sample.data$runname
+colnames(sample.data)[1] <- 'sample_id'
+genesUnexpList <- geneCount[which(apply(geneCount[, which(sample.data$ref==1)+1,with=FALSE],1,sum)==0)]$gene_id
+if(length(genesUnexpList)==0){
+  count.dataFinal <- count.data
+}else{
+  count.dataFinal <- count.data[!(count.data$gene_id %in% genesUnexpList),]
+}
+d <- dmDSdata(counts=count.dataFinal, samples=sample.data)
+n_samp_gene <- 12
+n_samp_feature <- 9
+min_count_gene <- 10
+min_count_feature <- 10
+dFilter <- dmFilter(d,
+              min_samps_feature_expr = n_samp_feature,
+              min_samps_feature_prop = n_samp_feature,
+              min_samps_gene_expr = n_samp_gene,
+              min_feature_expr = min_count_feature,
+              min_gene_expr = min_count_gene,
+              min_feature_prop=0.1)
+table(table(counts(dFilter)$gene_id)) ## number of isoforms
+return(dFilter)
+})
+names(dFilterList1vsall) <- cellLineVec
+```
+
+
+
+
+
+## running edgeR
+```{r}
+edger_results_1vs1 <- lapply(seq_along(dFilterList1vs1), function(ss){
+    dt_filter <- dFilterList1vs1[[ss]]
+    yobj <- DGEList(counts = counts(dt_filter)[,-c(1,2)],
+    samples = samples(dt_filter),
+group = samples(dt_filter)$ref,
+genes = counts(dt_filter)[,c(1,2)])
+
+yobj <- normLibSizes(yobj)
+#yobj$samples
+
+
+#plotMDS(yobj,col = c(1:2)[yobj$samples$group],labels = basename(colnames(yobj$samples)),xlim = c(-4,4))
+
+
+#dexseq formula
+#formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
+#formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
+design <- model.matrix(~ ref + protocol,data = yobj$samples)
+colnames(design) <- colnames(design)
+
+#y1 <- calcNormFactors(y) # does not have any effect now post and pre same value 
+yobj <- estimateDisp(yobj, design, robust=TRUE)
+#yobj$common.dispersion
+
+
+#plotBCV(yobj)
+
+
+
+fit <- glmQLFit(yobj, design, robust=TRUE)
+#plotQLDisp(fit)
+
+contr <- makeContrasts(contrasts = "ref1", levels=design)
+qlf <- glmQLFTest(fit, contrast=contr)
+de_res <- topTags(qlf, n=nrow(yobj$counts))
+#is.de <- decideTests(qlf)
+# plotMD(qlf, status = is.de, values = c(1, -1),
+#       col = c("red","blue"), legend = "topright")
+dtu <- diffSpliceDGE(fit,contrast=contr,geneid = "gene_id",exonid = "feature_id" )
+edger_results <- data.table(log2fold_1_0 = dtu$coef, 
+                            transcript_pvalue = dtu$`exon.p.value`,
+                            gene_pvalue = dtu$`gene.p.value`[,1],
+                            gene_pvalue_simes = dtu$`gene.Simes.p.value`,
+                            tx_name = dtu$genes[,2],
+                            gene_name = dtu$genes[,1])
+edger_results[, cellLine0 := cellLineVec[combMat[1,ss]]]
+edger_results[, cellLine1 := cellLineVec[combMat[2,ss]]]
+return(edger_results)
+})
+names(edger_results_1vs1) <- cellLinePair
+# saveRDS(edger_results_1vs1, file = "edger_results_1vs1_salmonLR.rds")
+saveRDS(edger_results_1vs1, file = "edger_results_1vs1_bambuLR.rds")
+```
+
+
+```{r}
+edger_results_1vsall <- lapply(seq_along(dFilterList1vsall), function(ss){
+    dt_filter <- dFilterList1vsall[[ss]]
+    yobj <- DGEList(counts = counts(dt_filter)[,-c(1,2)],
+    samples = samples(dt_filter),
+group = samples(dt_filter)$ref,
+genes = counts(dt_filter)[,c(1,2)])
+
+yobj <- normLibSizes(yobj)
+#yobj$samples
+
+
+#plotMDS(yobj,col = c(1:2)[yobj$samples$group],labels = basename(colnames(yobj$samples)),xlim = c(-4,4))
+
+
+#dexseq formula
+#formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
+#formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
+design <- model.matrix(~ ref + protocol ,data = yobj$samples)
+colnames(design) <- colnames(design)
+
+#y1 <- calcNormFactors(y) # does not have any effect now, post and pre same value 
+yobj <- estimateDisp(yobj, design, robust=TRUE)
+#yobj$common.dispersion
+
+
+#plotBCV(yobj)
+
+
+
+fit <- glmQLFit(yobj, design, robust=TRUE)
+#plotQLDisp(fit)
+
+contr <- makeContrasts(contrasts = "ref1", levels=design)
+qlf <- glmQLFTest(fit, contrast=contr)
+de_res <- topTags(qlf, n=nrow(yobj$counts))
+#is.de <- decideTests(qlf)
+# plotMD(qlf, status = is.de, values = c(1, -1),
+#       col = c("red","blue"), legend = "topright")
+
+
+dtu <- diffSpliceDGE(fit,contrast=contr,geneid = "gene_id",exonid = "feature_id" )
+edger_results <- data.table(log2fold_1_0 = dtu$coef, 
+                            transcript_pvalue = dtu$`exon.p.value`,
+                            gene_pvalue = dtu$`gene.p.value`[,1],
+                            gene_pvalue_simes = dtu$`gene.Simes.p.value`,
+                            tx_name = dtu$genes[,2],
+                            gene_name = dtu$genes[,1])
+#edger_results <- data.table(de_res@.Data[[1]])
+edger_results[, cellLine1 := cellLineVec[ss]]
+edger_results[, cellLine2 := "all"]
+return(edger_results)
+})
+names(edger_results_1vsall) <- cellLineVec
+# saveRDS(edger_results_1vsall, file = "edger_results_1vsall_salmonLR.rds")
+saveRDS(edger_results_1vsall, file = "edger_results_1vsall_bambuLR.rds")
+```
+
+interpretation of edgeR results (dte):
+- logFC is the fold change on the log scale. (log2 scale I assume)
+- logCPM is the average expression of all samples for that particular gene across all samples on the log-scale expressed in counts per million (cpm, as calculated by edgeR after normalization)
+- F is the F-statistic from the quasi-likelihood F-test
+- PValue is the nominal p-value derived from F without any multiple testing correction
+- FDR is the PValue after (by default) Benjamini-Hochberg correction.
+
+dtu is different, more intuitive 
+
+## dexseq results 
+```{r}
+# bambu results 
+# dtuGenes_1vs1 <- readRDS(paste0("dtuGenes_1vs1.rds"))
+# dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall.rds"))
+
+
+
+# process salmon results 
+dxdList_1vsall <- readRDS("dxdList2023-07-19_1vsall_salmonLR.rds")
+com_data_filter_fullLength <- readRDS("com_data_filter_fullLength.rds")
+dxrList_1vsall <- lapply(cellLineVec, function(s){
+  dxr <- DEXSeqResults(dxdList_1vsall[[s]], independentFiltering=FALSE)
+})
+names(dxrList_1vsall) <- cellLineVec
+library(stageR)
+strp <- function(x) substr(x,1,15)
+dxrDTList_1vsall <- lapply(cellLineVec, function(s){
+  dxr <- dxrList_1vsall[[s]]
+  qval <- perGeneQValue(dxr)
+dxr.g <- data.frame(gene=names(qval),qval)
+columns <- c("featureID","groupID","pvalue")
+dxr_pval <- as.data.frame(dxr[,columns])
+head(dxr_pval)
+pConfirmation <- matrix(dxr_pval$pvalue,ncol=1)
+dimnames(pConfirmation) <- list(strp(dxr_pval$featureID),"transcript")
+pScreen <- qval
+names(pScreen) <- strp(names(pScreen))
+tx2gene <- as.data.frame(dxr_pval[,c("featureID", "groupID")])
+for (i in 1:2) tx2gene[,i] <- strp(tx2gene[,i])
+stageRObj <- stageRTx(pScreen=pScreen, pConfirmation=pConfirmation,
+                      pScreenAdjusted=TRUE, tx2gene=tx2gene)
+stageRObj <- stageWiseAdjustment(stageRObj, method="dtu", alpha=0.05)
+suppressWarnings({
+  dex.padj <- getAdjustedPValues(stageRObj, order=FALSE,
+                                 onlySignificantGenes=TRUE)
+})
+dxrDT <- data.table(as.data.frame(dxr))
+setnames(dxrDT, old = c('groupID','featureID'), new = c('geneID','txID'))
+dex.padj <- data.table(dex.padj)
+dxrDT <- dex.padj[dxrDT, on = c('geneID','txID')]
+})
+names(dxrDTList_1vsall) <- cellLineVec
+## 3.2 1 vs 1========================
+#dxdList2021-07-30_1vs1.rds
+dxdList_1vs1 <- readRDS(paste0("dxdList2023-07-19_1vs1_salmonLR.rds"))
+dxrList_1vs1 <- lapply(cellLinePair, function(s){
+  dxr <- DEXSeqResults(dxdList_1vs1[[s]], independentFiltering=FALSE)
+})
+names(dxrList_1vs1) <- cellLinePair
+library(stageR)
+strp <- function(x) substr(x,1,15)
+dxrDTList_1vs1 <- lapply(cellLinePair, function(s){
+  dxr <- dxrList_1vs1[[s]]
+  qval <- perGeneQValue(dxr)
+dxr.g <- data.frame(gene=names(qval),qval)
+columns <- c("featureID","groupID","pvalue")
+dxr_pval <- as.data.frame(dxr[,columns])
+head(dxr_pval)
+pConfirmation <- matrix(dxr_pval$pvalue,ncol=1)
+dimnames(pConfirmation) <- list(strp(dxr_pval$featureID),"transcript")
+pScreen <- qval
+names(pScreen) <- strp(names(pScreen))
+tx2gene <- as.data.frame(dxr_pval[,c("featureID", "groupID")])
+for (i in 1:2) tx2gene[,i] <- strp(tx2gene[,i])
+stageRObj <- stageRTx(pScreen=pScreen, pConfirmation=pConfirmation,
+                      pScreenAdjusted=TRUE, tx2gene=tx2gene)
+stageRObj <- stageWiseAdjustment(stageRObj, method="dtu", alpha=0.05)
+suppressWarnings({
+  dex.padj <- getAdjustedPValues(stageRObj, order=FALSE,
+                                 onlySignificantGenes=TRUE)
+})
+dxrDT <- data.table(as.data.frame(dxr))
+setnames(dxrDT, old = c('groupID','featureID'), new = c('geneID','txID'))
+dex.padj <- data.table(dex.padj)
+dxrDT <- dex.padj[dxrDT, on = c('geneID','txID')]
+})
+names(dxrDTList_1vs1) <- cellLinePair
+dmnTx <- copy(com_data_filter_fullLength)
+dmnTx[,estNorm:=totalCounts/ntotal*10^6]
+dmnTx[, estAve:=median(estNorm), by = list(cellLine, tx_name, gene_name)] ## dominant isoforms are
+dmnTx <- unique(dmnTx[,.(cellLine, estAve,  tx_name, gene_name)])
+dmnTx[, isoRank:=match(estAve, sort(estAve,decreasing = TRUE)), by = list(cellLine, gene_name)]
+dmnTx[, nIsoRank:=length(unique(isoRank)),by = list(gene_name, tx_name) ] ##not always dominant isoform
+## full length read support: at least 5 full length read support across samples (to avoid partial adds up, floor of counts are used)
+fLTx <- copy(com_data_filter_fullLength)
+fLTx[, fullLengthSupport := sum(floor(fullLengthCounts)), by = list(gene_name, tx_name,cellLine)]
+fLTx <- unique(fLTx[,.(gene_name, tx_name, fullLengthSupport, cellLine)])
+flAveTx <- copy(com_data_filter_fullLength)
+flAveTx[,estNorm:=fullLengthCounts/ntotal*10^6]
+flAveTx[, estAve:=median(estNorm), by = list(cellLine, tx_name, gene_name)] ## dominant isoforms are
+flAveTx <- unique(flAveTx[,.(cellLine, estAve,  tx_name, gene_name)])
+aveGene <- copy(com_data_filter_fullLength)
+aveGene[,estNorm:=totalCounts/ntotal*10^6]
+aveGene[, estNorm:=sum(estNorm), by = list(cellLine, gene_name,runname)]
+aveGene <- unique(aveGene[,.(estNorm, cellLine, gene_name, runname)])
+aveGene[, estAve:=median(estNorm), by = list(cellLine, gene_name)]
+# 5. dtuGenes tables ======================
+dtuGenes_1vs1 <- do.call("rbind",lapply(1:length(cellLinePair), function(s){ #cellLineVec
+  tmp <- dxrDTList_1vs1[[cellLinePair[s]]][log2fold_1_0>=0,.(geneID, txID, gene, transcript,padj,log2fold_1_0)]
+  tmp[, `:=`(cellLine = cellLineVec[combMat[1,s]])]
+   tmp[, `:=`(cellLineNonRef = cellLineVec[combMat[2,s]])]
+  tmp2 <- dxrDTList_1vs1[[cellLinePair[s]]][log2fold_1_0<0,.(geneID, txID, gene, transcript,padj,log2fold_1_0)]
+  tmp2[, `:=`(cellLine = cellLineVec[combMat[2,s]])]
+  tmp2[, `:=`(cellLineNonRef = cellLineVec[combMat[1,s]])]
+  return(rbind(tmp,tmp2))
+}))
+setnames(dtuGenes_1vs1, c("geneID","txID"),c("gene_name","tx_name"))
+dtuGenes_1vsall <- do.call("rbind",lapply(1:length(cellLineVec), function(s){ #cellLineVec
+  tmp <- dxrDTList_1vsall[[cellLineVec[s]]][,.(geneID, txID, gene, transcript,padj,log2fold_1_0)]
+  tmp[, `:=`(cellLine = cellLineVec[s])]
+  return(tmp)
+}))
+setnames(dtuGenes_1vsall, c("geneID","txID"),c("gene_name","tx_name"))
+dtuGenes_1vs1 <- dmnTx[dtuGenes_1vs1, on = c("gene_name","tx_name","cellLine")]
+dtuGenes_1vs1 <- fLTx[dtuGenes_1vs1, on = c("gene_name","tx_name","cellLine")]
+dtuGenes_1vsall <- dmnTx[dtuGenes_1vsall, on = c("gene_name","tx_name","cellLine")]
+dtuGenes_1vsall <- fLTx[dtuGenes_1vsall, on = c("gene_name","tx_name","cellLine")]
+setnames(dtuGenes_1vs1, "fullLengthSupport",paste0("ref_","fullLengthSupport"))
+setnames(dtuGenes_1vs1, c("gene","transcript"),c("stageR_gene_padj","stageR_tx_padj"))
+setnames(dtuGenes_1vsall, "fullLengthSupport",paste0("ref_","fullLengthSupport"))
+setnames(dtuGenes_1vsall, c("gene","transcript"),c("stageR_gene_padj","stageR_tx_padj"))
+saveRDS(dtuGenes_1vs1, file = paste0("dtuGenes_1vs1_salmonLR.rds"))
+saveRDS(dtuGenes_1vsall, file = paste0("dtuGenes_1vsall_salmonLR.rds"))
+
+
+# geneList_1vs1 <- unique(dtuGenes_1vs1[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)][,.(gene_name, cellLine,cellLineNonRef)])
+# geneList_1vsall <- unique(dtuGenes_1vsall[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)][,.(gene_name, cellLine)])
+```
+
+load salmon LR dtu results 
+```{r}
+# dtuGenes_1vs1 <- readRDS(paste0("dtuGenes_1vs1_salmonLR.rds"))
+# dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall_salmonLR.rds"))
+
+dtuGenes_1vs1 <- readRDS(paste0("dtuGenes_1vs1.rds"))
+dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall.rds"))
+
+```
+
+
+```{r}
+# cell line is the first one, cell line non-ref is the second cell line 
+outDt_1vs1 <- do.call("rbind",lapply(seq_len(ncol(combMat)), function(ss){
+    # to match
+    edger_temp <- copy(edger_results_1vs1[[ss]])
+    setnames(edger_temp, c("transcript_pvalue","gene_pvalue","gene_pvalue_simes"),c("padj","padj_gene","padj_gene2"))
+    edger_temp[, padj_tx := padj]
+    edger_temp[, method := "edger"]
+    dexseq_temp1 <- dtuGenes_1vs1[(log2fold_1_0>=0)&cellLine == cellLineVec[combMat[1,ss]]&(cellLineNonRef == cellLineVec[combMat[2,ss]])]
+    dexseq_temp2 <- dtuGenes_1vs1[(log2fold_1_0<0)&cellLine == cellLineVec[combMat[2,ss]]&(cellLineNonRef == cellLineVec[combMat[1,ss]])]
+    #dexseq_temp2[, log2fold_1_0 := -(log2fold_1_0)]
+    dexseq_temp <- rbind(dexseq_temp1[,.(gene_name,tx_name, padj,log2fold_1_0, stageR_gene_padj,stageR_tx_padj)], 
+                         dexseq_temp2[,.(gene_name, tx_name, padj,log2fold_1_0, stageR_gene_padj,stageR_tx_padj)])
+    dexseq_temp[, method := "dexseq"]
+    setnames(dexseq_temp, c("stageR_gene_padj","stageR_tx_padj"),c("padj_gene","padj_tx"))
+    out <- do.call("rbind", list(edger_temp[,.(tx_name, gene_name, padj, padj_gene, padj_tx, method,log2fold_1_0)], dexseq_temp[,.(tx_name, gene_name, padj, padj_gene, padj_tx,method,log2fold_1_0)]))
+    out[, cellLine0:= cellLineVec[combMat[2,ss]]]
+    out[, cellLine1:= cellLineVec[combMat[1,ss]]]
+    out[, cellLineContrs := cellLinePair[ss]]
+    return(out)
+}))
+
+outDt_1vs1[, sign_status:= padj<0.05]
+outDt_1vs1[, sign_status_sum := "a"]
+outDt_1vs1[, sign_status_sum := ifelse(sum(sign_status)!=1, sum(sign_status),
+                                 ifelse(sum(sign_status)==1&(.SD[method=="edger"]$sign_status), "1edger","1dexseq")), by = list(tx_name, cellLine0, cellLine1, cellLineContrs)]
+outDt_1vs1[, dtu_status := (padj_gene<0.05)&(padj_tx<0.05)]
+outDt_1vs1[is.na(dtu_status), dtu_status := FALSE]
+outDt_1vs1[, dtu_status_sum := "a"]
+outDt_1vs1[, dtu_status_sum := ifelse(sum(dtu_status)!=1, sum(dtu_status),
+                                 ifelse(sum(dtu_status)==1&(.SD[method=="edger"]$dtu_status), "1edger","1dexseq")), by = list(tx_name, cellLine0, cellLine1, cellLineContrs)]
+
+outDt_1vs1[, log2fc_status := (abs(log2fold_1_0)>=2)]
+outDt_1vs1[is.na(log2fc_status), log2fc_status := FALSE]
+outDt_1vs1[, log2fc_status_sum := "a"]
+outDt_1vs1[, log2fc_status_sum := ifelse(sum(log2fc_status)!=1, sum(log2fc_status),
+                                 ifelse(sum(log2fc_status)==1&(.SD[method=="edger"]$log2fc_status), "1edger","1dexseq")), by = list(tx_name, cellLine0, cellLine1, cellLineContrs)]
+
+outDt_1vs1[, log2fcsign_status := log2fc_status&sign_status]
+outDt_1vs1[is.na(log2fcsign_status), log2fcsign_status := FALSE]
+outDt_1vs1[, log2fcsign_status_sum := "a"]
+outDt_1vs1[, log2fcsign_status_sum := ifelse(sum(log2fcsign_status)!=1, sum(log2fcsign_status),
+                                 ifelse(sum(log2fcsign_status)==1&(.SD[method=="edger"]$log2fcsign_status), "1edger","1dexseq")), by = list(tx_name, cellLine0, cellLine1, cellLineContrs)]
+
+
+outDt_1vs1[, all_status := log2fc_status&sign_status&dtu_status]
+outDt_1vs1[is.na(all_status), all_status := FALSE]
+outDt_1vs1[, all_status_sum := "a"]
+outDt_1vs1[, all_status_sum := ifelse(sum(all_status)!=1, sum(all_status),
+                                 ifelse(sum(all_status)==1&(.SD[method=="edger"]$all_status), "1edger","1dexseq")), by = list(tx_name, cellLine0, cellLine1, cellLineContrs)]
+
+outDt_1vs1_wide <- dcast(outDt_1vs1, tx_name + gene_name + cellLine0 + cellLine1 + cellLineContrs + sign_status_sum +dtu_status_sum + log2fc_status_sum + all_status_sum + log2fcsign_status_sum ~ method, value.var = "log2fold_1_0")
+
+
+
+
+dmnTx_processDt <- dmnTx[, list(dominantIsoformSwitch = ifelse((isoRank==1&(nIsoRank>1)&(estAve>0)),"majorIsoformSwitch","minorIsoformSwitch")), by = list(cellLine, tx_name, gene_name)]
+# outDt_wide_dmn <- dmnTx[outDt_wide, on = c("tx_name","cellLine")]
+# outDt_wide_dmn_fl <- fLTx[outDt_wide_dmn, on = c("gene_name","tx_name","cellLine")]
+# outDt_wide_dmn_fl
+setnames(dmnTx_processDt, "cellLine","cellLine0")
+outDt_1vs1_wide_dmn0 <- dmnTx_processDt[outDt_1vs1_wide, on = c("tx_name","cellLine0","gene_name")]
+setnames(outDt_1vs1_wide_dmn0, "dominantIsoformSwitch","dominant0")
+setnames(dmnTx_processDt, "cellLine0","cellLine1")
+outDt_1vs1_wide_dmn <- dmnTx_processDt[outDt_1vs1_wide_dmn0, on = c("tx_name","cellLine1","gene_name")]
+setnames(outDt_1vs1_wide_dmn, "dominantIsoformSwitch","dominant1")
+setnames(dmnTx_processDt, "cellLine1","cellLine")
+
+setnames(fLTx, "cellLine1","cellLine0")
+outDt_1vs1_wide_dmn_fl0 <- fLTx[outDt_1vs1_wide_dmn, on = c("gene_name","tx_name","cellLine0")]
+setnames(outDt_1vs1_wide_dmn_fl0, "fullLengthSupport","fl0")
+setnames(fLTx, "cellLine0","cellLine1")
+outDt_1vs1_wide_dmn_fl <- fLTx[outDt_1vs1_wide_dmn_fl0, on = c("gene_name","tx_name","cellLine1")]
+setnames(outDt_1vs1_wide_dmn_fl, "fullLengthSupport","fl1")
+setnames(fLTx, "cellLine1","cellLine")
+
+
+
+library(ggpubr)
+p1 <- ggplot(outDt_1vs1_wide, aes(x = edger, y = dexseq))+
+    geom_hline(yintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_vline(xintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_point(aes(col = factor(all_status_sum, levels = c("2","1dexseq","1edger","0"))), alpha = 0.5)+
+    geom_smooth(linetype = "dotted", col = "grey20")+
+    scale_color_brewer(type = "qual", palette = 2)+
+    stat_cor(method = "spearman")+
+    facet_wrap(~cellLineContrs, scales = "free", nrow = 3)+
+    theme_classic()+
+    theme(legend.position = "top")
+
+p2 <- ggplot(outDt_1vs1_wide[all_status_sum != "0"], aes(x = edger, y = dexseq))+
+    geom_hline(yintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_vline(xintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_point(aes(col = factor(all_status_sum, levels = c("2","1dexseq","1edger","0"))), alpha = 0.5)+
+    geom_smooth(linetype = "dotted", col = "grey20")+
+    scale_color_brewer(type = "qual", palette = 2)+
+    stat_cor(method = "spearman")+
+    facet_wrap(~cellLineContrs, scales = "free", nrow = 3)+
+    theme_classic()+
+    theme(legend.position = "top")
+
+pdf("edgeRvsdexseq_1vs1_salmon_scatterplot_revised.pdf")
+# it's best if we could find out for the ones identified by each, what is the supporting status 
+ggarrange(p1,p2,nrow = 2, common.legend = TRUE)
+dev.off()
+
+check_data <- outDt_1vs1_wide[all_status_sum == "1dexseq"]
+check_data[, edger_test := factor((log2fc_status_sum=="2")+(sign_status_sum=="2"),
+                                    levels = c(2,1,0), labels = c("abs(lfc)>=2&padj<0.05",
+                                                                  "abs(lfc)<2&padj<0.05",
+                                                                  "abs(lfc)<2&padj>=0.05"))]
+p <- ggplot(check_data, aes(x = cellLineContrs, fill = check_status))+
+    geom_bar(stat = "count")+
+    coord_flip()+
+    theme_classic()
+
+
+sum_dt <- unique(outDt_wide[, list(pcor = cor(edger, dexseq),
+                  scor = cor(edger, dexseq, method = "spearman")), by = list(cellLineContrs)])
+
+plotdata <- unique(outDt_1vs1[,.(tx_name, gene_name, cellLineContrs, log2fc_status_sum, dtu_status_sum, sign_status_sum, all_status_sum, log2fcsign_status_sum)])
+plotdata1 <- unique(plotdata[, list(count = .N), by = list(cellLineContrs, all_status_sum)])
+p1 <- ggplot(plotdata1[all_status_sum!="0"], aes(x = cellLineContrs, y = count, fill = all_status_sum))+geom_bar(stat = "identity")+coord_flip()+theme_classic() ## overall 
+
+
+plotdata2 <- unique(plotdata[, list(count = .N), by = list(cellLineContrs, sign_status_sum)])
+p2 <- ggplot(plotdata2[sign_status_sum!="0"], aes(x = cellLineContrs, y = count, fill = sign_status_sum))+geom_bar(stat = "identity")+coord_flip()+theme_classic() ## overall 
+
+plotdata3 <- unique(plotdata[, list(count = .N), by = list(cellLineContrs, log2fcsign_status_sum)])
+p3 <- ggplot(plotdata3[log2fcsign_status_sum!="0"], aes(x = cellLineContrs, y = count, fill = log2fcsign_status_sum))+geom_bar(stat = "identity")+coord_flip()+theme_classic() ## overall 
+
+ggarrange(p1, p3,p2, nrow = 1, common.legend = TRUE, labels = c("DTU","Signif"))
+
+
+## venn diagram 
+
+
+```
+
+
+
+```{r}
+# cell line is the first one, cell line non-ref is the second cell line 
+outDt_1vsall <- do.call("rbind",lapply(seq_along(cellLineVec), function(ss){
+    # to match
+    edger_temp <- copy(edger_results_1vsall[[ss]])
+    setnames(edger_temp, c("transcript_pvalue","gene_pvalue","gene_pvalue_simes"),c("padj","padj_gene","padj_gene2"))
+    edger_temp[, padj_tx := padj]
+    edger_temp[, method := "edger"]
+    dexseq_temp <- dtuGenes_1vsall[cellLine == cellLineVec[ss]][,.(gene_name,tx_name, padj,log2fold_1_0, stageR_gene_padj,stageR_tx_padj)]
+    dexseq_temp[, method := "dexseq"]
+    setnames(dexseq_temp, c("stageR_gene_padj","stageR_tx_padj"),c("padj_gene","padj_tx"))
+    out <- do.call("rbind", list(edger_temp[,.(tx_name, gene_name, padj, padj_gene, padj_tx, method,log2fold_1_0)], dexseq_temp[,.(tx_name, gene_name, padj, padj_gene, padj_tx,method,log2fold_1_0)]))
+    out[, cellLine:= cellLineVec[ss]]
+    return(out)
+}))
+
+outDt_1vsall[, sign_status:= padj<0.05]
+outDt_1vsall[, sign_status_sum := "a"]
+outDt_1vsall[, sign_status_sum := ifelse(sum(sign_status)!=1, sum(sign_status),
+                                 ifelse(sum(sign_status)==1&(.SD[method=="edger"]$sign_status), "1edger","1dexseq")), by = list(tx_name, cellLine)]
+outDt_1vsall[, dtu_status := (padj_gene<0.05)&(padj_tx<0.05)]
+outDt_1vsall[is.na(dtu_status), dtu_status := FALSE]
+outDt_1vsall[, dtu_status_sum := "a"]
+outDt_1vsall[, dtu_status_sum := ifelse(sum(dtu_status)!=1, sum(dtu_status),
+                                 ifelse(sum(dtu_status)==1&(.SD[method=="edger"]$dtu_status), "1edger","1dexseq")), by = list(tx_name, cellLine)]
+
+outDt_1vsall[, log2fc_status := (abs(log2fold_1_0)>=2)]
+outDt_1vsall[is.na(log2fc_status), log2fc_status := FALSE]
+outDt_1vsall[, log2fc_status_sum := "a"]
+outDt_1vsall[, log2fc_status_sum := ifelse(sum(log2fc_status)!=1, sum(log2fc_status),
+                                 ifelse(sum(log2fc_status)==1&(.SD[method=="edger"]$log2fc_status), "1edger","1dexseq")), by = list(tx_name, cellLine)]
+
+outDt_1vsall[, log2fcsign_status := log2fc_status&sign_status]
+outDt_1vsall[is.na(log2fcsign_status), log2fcsign_status := FALSE]
+outDt_1vsall[, log2fcsign_status_sum := "a"]
+outDt_1vsall[, log2fcsign_status_sum := ifelse(sum(log2fcsign_status)!=1, sum(log2fcsign_status),
+                                 ifelse(sum(log2fcsign_status)==1&(.SD[method=="edger"]$log2fcsign_status), "1edger","1dexseq")), by = list(tx_name, cellLine)]
+
+outDt_1vsall[, all_status := log2fc_status&sign_status&dtu_status]
+outDt_1vsall[is.na(all_status), all_status := FALSE]
+outDt_1vsall[, all_status_sum := "a"]
+outDt_1vsall[, all_status_sum := ifelse(sum(all_status)!=1, sum(all_status),
+                                 ifelse(sum(all_status)==1&(.SD[method=="edger"]$all_status), "1edger","1dexseq")), by = list(tx_name, cellLine)]
+
+outDt_1vsall_wide <- dcast(outDt_1vsall, gene_name + tx_name + cellLine + log2fc_status_sum + sign_status_sum + dtu_status_sum + all_status_sum + log2fcsign_status_sum ~ method, value.var = "log2fold_1_0")
+
+library(ggpubr)
+p1 <- ggplot(outDt_1vsall_wide, aes(x = edger, y = dexseq))+
+    geom_hline(yintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_vline(xintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_point(aes(col = factor(all_status_sum, levels = c("2","1dexseq","1edger","0"))), alpha = 0.5)+
+    geom_smooth(linetype = "dotted", col = "grey20")+
+    scale_color_brewer(type = "qual", palette = 2)+
+    stat_cor(method = "spearman")+
+    facet_wrap(~factor(cellLine), scales = "free", nrow = 1)+
+    theme_classic()
+
+p2 <- ggplot(outDt_1vsall_wide[all_status_sum != "0"], aes(x = edger, y = dexseq))+
+    geom_hline(yintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_vline(xintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_point(aes(col = factor(all_status_sum, levels = c("2","1dexseq","1edger"))), alpha = 0.5)+
+    geom_smooth(linetype = "dotted", col = "grey20")+
+    scale_color_brewer(type = "qual", palette = 2)+
+    stat_cor(method = "spearman")+
+    facet_wrap(~factor(cellLine), scales = "free", nrow = 1)+
+    theme_classic()
+
+pdf("edgeRvsdexseq_1vsall_salmon_scatterplot.pdf")
+ggarrange(p1,p2,nrow = 2, common.legend = TRUE)
+dev.off()
+
+
+check_data <- outDt_1vsall_wide[all_status_sum == "1dexseq"]
+check_data[, edger_test := factor((log2fc_status_sum=="2")+(sign_status_sum=="2"),
+                                    levels = c(2,1,0), labels = c("abs(lfc)>=2&padj<0.05",
+                                                                  "abs(lfc)<2&padj<0.05",
+                                                                  "abs(lfc)<2&padj>=0.05"))]
+p <- ggplot(check_data, aes(x = cellLine, fill = edger_test))+
+    geom_bar(stat = "count")+
+    coord_flip()+
+    theme_classic()
+
+outDt_1vsall_wide_dmn <- dmnTx_processDt[outDt_1vsall_wide, on = c("gene_name","tx_name","cellLine")]
+outDt_1vsall_wide_dmn_fl <- fLTx[outDt_1vsall_wide_dmn, on = c("gene_name","tx_name","cellLine")]
+
+plotdata <- unique(outDt_dmn_fl[dominantIsoformSwitch == "majorIsoformSwitch"&(fullLengthSupport>=5),.(tx_name, gene_name, cellLine, log2fc_status_sum, dtu_status_sum, sign_status_sum, all_status_sum)])
+plotdata1 <- unique(plotdata[, list(count = .N), by = list(cellLine, all_status_sum)])
+p1 <- ggplot(plotdata1[all_status_sum!="0"], aes(x = cellLine, y = count, fill = all_status_sum))+geom_bar(stat = "identity")+coord_flip()+theme_classic() ## overall 
+
+
+plotdata2 <- unique(plotdata[, list(count = .N), by = list(cellLine, log2fc_status_sum)])
+p2 <- ggplot(plotdata2[log2fc_status_sum!="0"], aes(x = cellLine, y = count, fill = log2fc_status_sum))+geom_bar(stat = "identity")+coord_flip()+theme_classic() ## overall 
+
+pdf("edgeRvsdexseq_1vsall_salmon_barplot_flFilter_dominant.pdf")
+ggarrange(p1,p2,nrow = 2, common.legend = TRUE)
+dev.off()
+
+
+```
+
+
+```{r}
+saveRDS(list(outDt_1vsall_wide_dmn_fl,
+             outDt_1vs1_wide_dmn_fl), file = "outDtList_wide_dmn_fl.rds")
+```
+
+
+
+
+```{r}
+filter_1vs1 <- outDt_1vs1_wide_dmn_fl[(fl1>5|fl0>5)&(dominant1=="majorIsoformSwitch"|dominant0=="majorIsoformSwitch")&(all_status_sum != "0")]
+
+library(ggVennDiagram)
+pList_1vs1 <- lapply(unique(filter_1vs1$cellLineContrs), function(cc){
+    x <- list(DEXSeq = filter_1vs1[all_status_sum %in% c("2","1dexseq")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)],
+          edgeR = filter_1vs1[all_status_sum %in% c("2","1edger")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)])
+    p <- ggVennDiagram(x) +  coord_flip() + scale_fill_gradient(low="grey90",high = "steelblue")+ggtitle(cc)+theme(legend.position = "none")
+    return(p)
+})
+
+library(ggpubr)
+ggarrange(plotlist = pList_1vs1, nrow = 3, ncol = 7)
+filter_1vsall <- outDt_1vsall_wide_dmn_fl[dominantIsoformSwitch == "majorIsoformSwitch"&(fullLengthSupport>5)&(all_status_sum != "0")]
+library(ggVennDiagram)
+pList_1vsall <- lapply(unique(filter_1vsall$cellLine), function(cc){
+    x <- list(DEXSeq = filter_1vsall[all_status_sum %in% c("2","1dexseq")&cellLine == cc, paste0(cellLine,tx_name)],
+          edgeR = filter_1vsall[all_status_sum %in% c("2","1edger")&cellLine == cc, paste0(cellLine,tx_name)])
+    p <- ggVennDiagram(x) +  coord_flip() + scale_fill_gradient(low="grey90",high = "steelblue")+ggtitle(cc)+theme(legend.position = "none")
+    return(p)
+})
+pdf("edgeRvsdexseq_vennDiagram_all_status_based_bambu.pdf", width = 16, height = 8)
+ggarrange(plotlist = c(pList_1vsall, pList_1vs1), nrow = 4, ncol = 7)
+dev.off()
+
+
+x1 <- list(DEXSeq = filter_1vs1[all_status_sum %in% c("2","1dexseq"), paste0(cellLineContrs,tx_name)],
+          edgeR = filter_1vs1[all_status_sum %in% c("2","1edger"), paste0(cellLineContrs,tx_name)])
+p1 <- ggVennDiagram(x1) +  coord_flip() + scale_fill_gradient(low="grey90",high = "steelblue")+ggtitle("B Pairwise")+theme(legend.position = "none")
+x2 <- list(DEXSeq = filter_1vsall[all_status_sum %in% c("2","1dexseq"), paste0(cellLine,tx_name)],
+          edgeR = filter_1vsall[all_status_sum %in% c("2","1edger"), paste0(cellLine,tx_name)])
+p2 <- ggVennDiagram(x2) +  coord_flip() + scale_fill_gradient(low="grey90",high = "steelblue")+ggtitle("A One vs others")+theme(legend.position = "none")
+
+pdf("edgeRvsdexseq_vennDiagram_all_status_based_combined.pdf", width = 8, height = 3)
+ggarrange(p2,p1, nrow = 1, ncol = 2)
+dev.off()
+```
+
+
+
+report numbers
+```{r}
+xList_1vs1 <- do.call("rbind",lapply(unique(filter_1vs1$cellLineContrs), function(cc){
+    x <- data.table(DEXSeq = length(filter_1vs1[all_status_sum %in% c("2","1dexseq")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)]),
+          edgeR = length(filter_1vs1[all_status_sum %in% c("2","1edger")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)]),
+          common = length(filter_1vs1[all_status_sum %in% c("2")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)]),
+          cellLineContrs = cc)
+   return(x)
+}))
+
+xList_1vsall <- do.call("rbind",lapply(unique(filter_1vsall$cellLine), function(cc){
+    x <-  data.table(DEXSeq = length(filter_1vsall[all_status_sum %in% c("2","1dexseq")&cellLine == cc, paste0(cellLine,tx_name)]),
+          edgeR = length(filter_1vsall[all_status_sum %in% c("2","1edger")&cellLine == cc, paste0(cellLine,tx_name)]),
+          common = length(filter_1vsall[all_status_sum %in% c("2")&cellLine == cc, paste0(cellLine,tx_name)]),
+          cellLineContrs = cc)
+    return(x)
+}))
+ 
+xList <- do.call("rbind",list(xList_1vsall, xList_1vs1))
+
+
+# > summary(xList$edgeR)
+#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    0.00    7.00   10.00   13.89   19.75   51.00 
+# > summary(xList$DEXSeq)
+#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   14.00   37.00   46.00   56.93   81.00  124.00 
+# 
+#   > wilcox.test(xList$edgeR,xList$DEXSeq)
+# 
+#         Wilcoxon rank sum test with continuity correction
+# 
+# data:  xList$edgeR and xList$DEXSeq
+# W = 29.5, p-value = 2.937e-09
+# alternative hypothesis: true location shift is not equal to 0
+# 
+# Warning message:
+# In wilcox.test.default(xList$edgeR, xList$DEXSeq) :
+#   cannot compute exact p-value with ties
+# > summary(xList$common/xList$edgeR)
+#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+#  0.4444  0.6667  0.8667  0.8122  0.9243  1.0000       1 
+
+```
+
+
+```{r}
+filter_1vs1 <- outDt_1vs1_wide_dmn_fl[(fl1>5|fl0>5)&(dominant1=="majorIsoformSwitch"|dominant0=="majorIsoformSwitch")&(log2fcsign_status_sum != "0")]
+
+library(ggVennDiagram)
+pList_1vs1 <- lapply(unique(filter_1vs1$cellLineContrs), function(cc){
+    x <- list(DEXSeq = filter_1vs1[log2fcsign_status_sum %in% c("2","1dexseq")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)],
+          edgeR = filter_1vs1[log2fcsign_status_sum %in% c("2","1edger")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)])
+    p <- ggVennDiagram(x) +  coord_flip() + scale_fill_gradient(low="grey90",high = "steelblue")+ggtitle(cc)+theme(legend.position = "none")
+    return(p)
+})
+
+library(ggpubr)
+#ggarrange(plotlist = pList_1vs1, nrow = 3, ncol = 7)
+filter_1vsall <- outDt_1vsall_wide_dmn_fl[dominantIsoformSwitch == "majorIsoformSwitch"&(fullLengthSupport>5)&(log2fcsign_status_sum != "0")]
+library(ggVennDiagram)
+pList_1vsall <- lapply(unique(filter_1vsall$cellLine), function(cc){
+    x <- list(DEXSeq = filter_1vsall[log2fcsign_status_sum %in% c("2","1dexseq")&cellLine == cc, paste0(cellLine,tx_name)],
+          edgeR = filter_1vsall[log2fcsign_status_sum %in% c("2","1edger")&cellLine == cc, paste0(cellLine,tx_name)])
+    p <- ggVennDiagram(x) +  coord_flip() + scale_fill_gradient(low="grey90",high = "steelblue")+ggtitle(cc)+theme(legend.position = "none")
+    return(p)
+})
+pdf("edgeRvsdexseq_vennDiagram_log2fcsign_status_based_bambu.pdf", width = 16, height = 8)
+ggarrange(plotlist = c(pList_1vsall, pList_1vs1), nrow = 4, ncol = 7)
+dev.off()
+
+
+x1 <- list(DEXSeq = filter_1vs1[log2fcsign_status_sum %in% c("2","1dexseq"), paste0(cellLineContrs,tx_name)],
+          edgeR = filter_1vs1[log2fcsign_status_sum %in% c("2","1edger"), paste0(cellLineContrs,tx_name)])
+p1 <- ggVennDiagram(x1) +  coord_flip() + scale_fill_gradient(low="grey90",high = "steelblue")+ggtitle("B Pairwise")+theme(legend.position = "none")
+x2 <- list(DEXSeq = filter_1vsall[log2fcsign_status_sum %in% c("2","1dexseq"), paste0(cellLine,tx_name)],
+          edgeR = filter_1vsall[log2fcsign_status_sum %in% c("2","1edger"), paste0(cellLine,tx_name)])
+p2 <- ggVennDiagram(x2) +  coord_flip() + scale_fill_gradient(low="grey90",high = "steelblue")+ggtitle("A One vs others")+theme(legend.position = "none")
+
+pdf("edgeRvsdexseq_vennDiagram_log2fcsign_status_based_combined.pdf", width = 8, height = 3)
+ggarrange(p2,p1, nrow = 1, ncol = 2)
+dev.off()
+```
+
+report numbers
+```{r}
+xList_1vs1 <- do.call("rbind",lapply(unique(filter_1vs1$cellLineContrs), function(cc){
+    x <- data.table(DEXSeq = length(filter_1vs1[log2fcsign_status_sum %in% c("2","1dexseq")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)]),
+          edgeR = length(filter_1vs1[log2fcsign_status_sum %in% c("2","1edger")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)]),
+          common = length(filter_1vs1[log2fcsign_status_sum %in% c("2")&cellLineContrs == cc, paste0(cellLineContrs,tx_name)]),
+          cellLineContrs = cc)
+   return(x)
+}))
+
+xList_1vsall <- do.call("rbind",lapply(unique(filter_1vsall$cellLine), function(cc){
+    x <-  data.table(DEXSeq = length(filter_1vsall[log2fcsign_status_sum %in% c("2","1dexseq")&cellLine == cc, paste0(cellLine,tx_name)]),
+          edgeR = length(filter_1vsall[log2fcsign_status_sum %in% c("2","1edger")&cellLine == cc, paste0(cellLine,tx_name)]),
+          common = length(filter_1vsall[log2fcsign_status_sum %in% c("2")&cellLine == cc, paste0(cellLine,tx_name)]),
+          cellLineContrs = cc)
+    return(x)
+}))
+ 
+xList <- do.call("rbind",list(xList_1vsall, xList_1vs1))
+
+# >  summary(xList$edgeR)
+#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   10.00   21.00   23.00   30.68   37.00   74.00 
+# > summary(xList$DEXSeq)
+#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   17.00   38.00   49.00   58.25   81.75  124.00 
+# > wilcox.test(xList$edgeR,xList$DEXSeq)
+# 
+#         Wilcoxon rank sum test with continuity correction
+# 
+# data:  xList$edgeR and xList$DEXSeq
+# W = 141.5, p-value = 4.146e-05
+# alternative hypothesis: true location shift is not equal to 0
+# 
+# Warning message:
+# In wilcox.test.default(xList$edgeR, xList$DEXSeq) :
+#   cannot compute exact p-value with ties
+# > summary(xList$common/xList$edgeR)
+#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#  0.5312  0.6615  0.8486  0.7999  0.9242  1.0000 
+
+```
+
+
+## check for a few things 
+# for dominant isoform 
+```{r}
+geneList_1vs1 <- unique(dtuGenes_1vs1[gene<0.05&(transcript<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(isoRank==1)&(nIsoRank>1)&(estAve>0)][,.(gene_name, cellLine,cellLineNonRef)])
+geneList_1vsall <- unique(dtuGenes_1vsall[gene<0.05&(transcript<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(isoRank==1)&(nIsoRank>1)&(estAve>0)][,.(gene_name, cellLine)])
+```
+
+```{r}
+outDt_1vsall_dmn <- dmnTx[outDt_1vsall, on = c("tx_name","cellLine")]
+outDt_1vsall_dmn_fl <- fLTx[outDt_1vsall_dmn, on = c("gene_name","tx_name","cellLine")]
+outDt_1vsall_dmn_fl[, dominantIsoformSwitch := ifelse((isoRank==1&(nIsoRank>1)&(estAve>0)),"majorIsoformSwitch","minorIsoformSwitch")]
+
+
+
+
+outDt_wide_dmn_fl[, dtu_status := (stageR_gene_padj<0.05)&(stageR_tx_padj<0.05)]
+outDt_wide_dmn_fl[is.na(dtu_status), dtu_status := FALSE]
+pdf("edgeRvsdexseq.pdf", width = 14, height = 8)
+ggplot(outDt_wide_dmn_fl, aes(x = edger, y = dexseq))+
+    geom_hline(yintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_vline(xintercept = c(-2,2), linetype = "dashed", col = "grey70")+
+    geom_point(aes(size = (fullLengthSupport>5), col = (abs(edger)>=2|abs(dexseq)>=2), shape = dtu_status), alpha = 0.3)+
+    geom_smooth(linetype = "dotted", col = "grey20")+
+    scale_color_brewer(type = "qual", palette = 1)+
+    scale_size_manual(values = c(0.5,3))+
+    stat_cor(method = "spearman")+
+    facet_wrap(dominantIsoformSwitch ~factor(status), scales = "free", nrow = 2, ncol = 4)+
+    theme_classic()+
+    theme(legend.position = "top")
+dev.off()
+```
+ 
+
+
+
