@@ -1,0 +1,1029 @@
+---
+title: "Figure_6d"
+output: html_notebook
+---
+
+Notebook set-up
+```{r 0-setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = '', fig.width = 6, fig.height = 6,
+  results = "hide",
+  message = FALSE
+)
+```
+
+
+Load necessary libraries
+```{r 0-library-loads}
+require(GenomicFeatures)
+require(GenomicAlignments) ##readGAlignments
+require(AnnotationDbi)#loadDb
+require(data.table)#fast large dataset manipulation
+require(readxl)
+require(dplyr)
+
+
+require(ggplot2)
+require(RColorBrewer)
+require(gridExtra)
+
+library(gplots)
+library(RColorBrewer)
+library(limma)
+library(ggpubr)
+
+# if heya8 still similar to h9, or can be distinguished
+# heatmap for samples
+library(ComplexHeatmap)
+library(circlize)
+library(viridis)
+gctorture(FALSE)
+library(tximport) # 
+source("utility_function.R")
+```
+
+
+# 0. Library set-up
+```{r 0-load-required-libraries}
+library(dplyr)
+#library(bambu)
+devtools::load_all("bambu")
+library(data.table)
+```
+
+# 1. prepare data 
+## 1.1 update fusion gene names in provided fusion gene table
+```{r 1-match-fusion-gene-names-from-different-sources, eval = FALSE}
+fusion_gene <- fread(paste0("jaffa_results.filtered.210820.csv"))
+fusionSymbolList <- c("FYB","C15orf57","GCN1L1","LPPR5","RP11-983G14.1","MIR4435-1HG","RP1-65P5.3")
+fusionReplaceSymbolList <- c("FYB1","CCDC32","GCN1","PLPPR5","LINC02203","MIR4435-2HG","THEM7P")
+for(i in seq_along(fusionSymbolList)){
+    fusion_gene[grep(fusionSymbolList[i],fusion.genes), `:=`(fusion.genes = gsub(fusionSymbolList[i],fusionReplaceSymbolList[i],fusion.genes))]
+}
+saveRDS(fusion_gene, file = "./fusion_gene_updated.rds")
+```
+
+
+## 1.2 update ensembl gene names accordingly
+```{r 1-update-ensembl-gene-name-to-match-grch38-grch37, eval = FALSE}
+ensemblAnnotations.genes <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-genes.txt',header=TRUE)
+ensemblAnnotations.genes <- data.table(ensemblAnnotations.genes, keep.rownames = TRUE)
+ensemblGenes <- c("ENSG00000224738","ENSG00000225292","ENSG00000259176","ENSG00000259349","ENSG00000183308",
+                  "ENSG00000258414","ENSG00000234695","ENSG00000264545","ENSG00000230131","ENSG00000256248",
+                  "ENSG00000254251","ENSG00000228043","ENSG00000258792","ENSG00000232825","ENSG00000227627",
+                  "ENSG00000278974","ENSG00000255252","ENSG00000237188","ENSG00000257764","ENSG00000236717",
+                  "ENSG00000233547","ENSG00000250548","ENSG00000266527","ENSG00000259087","ENSG00000274723",
+                  "ENSG00000257261","ENSG00000234690")
+hgnc_symbolList <- c("AC099850.1","RP11-57H14.3","RP11-69H14.6","RP11-15E18.1","AC005037.3",
+                     "RP11-356O9.1","AC002076.10","RP11-145E5.5","RP11-282I1.1","RP11-123O10.4",
+                     "RP11-662G23.1","AC097721.2","RP11-944C7.1","RP5-896L10.1","RP1-101K10.6",
+                     "RP11-756P10.6","RP1-65P5.3","RP11-337C18.8","RP11-1143G9.4","RP11-100G15.10",
+                     "RP11-57H14.3","RP11-47I22.2","RP11-138P22.1","RP11-356O9.1","RP11-618L22.1",
+                     "RP11-96H19.1","AC073283.4")
+# ENSG00000259176 missing in GRCh38 annotation, present in GRCh37 annotation
+for(i in seq_along(ensemblGenes)){
+    ensemblAnnotations.genes[ensembl_gene_id==ensemblGenes[i]]$hgnc_symbol <- hgnc_symbolList[i]
+}
+saveRDS(ensemblAnnotations.genes, file = "ensemblAnnotationGenes_updated.rds")
+```
+
+## 1.3 get fusion gene granges, transcript granges, and breakpoint info and save as a list
+```{r 1-get-fusion-gene-granges-etc, eval = FALSE}
+fusion_gene = readRDS("fusion_gene_updated.rds")
+ensemblAnnotations.genes = readRDS("ensemblAnnotationGenes_updated.rds")
+ensemblAnnotations.txs <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-transcripts.txt',header=TRUE)
+ensemblAnnotations.txs <- data.table(ensemblAnnotations.txs, keep.rownames = TRUE)
+
+txdbEnsembl91 <- loadDb('Homo_sapiens.GRCh38.91.annotations-txdb_wtChrIs.sqlite')
+exonsByGene <- exonsBy(txdbEnsembl91, 'gene')
+exonsByTx <- exonsBy(txdbEnsembl91,"tx", use.names = TRUE)
+fusion_gene_unique <- unique(fusion_gene$fusion.genes)
+
+
+fusionGeneNames <-  unlist(lapply(seq_along(fusion_gene_unique), function(s){
+  print(s)
+  tmp <- fusion_gene_unique[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  if(s == 45){
+    return(NULL)
+  }
+  return(tmp)
+  
+}))
+
+fusionGene <- lapply(seq_along(fusion_gene_unique), function(s){
+  print(s)
+  tmp <- fusion_gene_unique[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  if(s == 45){
+    return(NULL)
+  }
+  geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[1]]$ensembl_gene_id
+  tmp_range <- exonsByGene[geneid][[1]]
+  min_start <- min(start(tmp_range)) 
+  length_g1 <- max(end(tmp_range)) - min_start + 1
+  tmp_range <- lapply(seq_along(genevec), function(g){
+    if(s %in% c(9,55) & (g == 2)){
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id[1]
+    }else{
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    }
+    
+    tmp_range <- exonsByGene[geneid][[1]]
+    min_start <- min(start(tmp_range)) 
+    length_g_tmp <- max(end(tmp_range)) 
+    strand.info <- as.character(unique(strand(tmp_range)))
+    if(g==1){
+      scoreNum = ifelse(strand.info=="-", length_g_tmp-fusion_gene[fusion.genes == tmp]$base1+1,
+                        fusion_gene[fusion.genes == tmp]$base1-min_start+1)
+    }else{
+      scoreNum = ifelse(strand.info=="-",length_g_tmp-fusion_gene[fusion.genes == tmp]$base2+1+length_g1,
+                        fusion_gene[fusion.genes == tmp]$base2-min_start+1+length_g1)
+    }
+    if(strand.info=="-"){
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = rev(length_g_tmp - end(tmp_range) + 1 ), 
+                                            end = rev(length_g_tmp - start(tmp_range) + 1 )),
+                           strand = Rle("+",length(tmp_range)), # change strand information to +
+                           score = scoreNum)
+    }else{
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = start(tmp_range) - min_start+1, 
+                                            end = end(tmp_range) - min_start+1),
+                           strand = Rle(strand.info,length(tmp_range)),
+                           score = scoreNum)
+    }
+    if(g == 2){
+      new_range <- GenomicRanges::shift(new_range, shift = length_g1)
+      
+    }
+    
+    return(new_range)
+    
+  })
+  
+  return(do.call("c",tmp_range))
+})
+keep.id <- which(!sapply(fusionGene, is.null))
+fusionGene <- fusionGene[keep.id]
+gr <- GRangesList(fusionGene)
+names(gr) <- as.character(unique(seqnames(gr)))
+
+
+fusionTx <- lapply(seq_along(fusion_gene_unique), function(s){
+  print(s)
+  tmp <- fusion_gene_unique[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  if(s == 45){
+    return(NULL)
+  }
+  geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[1]]$ensembl_gene_id
+  tmp_range <- exonsByGene[geneid][[1]]
+  min_start <- min(start(tmp_range)) 
+  length_g1 <- max(end(tmp_range)) - min_start + 1
+  tmp_range <- lapply(seq_along(genevec), function(g){
+    if(s %in% c(9,55) & (g == 2)){
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id[1]
+    }else{
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    }
+    tmp_range <- exonsByGene[geneid][[1]]
+    min_start <- min(start(tmp_range)) 
+    length_g_tmp <- max(end(tmp_range)) 
+    strand.info <- as.character(unique(strand(tmp_range)))
+    txid <- ensemblAnnotations.txs[(ensembl_gene_id == geneid)]$ensembl_transcript_id
+    new_range <- lapply(txid, function(t){
+      tmp_range <- exonsByTx[t][[1]]
+      if(g==1){
+        scoreNum = ifelse(strand.info=="-", length_g_tmp-fusion_gene[fusion.genes == tmp]$base1+1,
+                          fusion_gene[fusion.genes == tmp]$base1-min_start+1)
+      }else{
+        scoreNum = ifelse(strand.info=="-",length_g_tmp-fusion_gene[fusion.genes == tmp]$base2+1+length_g1,
+                          fusion_gene[fusion.genes == tmp]$base2-min_start+1+length_g1)
+      }
+      if(strand.info=="-"){
+        new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                             ranges = IRanges(start = length_g_tmp - end(tmp_range) + 1, 
+                                              end = length_g_tmp - start(tmp_range) + 1 ),
+                             strand = Rle("+",length(tmp_range)),
+                             score = scoreNum)
+      }else{
+        new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                             ranges = IRanges(start = start(tmp_range) - min_start+1, 
+                                              end = end(tmp_range) - min_start+1),
+                             strand = Rle(strand.info,length(tmp_range)),
+                             score = scoreNum)
+      }
+      if(g == 2){
+        new_range <- GenomicRanges::shift(new_range, shift = length_g1)
+        
+      }
+      return(new_range)  
+    })
+    names(new_range) <- txid
+    return(new_range)
+  })
+  
+  return(do.call("c",tmp_range))
+})
+names(fusionTx) <- fusion_gene_unique
+
+
+
+break.pointList <- lapply(seq_along(fusion_gene_unique), function(s){
+  print(s)
+  tmp <- fusion_gene_unique[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  if(s == 45){
+    return(NULL)
+  }
+  geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[1]]$ensembl_gene_id
+  tmp_range <- exonsByGene[geneid][[1]]
+  min_start <- min(start(tmp_range)) 
+  length_g1 <- max(end(tmp_range)) - min_start + 1
+  scoreNum <- unlist(lapply(seq_along(genevec), function(g){
+    if(s %in% c(9,55) & (g == 2)){
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id[1]
+    }else{
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    }
+    tmp_range <- exonsByGene[geneid][[1]]
+    min_start <- min(start(tmp_range)) 
+    length_g_tmp <- max(end(tmp_range))
+    strand.info <- as.character(unique(strand(tmp_range)))
+    
+    if(g==1){
+      if(strand.info=="-"){
+        scoreNum <- length_g_tmp-unique(fusion_gene[fusion.genes == tmp]$base1)+1
+      }else{
+        scoreNum <-  unique(fusion_gene[fusion.genes == tmp]$base1)-min_start+1
+      }
+      
+    }else{
+      if(strand.info=="-"){
+        scoreNum <- length_g_tmp-unique(fusion_gene[fusion.genes == tmp]$base2)+1+length_g1
+      }else{
+        scoreNum <- unique(fusion_gene[fusion.genes == tmp]$base2)-min_start+1+length_g1
+      }
+      
+    }
+  }))
+  
+  
+  return(scoreNum)
+})
+names(break.pointList) <- fusion_gene_unique
+
+
+prime5Gene <- lapply(seq_along(fusion_gene_unique), function(s){
+  print(s)
+  tmp <- fusion_gene_unique[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  if(s == 45){
+    return(NULL)
+  }
+  geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[1]]$ensembl_gene_id
+  tmp_range <- exonsByGene[geneid][[1]]
+  min_start <- min(start(tmp_range)) 
+  length_g1 <- max(end(tmp_range)) - min_start + 1
+  tmp_range <- lapply(1, function(g){
+    if(s %in% c(9,55) & (g == 2)){
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id[1]
+    }else{
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    }
+    tmp_range <- exonsByGene[geneid][[1]]
+    min_start <- min(start(tmp_range)) 
+    length_g_tmp <- max(end(tmp_range)) 
+    strand.info <- as.character(unique(strand(tmp_range)))
+    if(g==1){
+      scoreNum = ifelse(strand.info=="-", length_g_tmp-fusion_gene[fusion.genes == tmp]$base1+1,
+                        fusion_gene[fusion.genes == tmp]$base1-min_start+1)
+    }else{
+      scoreNum = ifelse(strand.info=="-",length_g_tmp-fusion_gene[fusion.genes == tmp]$base2+1+length_g1,
+                        fusion_gene[fusion.genes == tmp]$base2-min_start+1+length_g1)
+    }
+    if(strand.info=="-"){
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = rev(length_g_tmp - end(tmp_range) + 1 ), 
+                                            end = rev(length_g_tmp - start(tmp_range) + 1 )),
+                           strand = Rle("+",length(tmp_range)),
+                           score = scoreNum)
+    }else{
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = start(tmp_range) - min_start+1, 
+                                            end = end(tmp_range) - min_start+1),
+                           strand = Rle(strand.info,length(tmp_range)),
+                           score = scoreNum)
+    }
+    if(g == 2){
+      new_range <- GenomicRanges::shift(new_range, shift = length_g1)
+    }
+    return(new_range)
+  })
+  return(do.call("c",tmp_range))
+})
+
+
+prime3Gene <- lapply(seq_along(fusion_gene_unique), function(s){
+  print(s)
+  tmp <- fusion_gene_unique[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+  if(s == 45){
+    return(NULL)
+  }
+  geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[1]]$ensembl_gene_id
+  tmp_range <- exonsByGene[geneid][[1]]
+  min_start <- min(start(tmp_range)) 
+  length_g1 <- max(end(tmp_range)) - min_start + 1
+  tmp_range <- lapply(2, function(g){
+    if(s %in% c(9,55) & (g == 2)){
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id[1]
+    }else{
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    }
+    tmp_range <- exonsByGene[geneid][[1]]
+    min_start <- min(start(tmp_range)) 
+    length_g_tmp <- max(end(tmp_range)) 
+    strand.info <- as.character(unique(strand(tmp_range)))
+    if(g==1){
+      scoreNum = ifelse(strand.info=="-", length_g_tmp-fusion_gene[fusion.genes == tmp]$base1+1,
+                        fusion_gene[fusion.genes == tmp]$base1-min_start+1)
+    }else{
+      scoreNum = ifelse(strand.info=="-",length_g_tmp-fusion_gene[fusion.genes == tmp]$base2+1+length_g1,
+                        fusion_gene[fusion.genes == tmp]$base2-min_start+1+length_g1)
+    }
+    if(strand.info=="-"){
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = rev(length_g_tmp - end(tmp_range) + 1 ), 
+                                            end = rev(length_g_tmp - start(tmp_range) + 1 )),
+                           strand = Rle("+",length(tmp_range)),
+                           score = scoreNum)
+    }else{
+      new_range <- GRanges(seqnames=Rle(tmp,length(tmp_range)),
+                           ranges = IRanges(start = start(tmp_range) - min_start+1, 
+                                            end = end(tmp_range) - min_start+1),
+                           strand = Rle(strand.info,length(tmp_range)),
+                           score = scoreNum)
+    }
+    if(g == 2){
+      new_range <- GenomicRanges::shift(new_range, shift = length_g1)
+      
+    }
+    
+    return(new_range)
+    
+  })
+  
+  return(do.call("c",tmp_range))
+})
+
+
+
+geneList <- unlist(lapply(seq_along(fusion_gene_unique), function(s){
+  tmp <- fusion_gene_unique[s]
+  genevec <- unlist(strsplit(tmp, ":"))
+
+  if(s == 45){
+    return(NULL)
+  }
+  geneList <- unlist(lapply(seq_along(genevec), function(g){
+    if(s %in% c(9,55) & (g == 2)){
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id[1]
+    }else{
+      geneid <- ensemblAnnotations.genes[hgnc_symbol==genevec[g]]$ensembl_gene_id
+    }
+  }))
+  return(geneList)
+}))
+txList <- ensemblAnnotations.txs[(ensembl_gene_id %in% geneList)]$ensembl_transcript_id
+
+saveRDS(list(fusionGene, fusionTx, break.pointList,gr, prime3Gene, prime5Gene,
+             geneList, txList), file = paste0("fusionGeneTxBreakPointGR.rds"))
+```
+
+
+
+
+
+# 2. prepare candidate tables
+
+## 2.1 merge fusion table with breakpoint table
+```{r 2-merge-fusion-table-breakpoint}
+tmpList <- readRDS(paste0("fusionGeneTxBreakPointGR.rds"))
+break.pointList <- data.table(fusion.genes = names(tmpList[[3]]),
+                              break_point = sapply(tmpList[[3]], function(x) paste(sort(x), collapse = ".")))
+
+fusionTable <- unique(readRDS("fusion_gene_updated.rds"))
+fusionTable <- break.pointList[fusionTable, on = "fusion.genes"]
+
+ensemblAnnotations.genes = readRDS("ensemblAnnotationGenes_updated.rds")
+```
+
+## 2.2 process reads 
+```{r 2-load-se, execute = FALSE}
+seAll <- readRDS('seFusion_BambuRevisionBranch_fusionModeOn_recommendedNDR0.695.rds')
+annotations <- rowRanges(seAll)
+colData(seFusion)$cellType <- gsub('SGNex_(HEYA8|MCF7|K562|H9|A549|HepG2|Hct116)_.*','\\1',colData(seFusion)$name)
+data <- as_tibble(mcols(seFusion))
+data$chr <- as.character(getChrFromGrList(rowRanges(seFusion)))
+dataSelect <- data[data$txClassDescription=='fusionTranscript',]
+dataSelect <- left_join(dataSelect, fusionTable, by=c('chr' = 'fusion.genes'))
+data_filter <- dataSelect %>%
+    filter(readCount > 20) %>%
+    filter(relReadCount > 0.1) %>%
+    group_by(chr) %>%
+        filter(classification == 'HighConfidence') %>%
+        filter(spanning.reads == max(spanning.reads))%>%
+        filter(sample == "MCF7") %>%
+        ungroup()
+
+data_filter
+```
+
+```{r 2-generate-candidate-info-table}
+gene_candidates <- c("BCAS4:BCAS3","TTC6:RP11-356O9.1","RSBN1:AP4B1-AS1","TXLNG:SYAP1","RPS6KB1:VMP1","AC099850.1:VMP1","GIGYF2:EIF4E2","SLC25A24:NBPF6","ARFGEF2:SULF2","SYTL2:PICALM","BCAS4:ZMYND8","MYO6:SENP6")
+
+candidates_all <- fusionTable[fusion.genes %in% gene_candidates,.(fusion.genes, chrom1, base1, chrom2, base2, known)]
+candidates_all[, geneid:=dataSelect[match(fusion.genes, dataSelect$chr),]$GENEID]
+candidates_all[, `:=`(gene1 = gsub("-.*","",unlist(strsplit(geneid, ":"))[1]),
+                  gene2 = gsub("-.*","",unlist(strsplit(geneid, ":"))[2])), by = geneid]
+candidates_all[, `:=`(strand1 = ensemblAnnotations.genes[match(gene1, ensembl_gene_id)]$strand,
+                  strand2 = ensemblAnnotations.genes[match(gene2, ensembl_gene_id)]$strand), by = list(gene1, gene2)]
+candidates_all[, `:=` (inner_base1 = max(base1),
+                   inner_base2 = min(base2)), by = fusion.genes]
+# correct by strand
+candidates_all[strand1 == (-1), inner_base1 := min(base1), by = fusion.genes]
+candidates_all[strand2 == (-1), inner_base2 := max(base2), by = fusion.genes]
+
+
+batch2 <- do.call("rbind",lapply(seq_along(gene_candidates), function(s){
+    
+    selected_rows <- fusionTable[fusion.genes == gene_candidates[s]][order(spanning.reads, decreasing = TRUE)][list(c(1,2),1,1,1,c(1,3),1,1,1,c(1,2),1,1,1)[[s]]]
+    if(s == 2){
+        print(selected_rows$spanning.reads)
+    }
+    if(s == 4){
+        selected_rows <- do.call("rbind", list(selected_rows,selected_rows))
+        selected_rows[2]$base1 <- 16793786
+    }
+    return(selected_rows)
+}))
+
+batch2 <- unique(candidates_all[,.(fusion.genes, gene1, gene2)])[batch2, on = "fusion.genes"]
+batch2[, `:=`(base1_start_pos = ensemblAnnotations.genes[ensembl_gene_id == gene1]$start_position,
+              base1_end_pos = ensemblAnnotations.genes[ensembl_gene_id == gene1]$end_position,
+              base2_start_pos = ensemblAnnotations.genes[ensembl_gene_id == gene2]$start_position,
+              base2_end_pos = ensemblAnnotations.genes[ensembl_gene_id == gene2]$end_position), by = list(gene1, gene2)]
+batch2[, inner_base1 := ifelse(strand1 == "-", base1_end_pos - base1+1, base1 - base1_start_pos + 1),by = list(fusion.genes, base1,base2)]
+batch2[, inner_base2 := ifelse(strand2 == "-", base2_end_pos - base2+1+(base1_end_pos-base1_start_pos+1), base2 - base2_start_pos + 1+(base1_end_pos-base1_start_pos+1)), by = list(fusion.genes, base1,base2)]
+candidates <- batch2[,c(1,5:19),with = FALSE]
+
+saveRDS(batch2, file = "batch2_29Aug2023.rds")
+```
+
+## 2.3 get-gene-type
+```{r}
+fusion_gene_unique <- unique(fusionTable$fusion.genes)
+prime3Gene <- tmpList[[5]]
+prime5Gene <- tmpList[[6]]
+fusionGene <- tmpList[[1]]
+# why 45 is deleted? ENSG00000259176 missing in GRCh38 annotation, present in GRCh37 annotation
+fusion_gene_unique_tmp <- fusion_gene_unique[-45]
+prime5Gene_tmp <- prime5Gene[-45]
+prime3Gene_tmp <- prime3Gene[-45]
+gene_type <- do.call("rbind",lapply(seq_along(fusion_gene_unique_tmp), function(s){
+  
+  print(s)
+  genevec <- unlist(strsplit(fusion_gene_unique_tmp[s], ":"))
+  fusionHits <- unique(c(which(overlapsAny(annotations, range(GRangesList(fusionGene[s])), type = "within", ignore.strand = TRUE)),
+                         queryHits(findOverlaps(annotations, range(GRangesList(fusionGene[s])), type = "within", ignore.strand = TRUE))))
+  match_type <- data.table(fusion_gene = fusion_gene_unique_tmp[s],
+                           gene_type = "fusion_gene",
+                           tx_name = names(annotations)[fusionHits])
+  prime5Hits <- unique(c(which(overlapsAny(annotations, range(GRangesList(prime5Gene_tmp[s])), type = "within", ignore.strand = TRUE)),
+                         queryHits(findOverlaps(annotations, range(GRangesList(prime5Gene_tmp[s])), type = "within", ignore.strand = TRUE))))
+  prime3Hits <- unique(c(which(overlapsAny(annotations, range(GRangesList(prime3Gene_tmp[s])), type = "within", ignore.strand = TRUE)),
+                         queryHits(findOverlaps(annotations, range(GRangesList(prime3Gene_tmp[s])), type = "within", ignore.strand = TRUE))))
+  match_type[tx_name %in% names(annotations)[prime5Hits], gene_type := "5PrimeGene"]
+  match_type[tx_name %in% names(annotations)[prime3Hits], gene_type := "3PrimeGene"]
+  return(match_type)
+}))
+saveRDS(gene_type, file = "fusion_gene_type_29Aug2023.rds")
+```
+
+# Fig. 6d
+3. Fusion visualization
+
+## 3.1 generate heatmap
+```{r 3-heatmap}
+
+seFusion <- readRDS('seFusion_fusionModeOn_NDR1_GeneProp0ReadCount1_29Aug2023.rds')
+gene_type <- readRDS("fusion_gene_type_29Aug2023.rds")
+
+validated_list <- data.table(read_xlsx("Copy of confirmed_candidates_YF_04082022.xlsx"))
+
+lab_validation <- unique(validated_list[, list(validated_breakpoints = .N, cellLine = "MCF7"), by = fusion.genes])
+setnames(lab_validation, "fusion.genes", "fusion_gene")
+fig_mat <- fread(paste0("summary_fig.210823.csv"))
+setnames(fig_mat, c("Fusion","sample"),c("fusion_gene","cellLine"))
+fig_mat <- lab_validation[fig_mat, on = c("fusion_gene","cellLine")]
+
+fig_mat[is.na(validated_breakpoints), validated_breakpoints := 0]
+fusionSymbolList <- c("FYB","C15orf57","GCN1L1","LPPR5","RP11-983G14.1","MIR4435-1HG","RP1-65P5.3")
+fusionReplaceSymbolList <- c("FYB1","CCDC32","GCN1","PLPPR5","LINC02203","MIR4435-2HG","THEM7P")
+for(i in seq_along(fusionSymbolList)){
+  fig_mat[grep(fusionSymbolList[i],fusion_gene), `:=`(fusion_gene = gsub(fusionSymbolList[i],fusionReplaceSymbolList[i],fusion_gene))]
+}
+
+
+fl_counts <- data.table(assays(seFusion)$fullLengthCounts, keep.rownames = TRUE)
+fl_counts <- melt(fl_counts, id.vars = "rn", measure.vars = colnames(fl_counts)[-1])
+setnames(fl_counts,c("rn","variable","value"),c("tx_name","runname","fullLengthCounts"))
+
+all_samples <- unique(as.character(fl_counts$runname))
+cellLineVec <- c("A549","Hct116","K562","HepG2","MCF7","HEYA8")
+dt <- data.table(runname = all_samples)
+dt[, cellLine:=gsub("HCT116","Hct116",gsub('MCF7-EV','MCF7',gsub('k562','K562',strsplit(runname, '\\_')[[1]][2]))),by = runname]
+dt[, protocol:=strsplit(runname, '\\_')[[1]][3], by = runname]
+dt[, cDNAstranded:=ifelse(protocol %in% c('cDNA','cDNAStranded'), protocol=='cDNAStranded',NA)]
+dt[, randomPrimer:=grepl('RandomPrimer',protocol)]
+dt[, protocol_type:=gsub('Stranded|RandomPrimer','',gsub('PromethionD','d', protocol))]
+dt[, repInfo:=strsplit(runname, '\\_')[[1]][4], by = runname]
+dt[grep("GIS_Hct116_directRNA_[1-9]|(GIS_Hct116_directcDNA_[1-9])|(GIS_Hct116_cDNA_[1-9])",runname), repInfo:=paste0("Rep1-Run",repInfo)]
+dt[, bioRep:=strsplit(repInfo, '\\-')[[1]][1], by = repInfo]
+
+dt[, bioRep:=gsub('Rep','',bioRep)]
+dt[, techRep:=strsplit(repInfo, '\\-')[[1]][2], by = repInfo]
+dt[is.na(techRep), techRep:=1]
+dt[, techRep:=gsub('Run','',techRep)]
+dt[, patient_derived:=(!(cellLine %in% cellLineVec))]
+
+dt[, cellLineRep:=paste0(cellLine,'_', bioRep)]
+dt[, cellLine:=gsub('Myeloma-','',cellLine)]
+
+fl_counts <- dt[,.(runname, cellLine)][fl_counts, on = "runname"]
+
+fl_counts_ave <- unique(fl_counts[, list(fullLengthCounts=mean(fullLengthCounts)), by = list(tx_name, cellLine)],by=NULL)
+counts <- data.table(assays(seFusion)$counts, keep.rownames = TRUE)
+counts <- melt(counts, id.vars = "rn", measure.vars = colnames(counts)[-1])
+setnames(counts,c("rn","variable","value"),c("tx_name","runname","counts"))
+counts <- dt[,.(runname, cellLine)][counts, on = "runname"]
+counts_ave <- unique(counts[, list(counts=mean(counts)), by = list(tx_name, cellLine)],by=NULL)
+
+gene_typeFL <- fl_counts_ave[gene_type, on = "tx_name"]
+gene_type_flCount <- unique(gene_typeFL[, list(fullLengthCounts = sum(fullLengthCounts)), by = list(fusion_gene, cellLine, gene_type)],by=NULL)
+gene_type_flCount_wide <- dcast(gene_type_flCount, fusion_gene + cellLine ~ gene_type, value.var = "fullLengthCounts")
+setnames(gene_type_flCount_wide, 5, "fusionGene")
+gene_type_flCount_wide[is.na(gene_type_flCount_wide)] <- 0
+setnames(gene_type_flCount_wide, c("3PrimeGene","5PrimeGene","fusionGene"), paste0(c("3PrimeGene","5PrimeGene","fusionGene"),"_flCount"))
+
+gene_typeAll <- counts_ave[gene_type, on = "tx_name"]
+gene_type_allCount <- unique(gene_typeAll[, list(counts = sum(counts)), by = list(fusion_gene, cellLine, gene_type)],by=NULL)
+gene_type_allCount_wide <- dcast(gene_type_allCount, fusion_gene + cellLine ~ gene_type, value.var = "counts")
+setnames(gene_type_allCount_wide, 5, "fusionGene")
+gene_type_allCount_wide[is.na(gene_type_allCount_wide)] <- 0
+setnames(gene_type_allCount_wide, c("3PrimeGene","5PrimeGene","fusionGene"), paste0(c("3PrimeGene","5PrimeGene","fusionGene"),"_allCount"))
+
+fig_mat <- gene_type_flCount_wide[fig_mat[fusion_gene %in% unique(gene_type_flCount_wide$fusion_gene)], on = c("fusion_gene","cellLine")]
+fig_mat <- gene_type_allCount_wide[fig_mat, on = c("fusion_gene","cellLine")]
+fig_mat[, `:=`(suppression = ifelse(`3PrimeGene_flCount`<1&(`5PrimeGene_flCount`<1),"BothPrimeSuppressed",
+                                    ifelse(`3PrimeGene_flCount`<1,"3PrimeSuppressed",
+                                           ifelse(`5PrimeGene_flCount`<1, "5PrimeSuppressed","None"))))]
+
+setnames(fig_mat, "suppression","BreakpointClass")
+fig_mat[BreakpointClass == "BothPrimeSuppressed", BreakpointClass := "Both not expressed"]
+fig_mat[BreakpointClass == "None", BreakpointClass := "Both expressed"]
+fig_mat[BreakpointClass == "3PrimeSuppressed", BreakpointClass :='5PrimeExpressed']
+fig_mat[BreakpointClass == "5PrimeSuppressed", BreakpointClass :='3PrimeExpressed']
+write.csv(fig_mat, file = paste0("fusion_mat_updated_29Aug2023.csv"))
+
+
+fig_mat <- fread("fusion_mat_updated_29Aug2023.csv")
+cols <- c("Illumina","Mitelman",
+          "Validated")
+fig_mat[ , (cols) := lapply(.SD,as.numeric), .SDcols = cols]
+fig_mat <- fig_mat[order(cellLine, fusionGene_allCount)]
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+plotdata <- as.matrix(fig_mat[,.(log2Reads,`5PrimeGene_allCount`,`3PrimeGene_allCount`,fusionGene_allCount,
+                                 `5PrimeGene_flCount`,`3PrimeGene_flCount`,fusionGene_flCount)],ncol = 1)
+rowInfo <- fig_mat[,.(fusion_gene, Breakpoints,Illumina,Mitelman,Validated,cellLine,BreakpointClass,validated_breakpoints)]
+colBreakpoints <- brewer.pal(9,"Paired")[seq_along(unique(rowInfo$Breakpoints))]
+colValidatedBreakpoints <- c("grey", brewer.pal(9,"Paired")[seq_along(unique(rowInfo$validated_breakpoints))[c(1,2)]])
+colCellLine <- brewer.pal(8,"Dark2")[seq_along(unique(rowInfo$cellLine))]
+colEvt = c("White","Black")
+colSuppression <- brewer.pal(8,"Set3")[3:6]
+names(colEvt) <- unique(rowInfo$Illumina)
+names(colBreakpoints) <- sort(unique(rowInfo$Breakpoints))
+names(colValidatedBreakpoints) <- sort(unique(rowInfo$validated_breakpoints))
+names(colCellLine) <- unique(rowInfo$cellLine)
+names(colSuppression) <- unique(rowInfo$BreakpointClass)
+
+breakpointsTypes = rowAnnotation(
+  cellLine = as.factor(rowInfo$cellLine),
+  validated = as.factor(rowInfo$Validated),
+  illumina = as.factor(rowInfo$Illumina),
+  mitelman = as.factor(rowInfo$Mitelman),
+  breakpoints = as.factor(rowInfo$Breakpoints),
+  pcr = as.factor(rowInfo$validated_breakpoints),
+  suppression = as.factor(rowInfo$BreakpointClass),
+  col = list(cellLine = colCellLine,
+             validated = colEvt,
+             illumina = colEvt,
+             mitelman = colEvt,
+             breakpoints = colBreakpoints,
+             pcr = colValidatedBreakpoints,
+             suppression = colSuppression),
+  annotation_name_side = "top")
+rownames(plotdata) <- paste0(rowInfo$fusion_gene)
+plotmat <- as.matrix(plotdata)
+for(i in 2:ncol(plotmat)){
+  plotmat[,i] <- log2(plotmat[,i]+1)
+}
+col_fun = colorRamp2(range(plotmat), c("white", "cornflowerblue"))
+mat_log2Reads <- Heatmap(plotmat, 
+                         name = "log2Reads", 
+                         col = col_fun,
+                         left_annotation = breakpointsTypes,
+                         cluster_rows = FALSE,
+                         cluster_columns = FALSE,
+                         row_split = as.factor(rowInfo$cellLine),
+                         column_names_side = "top",
+                         row_names_side = "left")#,
+pdf(paste0("fusionHeatmap_revised_29Aug2023.pdf"), width = 8, height = 15)
+print(mat_log2Reads)
+dev.off()
+```
+
+
+## by protocol
+```{r}
+fl_counts <- dt[,.(runname, cellLine,protocol_type)][fl_counts, on = "runname"]
+fl_counts_ave <- unique(fl_counts[, list(fullLengthCounts=mean(fullLengthCounts)), by = list(tx_name, cellLine,protocol_type)],by=NULL)
+
+counts <- data.table(assays(seFusion)$counts, keep.rownames = TRUE)
+counts <- melt(counts, id.vars = "rn", measure.vars = colnames(counts)[-1])
+setnames(counts,c("rn","variable","value"),c("tx_name","runname","counts"))
+counts <- dt[,.(runname, cellLine,protocol_type)][counts, on = "runname"]
+counts_ave <- unique(counts[, list(counts=mean(counts)), by = list(tx_name, cellLine,protocol_type)],by=NULL)
+
+gene_typeFL <- fl_counts_ave[gene_type, on = "tx_name"]
+gene_type_flCount <- unique(gene_typeFL[, list(fullLengthCounts = sum(fullLengthCounts)), by = list(fusion_gene, cellLine, gene_type,protocol_type)],by=NULL)
+gene_type_flCount_wide <- dcast(gene_type_flCount, fusion_gene + cellLine ~ paste0(protocol_type,gene_type), value.var = "fullLengthCounts")
+colnames(gene_type_flCount_wide) <- gsub("Afusion_gene","AfusionGene",colnames(gene_type_flCount_wide))
+colnames(gene_type_flCount_wide) <- gsub("Gene","Gene_flCount",colnames(gene_type_flCount_wide))
+gene_type_flCount_wide[is.na(gene_type_flCount_wide)] <- 0
+
+
+gene_typeAll <- counts_ave[gene_type, on = "tx_name"]
+gene_type_allCount <- unique(gene_typeAll[, list(counts = sum(counts)), by = list(fusion_gene, cellLine, gene_type, protocol_type)],by=NULL)
+gene_type_allCount_wide <- dcast(gene_type_allCount, fusion_gene + cellLine ~ paste0(protocol_type, gene_type), value.var = "counts")
+colnames(gene_type_allCount_wide) <- gsub("Afusion_gene","AfusionGene",colnames(gene_type_allCount_wide))
+colnames(gene_type_allCount_wide) <- gsub("Gene","Gene_allCount",colnames(gene_type_allCount_wide))
+gene_type_allCount_wide[is.na(gene_type_allCount_wide)] <- 0
+
+
+
+fig_mat <- gene_type_flCount_wide[fig_mat[fusion_gene %in% unique(gene_type_flCount_wide$fusion_gene)], on = c("fusion_gene","cellLine")]
+fig_mat <- gene_type_allCount_wide[fig_mat, on = c("fusion_gene","cellLine")]
+
+write.csv(fig_mat, file = paste0("fusion_mat_revised_15Feb2024.csv"))
+
+
+fig_mat <- fread("fusion_mat_revised_15Feb2024.csv")
+old_fig_mat <- fread("fusion_mat_updated_29Aug2023.csv")
+fig_mat <- old_fig_mat[,.(fusion_gene,cellLine, BreakpointClass,fusionGene_allCount)][fig_mat, on = c("fusion_gene","cellLine")]
+cols <- c("Illumina","Mitelman",
+          "Validated")
+fig_mat[ , (cols) := lapply(.SD,as.numeric), .SDcols = cols]
+fig_mat <- fig_mat[order(cellLine, fusionGene_allCount)]
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+
+plotdata <- as.matrix(fig_mat[,c(grep("log2Reads",colnames(fig_mat)),
+ which(grepl("5PrimeGene",colnames(fig_mat))&grepl("_flCount", colnames(fig_mat))),
+ which(grepl("3PrimeGene",colnames(fig_mat))&grepl("_flCount", colnames(fig_mat))),
+ which(grepl("fusionGene",colnames(fig_mat))&grepl("_flCount", colnames(fig_mat)))),with = FALSE
+ ])
+
+rowInfo <- fig_mat[,.(fusion_gene, Breakpoints,Illumina,Mitelman,Validated,cellLine,BreakpointClass,validated_breakpoints)]
+colBreakpoints <- brewer.pal(9,"Paired")[seq_along(unique(rowInfo$Breakpoints))]
+colValidatedBreakpoints <- c("grey", brewer.pal(9,"Paired")[seq_along(unique(rowInfo$validated_breakpoints))[c(1,2)]])
+colCellLine <- brewer.pal(8,"Dark2")[seq_along(unique(rowInfo$cellLine))]
+colEvt = c("White","Black")
+colSuppression <- brewer.pal(8,"Set3")[3:6]
+names(colEvt) <- unique(rowInfo$Illumina)
+names(colBreakpoints) <- sort(unique(rowInfo$Breakpoints))
+names(colValidatedBreakpoints) <- sort(unique(rowInfo$validated_breakpoints))
+names(colCellLine) <- unique(rowInfo$cellLine)
+names(colSuppression) <- unique(rowInfo$BreakpointClass)
+
+breakpointsTypes = rowAnnotation(
+  cellLine = as.factor(rowInfo$cellLine),
+  validated = as.factor(rowInfo$Validated),
+  illumina = as.factor(rowInfo$Illumina),
+  mitelman = as.factor(rowInfo$Mitelman),
+  breakpoints = as.factor(rowInfo$Breakpoints),
+  pcr = as.factor(rowInfo$validated_breakpoints),
+  suppression = as.factor(rowInfo$BreakpointClass),
+  col = list(cellLine = colCellLine,
+             validated = colEvt,
+             illumina = colEvt,
+             mitelman = colEvt,
+             breakpoints = colBreakpoints,
+             pcr = colValidatedBreakpoints,
+             suppression = colSuppression),
+  annotation_name_side = "top")
+rownames(plotdata) <- paste0(rowInfo$fusion_gene)
+plotmat <- as.matrix(plotdata)
+for(i in 2:ncol(plotmat)){
+  plotmat[,i] <- log2(plotmat[,i]+1)
+}
+col_fun = colorRamp2(range(plotmat), c("white", "cornflowerblue"))
+mat_log2Reads <- Heatmap(plotmat, 
+                         name = "log2Reads", 
+                         col = col_fun,
+                         left_annotation = breakpointsTypes,
+                         cluster_rows = FALSE,
+                         cluster_columns = FALSE,
+                         row_split = as.factor(rowInfo$cellLine),
+                         column_names_side = "top",
+                         row_names_side = "left")#,
+pdf(paste0("fusionHeatmap_revised_15Feb2024_v2.pdf"), width = 8, height = 15)
+print(mat_log2Reads)
+dev.off()
+```
+
+# Supplementary Fig. 9
+## 3.2 generate coverage plot
+```{r 3-generate-coverage-plot}
+library(readxl)
+library(data.table)
+library(AnnotationDbi)
+require(GenomicAlignments) #
+library(ggbio)
+fig_mat <- fread("fusion_mat_updated_29Aug2023.csv")
+seFusion <- readRDS('seFusion_fusionModeOn_NDR1_GeneProp0ReadCount1_29Aug2023.rds')
+annotations <- rowRanges(seFusion)
+
+gene_type <- readRDS("fusion_gene_type_29Aug2023.rds")
+
+validated_list <- data.table(read_xlsx("Copy of confirmed_candidates_YF_04082022.xlsx"))
+tmpList <- readRDS(paste0("fusionGeneTxBreakPointGR.rds"))
+fusionGene <- tmpList[[1]]
+fusionTx <- tmpList[[2]]
+break.pointList <- tmpList[[3]]
+gr <- tmpList[[4]]
+prime3Gene <- tmpList[[5]]
+prime5Gene <- tmpList[[6]]
+geneList <- tmpList[[7]]
+txList <- tmpList[[8]]
+batch2 <- readRDS("batch2_29Aug2023.rds")
+validated_list <- batch2[,.(fusion.genes, sample, chrom1, base1,strand1, chrom2, base2, strand2,base1_start_pos, base1_end_pos, base2_start_pos, base2_end_pos)][validated_list, on = c("fusion.genes","sample","chrom1","base1","strand1","chrom2","base2","strand2")]
+validated_list[3]$confirmed_base1 <- "37596008"
+validated_list$confirmed_base1 <- as.numeric(validated_list$confirmed_base1)
+validated_list$confirmed_base2 <- as.numeric(validated_list$confirmed_base2)
+validated_list[, confirmed_inner_base1 := ifelse(strand1 == "-", base1_end_pos - confirmed_base1+1, confirmed_base1 - base1_start_pos + 1),by = list(fusion.genes,confirmed_base1,confirmed_base2)]
+validated_list[, confirmed_inner_base2 := ifelse(strand2 == "-", base2_end_pos - confirmed_base2+1+(base1_end_pos-base1_start_pos+1), confirmed_base2 - base2_start_pos + 1+(base1_end_pos-base1_start_pos+1)), by = list(fusion.genes, confirmed_base1,confirmed_base2)]
+noprint <- lapply(c("A549","K562","HepG2","Hct116","MCF7","HEYA8"), function(k){
+  print(k)
+  bamFilePath <- dir(paste0("fusion_bams"), recursive = TRUE, pattern = ".bam$", full.names = TRUE)
+  bamFilePath <- bamFilePath[grep(k, bamFilePath)]
+  readsFiltered <- do.call("c",lapply(bamFilePath, function(r){
+    print(r)
+    reads <-  readGAlignments(file=r,
+                              param=ScanBamParam(flag=scanBamFlag(isSecondaryAlignment=FALSE,                                 isDuplicate = FALSE),
+                                                 what=c("qual", "flag","mapq")),use.names=T) ## primary alignments
+    readsFiltered <- reads[mcols(reads)$flag %in% c(0,16)]
+    if(length(readsFiltered)>0){
+      mcols(readsFiltered)$protocol <- unlist(strsplit(unlist(strsplit(r,"/"))[7],"_"))[3]
+    }
+    
+    return(readsFiltered)
+  }))
+  
+  annotations <- rowRanges(seFusion)
+  mcols(annotations)$readCount <- NULL
+  mcols(annotations)$readCount <- rowSums(assays(seFusion)$CPM[, grep(k,colnames(seFusion))])
+  
+  geneNames <- intersect(fig_mat[cellLine==k]$fusion_gene,as.character(unique(seqnames(readsFiltered))))
+  noprint <- lapply(seq_along(geneNames), function(s){
+    print(s)
+    gene_tmp <- geneNames[s]
+    gr.tx <- GRangesList(fusionTx[gene_tmp][[1]])
+    
+    break.point <- break.pointList[gene_tmp][[1]]
+    strand.info <- as.character(unique(strand(gr[gene_tmp][[1]])))
+    if(gene_tmp %in% unique(validated_list$fusion.genes) &(k == "MCF7")){
+      validated_breakpoint <- as.numeric(unlist(validated_list[fusion.genes == gene_tmp,c("confirmed_inner_base1","confirmed_inner_base2"), with = FALSE]))
+    }else{
+      validated_breakpoint <- 0
+    }
+    
+    
+    p1 <- ggbio::autoplot(gr[gene_tmp], aes(type = model, col = as.factor(score), fill = as.factor(score)), group.selfish = TRUE)+
+     geom_vline(xintercept = break.point, col = "red", alpha = 0.3)+
+     scale_color_brewer(type = "qual", guide = FALSE)+scale_fill_brewer(type = "qual", labels = c("5' Gene","3' Gene"), name = "Gene type")
+    
+    
+    p2 <- ggbio::autoplot(gr.tx, aes(type = model, col = as.factor(score), fill = as.factor(score)), group.selfish = TRUE)+geom_vline(xintercept = break.point, col = "red", alpha = 0.3)+scale_color_brewer(type = "qual", guide = FALSE)+scale_fill_brewer(type = "qual", labels = c("5' Gene","3' Gene"), name = "Gene type")
+    
+    tmp <- readsFiltered[as.character(seqnames(readsFiltered))==gene_tmp]
+    p3 <- ggbio::autoplot(tmp, method = "raw", stat = "coverage", aes(col = coverage, fill = coverage))+geom_vline(xintercept = validated_breakpoint, col = "blue", alpha = 0.8)+scale_fill_distiller(type = "seq",  direction = -1,n.breaks = 3)+scale_color_distiller(type = "seq", direction = -1,n.breaks = 3)
+    
+    
+    txvec_id <- unlist(lapply(3:1, function(i){
+      gene_pos <- c("5PrimeGene","3PrimeGene","fusion_gene")[i]
+      txvec_id <- which(as.character(unique(seqnames(annotations)))==gene_tmp&(mcols(annotations)$readCount>=1)&names(annotations) %in% gene_type[fusion_gene == gene_tmp &(gene_type == gene_pos)]$tx_name)
+      tmp_anno <- annotations[txvec_id]
+      sort.id <- order(min(start(tmp_anno)),max(end(tmp_anno)))
+      return(txvec_id[sort.id])
+    }))
+    
+    
+    tmp_anno <- annotations[txvec_id] # 
+    tmp_anno <- tmp_anno[!is.na(mcols(tmp_anno)$readCount)]
+    p4 <- ggbio::autoplot(tmp_anno,aes(type = model, col = log10(readCount), fill = log10(readCount)), group.selfish = TRUE)+geom_vline(xintercept = validated_breakpoint, col = "blue", alpha = 0.8)+scale_fill_distiller(type = "seq",  direction = 1)+scale_color_distiller(type = "seq", direction = 1)
+    
+    
+    p <- tracks(Gene = p1,Transcript = p2,  Coverage = p3,Count = p4,
+                heights = c(1,3,3,6))+theme_classic()
+    
+    
+    saveFig.dir <- paste0("fusion_coverage_plots_29Aug2023/",k,"/")
+    if(!dir.exists(saveFig.dir)){
+      dir.create(saveFig.dir, recursive = TRUE)
+    }
+    pdf(paste0(saveFig.dir,gene_tmp,".pdf"), width = 8, height = 10)#8
+    
+    print(p)# c(1,3,3,3)
+    dev.off()
+    
+  })
+  
+})
+```
+
+
+
+
+# 4. generate supplementary table for gtf or bed file 
+```{r}
+library(readxl)
+library(data.table)
+library(AnnotationDbi)
+require(GenomicAlignments) #
+library(ggbio)
+seFusion <- readRDS('seFusion_fusionModeOn_NDR1_GeneProp0ReadCount1_29Aug2023.rds')
+fullLengthCountSupport <- apply(assays(seFusion)$fullLengthCounts>=2,1,sum)
+
+annotations <- rowRanges(seFusion[which(fullLengthCountSupport>0)])
+novelAnnotations <- annotations[which(mcols(annotations)$novelTranscript)]
+fusion_gene = readRDS("fusion_gene_updated.rds")
+tmpList <- readRDS(paste0("fusionGeneTxBreakPointGR.rds"))
+txdbEnsembl91 <- loadDb('hg38_sequins_SIRV_ERCCs_longSIRVs-txdb.sqlite')
+exonsByGene <- exonsBy(txdbEnsembl91, 'gene')
+exonsByTx <- exonsBy(txdbEnsembl91,"tx", use.names = TRUE)
+
+fusionGene <- tmpList[[1]]
+fusionTx <- tmpList[[2]]
+break.pointList <- tmpList[[3]]
+
+fusionChrNames <- as.character(unique(seqnames(novelAnnotations))
+
+
+fusionAnnotations_ucsc <- unlist(lapply(seq_along(fusionChrNames), function(x){
+    fusionName <- fusionChrNames[x]
+    br <- break.pointList[fusionName][[1]]
+    original_br <- fusion_gene[fusion.genes == fusionName]
+    unlisted_annotations <- unlist(novelAnnotations[x])
+    # process 5 prime tx ranges 
+    ori_start <- ifelse(original_br[1]$strand1 == "-",
+                        original_br[1]$base1+br[1]-1,
+                        original_br[1]$base1-br[1]+1)
+    n_uniquebr1 <- length(unique(original_br$base1))
+    fivePrimeId <- which(unlist(end(novelAnnotations[x])) <= max(br[seq_len(n_uniquebr1)]))
+    threePrimeId <- which(unlist(end(novelAnnotations[x])) > max(br[seq_len(length(unique(original_br$base1)))]))
+    if(length(fivePrimeId)==0 |(length(threePrimeId)==0)){
+        print(x)
+        print(fusionName)
+        return(NULL)}
+    unlisted_annotations_ucsc1 <-  GRanges(
+        seqnames = rep(original_br[1]$chrom1, length(fivePrimeId)),
+        ranges = IRanges(ifelse(original_br[1]$strand1 == "-",
+                                                       ori_start - end(unlisted_annotations)[fivePrimeId]+1, start(unlisted_annotations)[fivePrimeId]+ori_start-1),
+                         end = ifelse(original_br[1]$strand1 == "-",
+                                      ori_start - start(unlisted_annotations)[fivePrimeId]+1,         end(unlisted_annotations)[fivePrimeId]+ori_start-1), names = paste0(fusionName,"-",names(novelAnnotations)[x], "-5")),
+        strand = rep(original_br[1]$strand1, length(fivePrimeId))
+    )
+    # process 3 prime tx ranges 
+    ori_start2 <- ifelse(original_br[1]$strand2 == "-",original_br[1]$base2+br[n_uniquebr1+1]-1,
+        original_br[1]$base2+1-br[n_uniquebr1+1])
+    
+    
+    unlisted_annotations_ucsc2 <-  GRanges(
+        seqnames = rep(original_br[1]$chrom2, length(threePrimeId)),
+        ranges = IRanges(ifelse(original_br[1]$strand2 == "-",
+                                ori_start2-end(unlisted_annotations)[threePrimeId]+1,
+                                ori_start2 + start(unlisted_annotations)[threePrimeId]-1),
+                         end = ifelse(original_br[1]$strand2 == "-",  ori_start2-start(unlisted_annotations)[threePrimeId]+1,
+                                ori_start2 + end(unlisted_annotations)[threePrimeId]-1), names = paste0(fusionName,"-",names(novelAnnotations)[x], "-3")),
+        strand = rep(original_br[1]$strand2, length(threePrimeId))
+    )
+    mcols(unlisted_annotations_ucsc1)$nexon <- length(unlisted_annotations_ucsc1)
+    mcols(unlisted_annotations_ucsc2)$nexon <- length(unlisted_annotations_ucsc2)
+    mcols(unlisted_annotations_ucsc1)$sample <- mcols(unlisted_annotations_ucsc2)$sample <- original_br[1]$sample
+    unlisted_annotations_ucsc <- c(unlisted_annotations_ucsc1, unlisted_annotations_ucsc2)
+    mcols(unlisted_annotations_ucsc)$nexon_total <- length(unlisted_annotations_ucsc)
+    return(unlisted_annotations_ucsc)
+}))
+
+saveRDS(fusionAnnotations_ucsc, file = "fusionAnnotations_ucsc_13Sep2023.rds")
+saveRDS(unlisted_annotations,file = "fusionAnnotations_ucsc_unlisted_13Sep2023.rds" )
+fusionAnnotations_ucsc_grgList <- GRangesList(fusionAnnotations_ucsc)
+
+## bed file content 
+# first line: track name = fusion_isoforms_annotation description="Fusion isoform annotation in SG-Nex data" useScore=1 itemRgb="On" 
+# chrom 
+# chromStart 
+# chromEnd 
+# name (BambuTx-5/BambuTx-3)   
+# score(readcount support) 
+# strand 
+# thickStart (codon, NA, so same as chromStart)
+# thickEnd (codon, NA, so same as chromEnd)
+# itemRgb (can be used for different cell line, so total 6 colors) 
+# blockCount (number of exons)
+# blockSizes ( exon size separated by ,)
+# blockStarts (exon starts separated by ,)
+library(RColorBrewer)
+colMatch <- apply(col2rgb(brewer.pal(7, "Paired")),2,paste, collapse = ",")
+names(colMatch) <- sort(unique(fusion_gene$sample))
+
+unlisted_annotations <- do.call("c",fusionAnnotations_ucsc)
+bed_file <- data.frame(
+    chrom = seqnames(unlisted_annotations),
+    chromStart = start(unlisted_annotations),
+    chromEnd = end(unlisted_annotations),
+    name = names(unlisted_annotations),
+    score = NA,
+    strand = strand(unlisted_annotations),
+    thickStart = start(unlisted_annotations),
+    thickEnd = end(unlisted_annotations),
+    itemRgb = colMatch[mcols(unlisted_annotations)$sample]
+)
+write.table(bed_file, file = "bed_file_13Sep2023.bed",row.names = FALSE, col.names = FALSE, sep = "\t")
+```
+
+
+## text 
+number of alternative fusion isoforms per fusion gene
+```{r}
+bed_name <- names(unlisted_annotations)
+fusion_isoforms <- data.table(fusion_name = gsub("-B..*","",bed_name),
+           tx_name = gsub("..*-B","B",bed_name))
+fusion_isoforms[, tx_name_clean := gsub("(-5|-3)$","",tx_name)]
+
+fusion_isoforms <- unique(fusion_isoforms[,.(fusion_name, tx_name_clean)])
+
+rowData <- data.table(as.data.frame(mcols(novelAnnotations)))
+setnames(rowData, "TXNAME","tx_name_clean")
+
+fusion_isoforms <- rowData[fusion_isoforms, on = "tx_name_clean"]
+fusion_isoforms[, `:=`(nisoform = length(unique(tx_name_clean)),
+                       filtered_nisoform = length(unique(.SD[relReadCount>=0.05&readCount>=2]$tx_name_clean))), by = fusion_name]
+mean(unique(fusion_isoforms[,.(fusion_name, filtered_nisoform, nisoform)])$filtered_nisoform)
+ mean(unique(fusion_isoforms[,.(fusion_name, filtered_nisoform, nisoform)])$nisoform)
+```
+
+
+#### check for coverage results 
+```{r}
+seFusion_NDR0.668 <- readRDS("seFusion_fusionModeOn_recommendedNDR0.668_25Aug2023.rds")
+seFusion <- readRDS("seFusion_BambuRevisionBranch_fusionModeOn_NDR1.rds")
+bcr_abl1_ids2 <- which(as.character(unique(seqnames(rowRanges(seFusion))))=="BCR:ABL1")
+bcr_abl1_ids <- which(as.character(unique(seqnames(seFusion_k562)))=="BCR:ABL1")
+
+mcols(seFusion[bcr_abl1_ids])[grep(":",mcols(seFusion[bcr_abl1_ids])$GENEID),]$TXNAME
+mcols(seFusion[bcr_abl1_ids])[grep(":",mcols(seFusion[bcr_abl1_ids])$GENEID),]$TXNAME
+rowRanges(seFusion)["BambuTx785"]
+
+pdf("temp4.pdf")
+autoplot(seFusion[bcr_abl1_ids], group.selfish = TRUE)
+dev.off()
+
+table(mcols(annotations)$novelTranscript, mcols(annotations)$relSubsetCount==1, mcols(annotations)$txClassDescription== "newWithin")
+
+table(rowData(seFusion)$novelTranscript, rowData(seFusion)$relSubsetCount==1, mcols(annotations)$txClassDescription== "newWithin")
+```
+
+
+# 5. utils-functions
+```{r}
+getChrFromGrList <- function(grList){
+    unlist(unique(seqnames(grList)))
+}
+```

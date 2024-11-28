@@ -1,0 +1,147 @@
+---
+title: "SG-NEx manuscript Prepare data"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  pdf_document:
+    toc: yes
+  html_notebook:
+    toc: yes
+---
+
+
+```{r 0-library-loads}
+require(GenomicAlignments) ##readGAlignments
+require(AnnotationDbi)#loadDb
+require(data.table)#fast large dataset manipulation
+require(readxl)
+require(RColorBrewer)
+```
+
+
+```{r 1-load-sample-info}
+cat('Setting working directory')
+sampleData <- data.table(as.data.frame(read_xlsx('.', sheet = 1))) ## need to convert from tibble to data.frame
+sampleData <- sampleData[(grepl("H9|HEYA8",runName)&(grepl("ON00",name))&(!grepl("HEYA8.*H9",
+                                                                                 runName)))|(SG_NextData_Release=="Yes"&(!is.na(SG_NextData_Release))&(!grepl("CRC",runName)))|(grepl("HCT116",runName))]
+
+sampleData[,runName_combined := ifelse(grepl("directRNA",runName)|(!grepl("H9|HEYA8",runName))|(grepl("WINSTON",name)),
+                                       runName, 
+                                       `GIS Library ID`)]
+sampleData[, runName_combined := gsub("HCT","Hct", runName_combined)]
+
+sampleData[, runName := gsub("HCT","Hct", runName)]
+sampleData[runName_combined != runName, runName_combined := paste0(gsub("_Run.*","",runName),"_",runName_combined)]
+sampleData[, runName_combined := gsub('-pre|-Pre','',runName_combined)]
+sampleData$demultiplexed <- grepl("NB", sampleData$name)|(grepl("barcode",sampleData$name))|(!is.na(sampleData$barcoding.kit))|grepl("multiplexed",sampleData$kit)
+
+sampleNames <- unique(sampleData$`publicName (SGNex_CellLine_protocol_replicate1_run1)`)[1:112]
+
+
+
+sampleData_sr <- data.table(as.data.frame(read_xlsx('.', sheet = 3))) ## need to convert from tibble to data.frame
+sampleData_sr <- sampleData_sr[!grepl('#',`ELM library ID`) &(!is.na(runName))&(!grepl("HEYA8.*H9",runName))]
+sr_runNames <- sampleData_sr$runName
+chrm_names <- c(1:22,'X','Y')
+
+
+pacbio_data <-  data.table(as.data.frame(read_xlsx(paste0('.'), sheet = 2)))
+
+##
+samples <- unique(as.data.table(sampleData)[,.(runName_combined,`publicName (SGNex_CellLine_protocol_replicate1_run1)`,
+                                               `replicate-id`,Platform,demultiplexed)],by=NULL)
+setnames(samples, 1:3, c("runname","publicName","replicate_id"))
+samples <- rbindlist(list(samples,
+                          data.table(runname = sr_runNames,
+                                     publicName = sampleData_sr$public_name,
+                                     replicate_id = sampleData_sr$`replicate-id`,
+                                     Platform = rep("Illumina",21)),
+                          data.table(runname = pacbio_data$name,
+                                     publicName = pacbio_data$public_name,
+                                     replicate_id = pacbio_data$Replicate,
+                                     Platform = "PacBio")), fill= TRUE)
+samples[, old_runname := runname]
+samples[, runname := publicName]
+samples[, publicName := NULL]
+
+samples[, cellLine:=gsub("-EV","",gsub('k562','K562',strsplit(runname, '\\_')[[1]][2])),by = runname]
+samples[, protocol:=strsplit(runname, '\\_')[[1]][3], by = runname]
+samples[, cDNAstranded:=ifelse(protocol %in% c('cDNA','cDNAStranded'), protocol=='cDNAStranded',NA)]
+samples[, randomPrimer:=grepl('RandomPrimer',protocol)]
+samples[, protocol_type:=gsub('Stranded|RandomPrimer','',gsub('PromethionD','d', protocol))]
+
+
+samples[, bioRep:=strsplit(runname, '\\_')[[1]][4], by = runname]
+samples[, techRep:=strsplit(runname, '\\_')[[1]][5], by = runname]
+samples[, cellLine:=gsub('Myeloma-','',cellLine)]
+samples[, cancer_type:=ifelse(grepl("Hct|CRC",cellLine),"Colon",NA)]
+samples[, cancer_type:=ifelse(grepl("SNU|IM|NCC",cellLine),"Stomach",cancer_type)]
+samples[, cancer_type:=ifelse(grepl("N104|N122|N082",cellLine),"Multiple myeloma",cancer_type)]
+samples[, cancer_type:=ifelse(grepl("A549",cellLine),"Lung",cancer_type)]
+samples[, cancer_type:=ifelse(grepl("K562",cellLine),"Leukocyte",cancer_type)]
+samples[, cancer_type:=ifelse(grepl("HepG2",cellLine),"Liver",cancer_type)]
+samples[, cancer_type:=ifelse(grepl("MCF7",cellLine),"Breast",cancer_type)]
+samples[, cancer_type:=ifelse(grepl("Hek",cellLine),"Kidney",cancer_type)]
+samples[, cancer_type:=ifelse(grepl("H9",cellLine),"Esophagus",cancer_type)]
+samples[, cancer_type:=ifelse(grepl("HN1",cellLine),"Head&Neck",cancer_type)]
+samples[, cancer_type:=ifelse(grepl("HEYA8",cellLine),"Ovary",cancer_type)]
+
+
+
+cellLines <- c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8")
+spike_in_info <- unique(sampleData[,.(runName_combined, RNAcontent)])
+setnames(spike_in_info, "runName_combined","old_runname")
+samples_wSpikein <- spike_in_info[samples, on = "old_runname"]
+# RNA content information for short read missing
+samples_wSpikein[grepl("Illumina", runname)&(cellLine %in% cellLines[1:5]), RNAcontent := "1% RNA sequin Mix A v1.0"]
+samples_wSpikein[grepl("Illumina", runname)&(cellLine == "H9"), RNAcontent := "1% spike-in of 6ng SIRV-4"]
+samples_wSpikein[grepl("Illumina", runname)&(cellLine == "HEYA8"), RNAcontent := "1% spike-in of 6ng RNA sequin Mix A, V2, 6ng SIRV-1 E2"]
+samples_wSpikein[grepl("PacBio", runname), RNAcontent := "sequin Mix A v1.0 sequin MixA V2 SIRV-1 E2 SIRV-4"]
+samples_wSpikein[, RNAcontent := gsub("SIRV-1 \\(E2","SIRV-1 E2",gsub("A\\,","A",RNAcontent))]
+samples_wSpikein[, patient_derived:=(!(cellLine %in% cellLines))]
+samples_wSpikein[, cellLineRep:=paste0(cellLine,'_', bioRep)]
+
+saveDate <- as.character(as.Date(Sys.time()))
+```
+```{r}
+ensemblAnnotations.transcripts <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-transcripts.txt',header=TRUE)
+ensemblAnnotations.genes <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-genes.txt',header=TRUE)
+ensemblAnnotations.genes <- data.table(ensemblAnnotations.genes, keep.rownames = TRUE)
+setnames(ensemblAnnotations.genes,'rn','gene_name')
+ensemblAnnotations.transcripts <- data.table(ensemblAnnotations.transcripts, keep.rownames = TRUE)
+setnames(ensemblAnnotations.transcripts,'rn','tx_name')
+
+
+txdbEnsembl91 <- loadDb('hg38_sequins_SIRV_ERCCs_longSIRVs-txdb.sqlite')
+
+exonsByTx <- exonsBy(txdbEnsembl91, 'tx',use.names=T)
+exonsByGene <- exonsBy(txdbEnsembl91, 'gene')
+txLengths <- transcriptLengths(txdbEnsembl91)
+txLengths.tbldf <- data.table(txLengths)
+txLengths.tbldf [, `:=`(nisoform = length(unique(tx_id))),
+                 by = gene_id]
+
+txLengths.tbldf <- ensemblAnnotations.transcripts[txLengths.tbldf, on = c('tx_name','gene_id','nexon','tx_len')]
+
+geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, nisoform)]
+setnames(geneTxTable, 'gene_id', 'gene_name')
+
+```
+
+```{r}
+cellLines <- c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8")
+protocolCol <- adjustcolor(brewer.pal(8,"Dark2")[1:5],0.7)
+protocolVec <-  c("directRNA","directcDNA","cDNA","PacBio","Illumina")
+protocolLabel <- c("RNA","PCR-free cDNA","cDNA","PacBio","Illumina")
+```
+
+
+```{r data-list}
+varnames <- ls()
+general_list <- lapply(varnames, get)
+names(general_list) <- varnames
+
+saveRDS(general_list, file = paste0("general_list",saveDate,".rds"))
+```
+

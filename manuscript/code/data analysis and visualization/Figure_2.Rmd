@@ -1,0 +1,1943 @@
+---
+title: "Figure_2"
+output: html_notebook
+---
+```{r 0-setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = '', fig.width = 6, fig.height = 6,
+  results = "hide",
+  message = FALSE
+)
+```
+
+# load libraries
+
+```{r 0-library-loads}
+require(GenomicFeatures)
+require(GenomicAlignments) ##readGAlignments
+require(AnnotationDbi)#loadDb
+require(data.table)#fast large dataset manipulation
+require(readxl)
+require(dplyr)
+
+
+require(ggplot2)
+require(RColorBrewer)
+require(gridExtra)
+
+library(gplots)
+library(RColorBrewer)
+library(limma)
+
+library(ComplexHeatmap)
+library(circlize)
+library(viridis)
+gctorture(FALSE)
+library(tximport) # 
+
+library(cowplot)
+library(ggplotify)# 
+source("utility_function.R")
+
+library(bambu)
+```
+
+
+# load general data
+```{r}
+cat('Setting working directory')
+wkdir <- 'wkdir'
+general_list <- readRDS("general_list2023-08-29.rds")
+samples_wSpikein <- general_list$samples_wSpikein
+cellLines <- general_list$cellLines#c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8")
+protocolCol <-  general_list$protocolCol#adjustcolor(brewer.pal(8,"Dark2")[1:5],0.7)
+protocolVec <-  general_list$protocolVec#c("directRNA","directcDNA","cDNA","PacBio","Illumina")
+protocolLabel <- general_list$protocolLabel#c("RNA","PCR-free cDNA","cDNA","PacBio","Illumina")
+```
+
+
+# Fig. 2
+## a read count
+```{r 1-readcount}
+salmon_sr <- readRDS(paste0(wkdir,"output/salmon_sr.rds"))
+
+readCountONT <- readRDS("readCount_guppy_6_4_2_May6.rds")
+readCountPacBio <- readRDS("readCount_pacbio.rds")
+readCountSpikein <- readRDS("readCount_spikein_May5.rds")
+readCountSpikeinSR <- readRDS("readCount_spikein.rds")
+readCountSpikeinSR <- readCountSpikeinSR[grepl("Illumina", runname)]
+
+# spikein to be added 
+readCount <- do.call("rbind",list(readCountONT, readCountPacBio, readCountSpikein, readCountSpikeinSR))
+readCount[, runname := gsub(",","",runname)]
+# for PacBio remove sirv-1, change sequin MixA V1 to sequin MixAv2
+readCount[grepl("PacBio",runname)&grepl("sequin",runname), runname := gsub("v1.0","V2",runname)]
+readCount <- readCount[-which(grepl("PacBio",runname)&grepl("SIRV-1",runname))]
+
+samples <- samples_wSpikein[data.table(runname = readCount$runname), on = "runname"]
+samples[grepl("allSpikinReadsCombined",runname), `:=`(
+    old_runname = runname,
+    protocol = unlist(strsplit(gsub("__","_",runname),"_"))[3],
+    cellLine = gsub("v1.0","V1",gsub(",","",unlist(strsplit(gsub("__","_",runname),"_"))[2]))), 
+    by = runname]
+samples[grepl("allSpikinReadsCombined",runname), `:=`(techRep = paste0("run",1:.N)), by = list(cellLine)]
+samples[grepl("allSpikinReadsCombined",runname), `:=`(protocol_type = protocol, bioRep = "replicate1")]
+
+
+readCount <- samples[readCount, on = "runname"]
+
+readCountSR <-unique(salmon_sr[,.(runname, ntotal)])
+setnames(readCountSR, c("runname","ntotal"),c("old_runname","total_reads"))
+readCountSR <- samples_wSpikein[readCountSR, on = "old_runname"]
+
+
+
+samplesRC_combined <- rbindlist(list(readCount, readCountSR), fill = TRUE)
+samplesRC_combined[, `:=`(protocol_type = gsub("-SMRTcell","",protocol_type))]
+samplesRC_combined[, protocol_type_factor := factor(protocol_type, c('directRNA','directcDNA','cDNA',"PacBio","Illumina"),
+                                             protocolVec)]
+
+plotdata <- samplesRC_combined[,.(protocol_type_factor, runname, total_reads, Platform, demultiplexed,cellLine)]
+plotdata[is.na(demultiplexed), demultiplexed := FALSE]
+## all de-multiplexed are gridion/minion
+
+library(tidyverse)
+source("https://raw.githubusercontent.com/datavizpyr/data/master/half_flat_violinplot.R")
+
+# short read are all demultiplexed 
+plotdata[Platform == "Illumina", demultiplexed := TRUE]
+plotdata[, special_prep:=ifelse(grepl("allSpik",runname),4,ifelse(demultiplexed,3,ifelse(Platform == "PromethION",2,1)))]
+
+# remove spike-in put it in supplementary 
+p_sequencing_depth <- ggplot(plotdata[special_prep != 4], aes(x = protocol_type_factor, y = total_reads/1000000))+
+    geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+        alpha = 0.5,
+                      position=position_nudge(0.25), 
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
+     geom_point(aes(col = protocol_type_factor,shape = as.factor(special_prep)),
+               position = position_jitter(0.2),  
+               alpha = 0.8)+
+     scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+    scale_shape_manual(values = c(1,0,2),labels = c("MinION/GridION","PromethION","Demultiplexed"),
+                       name = "Protocol")+
+    xlab("Protocols")+
+    ylab(bquote('Number of reads '(10^6)))+ #\nPromethION runs excluded
+    scale_y_log10(breaks=c(0.001,0.01,0.1,0.5,1, 3, 5, 10, 20, 
+                           40,100),
+                  labels =c(0.001,0.01,0.1,0.5,1, 3, 5, 10, 20,
+                            40,100))+
+    theme_classic()
+print(p_sequencing_depth)
+```
+
+
+## b read length
+```{r 4-read-length, eval = FALSE}
+rdfile <- c(list.files(".", pattern = "readLength_", full.names = TRUE, recursive = TRUE),
+            list.files(".", pattern = "readLength.*Illumina", full.names = TRUE, recursive = TRUE))
+rdfile_name <- gsub("readLength_|\\.rds","",basename(rdfile))
+rlData <- do.call("rbind",lapply(seq_along(rdfile_name), function(r){
+    print(r)
+    rname <- rdfile_name[r]
+    rlData <- readRDS(rdfile[r])
+    return(unique(rlData[,list(aveLen=mean(aligned_len)), by =  runname]))
+}))
+saveRDS(rlData, file = paste0(wkdir,"output_guppy6.4.2/readLengthData_Apr27.rds"))
+
+rdfile <- c(list.files(".", pattern = "readLength_", full.names = TRUE, recursive = TRUE),
+            list.files(".", pattern = "readLength.*Illumina", full.names = TRUE, recursive = TRUE))
+rdfile_name <- gsub("readLength_|\\.rds","",basename(rdfile))
+
+rlData <- do.call("rbind",lapply(seq_along(rdfile_name)[grep("H9_cDNA_replicate4",rdfile_name)], function(r){
+    print(r)
+    rname <- rdfile_name[r]
+    rlData <- readRDS(rdfile[r])
+    return(unique(rlData[,list(aveLen=mean(aligned_len)), by =  runname]))
+}))
+saveRDS(rlData, file = paste0(wkdir,"readLengthData_sample109.rds"))
+rlData <- readRDS(paste0(wkdir,"readLengthData_Apr27.rds"))
+rlData <- rlData[!grepl("H9_cDNA_replicate4_",runname)]
+rlData_sample109 <- readRDS(paste0(wkdir,"readLengthData_sample109.rds"))
+rlData <- rbindlist(list(rlData, rlData_sample109))
+saveRDS(rlData, file = paste0(wkdir,"readLengthData_May6.rds"))
+```
+
+
+
+
+```{r 4-read-length-figure}
+rlData <- readRDS(paste0(wkdir,"readLengthData_May6.rds"))
+rlData[grepl("PacBio",runname)&grepl("sequin",runname), runname := gsub("v1.0","V2",runname)]
+rlData[, old_runname := runname]
+temp <- samplesRC_combined[,.(old_runname, runname)]
+setnames(temp, "runname", "new_name")
+rlData <- temp[rlData, on = "old_runname"]
+rlData[!is.na(new_name), runname := new_name]
+rlData[, `:=`(old_runname = NULL, new_name = NULL)]
+rlData_mat <- samplesRC_combined[rlData, on = "runname"]
+rlData_mat[Platform == "Illumina", demultiplexed := TRUE]
+
+rlData_mat[, special_prep:=ifelse(grepl("allSpik",runname),4,ifelse(demultiplexed,3,ifelse(Platform == "PromethION",2,1)))]
+rlData_mat[is.na(special_prep), special_prep := 1]
+p_mapped_read_length <- ggplot(rlData_mat[special_prep != 4], 
+    aes(x = protocol_type_factor, y = aveLen))+ #/1000
+       geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+        alpha = 0.5,
+                      position=position_nudge(0.25), 
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
+      geom_point(aes(col = protocol_type_factor,shape = as.factor(special_prep)),
+               position = position_jitter(0.2),  
+               alpha = 0.8)+
+     scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+     scale_shape_manual(values = c(1,0,2,3),labels = c("MinION/GridION","PromethION","Demultiplexed","Spikein"),
+                       name = "Protocol")+
+    xlab("Protocols")+
+    scale_y_log10()+
+    ylab("Mean read length")+
+    theme_classic()
+p_mapped_read_length
+```
+
+
+
+## c 5 to 3 coverage
+```{r coverage, eval = FALSE}
+cov.dir <- "coverageSaveRDSApr17"
+rdsFiles <- dir(cov.dir, pattern = "^covDT",full.names = TRUE)
+rdsFiles2 <- dir(cov.dir, pattern = "^GIS")
+rdsFiles3 <-  dir(cov.dir, pattern = "^SGNex")
+runname <- gsub("covDT|(\\.rds)","",basename(rdsFiles))
+txdbEnsembl91 <- loadDb('hg38_sequins_SIRV_ERCCs_longSIRVs-txdb.sqlite')
+tx <- transcripts(txdbEnsembl91)
+txInfo <- data.table(tx_name = tx$tx_name, strand = as.character(strand(tx)))
+
+covData1 <- do.call("rbind",lapply(rdsFiles, function(s){
+    print(s)
+    covd <- readRDS(s) 
+    if(grepl("allSpik",s)){
+        setnames(covd, "run_name","runname")
+        covd <- covd[!grepl("ENST",tx_name)]
+    }
+    covdt <- unique(covd[, list(ave_bin_count=mean(rel_bin_count)), by = list(pos_bin,nread,runname)])
+    return(covdt)
+}))
+covData2 <- do.call("rbind", lapply(rdsFiles2, function(k){
+    rds <- dir(paste0(cov.dir, "/",k), full.names = TRUE)
+    covd <- do.call("rbind",lapply(rds, function(r){
+        return(readRDS(r))
+    }))
+    nread <- sum(unlist(lapply(rds, function(r){
+        return(unique(readRDS(r)$nread))
+    })))
+    covdt <- unique(covd[, list(ave_bin_count=mean(rel_bin_count)), by = list(pos_bin,run_name)])
+    covdt[, nread := nread]
+    return(covdt)
+}))
+setnames(covData2, "run_name","old_runname")
+covData2 <- samples_wSpikein[,.(old_runname, runname)][covData2, on = "old_runname"]
+covData2[, old_runname := NULL]
+covData3 <- do.call("rbind", lapply(rdsFiles3, function(k){
+    print(k)
+    rds <- dir(paste0(cov.dir, "/",k), full.names = TRUE)
+    covd <- do.call("rbind",lapply(rds, function(r){
+        return(readRDS(r))
+    }))
+    nread <- sum(unlist(lapply(rds, function(r){
+        return(unique(readRDS(r)$nread))
+    })))
+    covdt <- unique(covd[, list(ave_bin_count=mean(rel_bin_count)), by = list(pos_bin,run_name)])
+    covdt[, nread := nread]
+    return(covdt)
+}))
+setnames(covData3, "run_name","runname")
+covData <- do.call("rbind",list(covData1, covData2, covData3))
+covData[, normCount:=ave_bin_count/max(ave_bin_count), by = runname]
+saveRDS(covData, file = paste0(wkdir,"covData.rds"))
+```
+
+
+```{r}
+covData <- readRDS(paste0(wkdir,"covData.rds"))
+covData[grepl("sequinMixAv1.0_PacBio",runname), runname := gsub("v1.0","V2",runname)]
+covData <- samplesRC_combined[, .(protocol_type_factor, cellLine,runname)][covData, on = "runname"]
+plotData <- unique(covData[, list(aveNorm=mean(ave_bin_count)), by = list(pos_bin,protocol_type_factor, cellLine)])
+plotData[, normCount:=aveNorm/max(aveNorm), by = list(protocol_type_factor,cellLine)]
+
+
+plotData[, mean_count :=mean(normCount), by = list(protocol_type_factor,pos_bin)]
+plotData[, min_count := min(normCount), by = list(protocol_type_factor,pos_bin)]
+plotData[, max_count := max(normCount), by = list(protocol_type_factor,pos_bin)]
+
+plotData[, pc := paste0(protocol_type_factor," ",cellLine)]
+
+
+p_coverage_5to3 <- ggplot(plotData[cellLine %in% cellLines], aes(x = pos_bin, y = normCount, group = pc))+
+    geom_line(aes(col = protocol_type_factor), alpha = 0.1)+
+    geom_line(data = plotData[cellLine == "A549"], aes(x = pos_bin, y = mean_count,group = pc, col = protocol_type_factor))+
+    scale_x_continuous(limits = c(0,100),
+                       breaks = c(0,100),
+                     labels = c("5'","3'"))+
+    scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec[1:5],
+                       labels = protocolLabel[1:5])+
+    ylab("Coverage")+
+    xlab("Transcription direction")+
+    theme_classic()
+p_coverage_5to3
+```
+
+
+## d full-length
+```{r, eval = FALSE}
+seOutput <- readRDS("bambuOutput_May25.rds")
+distTablesList <- metadata(seOutput)$distTables
+# check for short read 
+type_dist <- lapply(seq_along(distTablesList), function(k){
+  print(k)
+  reads <- data.table(as.data.frame(distTablesList[[k]]))
+  reads[, multi := .N, by = readClassId]
+  reads[, type := ifelse(multi==1&all(equal), "FIM",
+                  ifelse(multi==1&(!all(equal)), "SIM",
+                  ifelse(multi>1&(all(equal)),"MFIM",
+                  ifelse(multi>1&(!all(equal))&(any(equal)),"FSIM",
+                  ifelse(multi>1&(all(!equal)),"MSIM",NA))))), by = readClassId]
+  reads <- unique(reads[,.(readClassId, readCount, type)], by = NULL)
+  
+  reads_type_sum <- unique(reads[, list(read_count = sum(readCount)), by = type], by = NULL)
+  reads_type_sum[, nTotal := sum(read_count)]
+  reads_type_sum[, runname := names(distTablesList)[k]]
+  return(reads_type_sum)
+})
+saveRDS(type_dist, file = "type_dist_lr.rds")
+```
+
+
+
+```{r, eval = FALSE}
+seOutputPacBio <- readRDS("bambuOutput_PacBio_May22.rds")
+distTablesList <- metadata(seOutputPacBio)$distTables
+# check for short read 
+type_dist <- lapply(seq_along(distTablesList), function(k){
+  print(k)
+  reads <- data.table(as.data.frame(distTablesList[[k]]))
+  reads[, multi := .N, by = readClassId]
+  reads[, type := ifelse(multi==1&all(equal), "FIM",
+                  ifelse(multi==1&(!all(equal)), "SIM",
+                  ifelse(multi>1&(all(equal)),"MFIM",
+                  ifelse(multi>1&(!all(equal))&(any(equal)),"FSIM",
+                  ifelse(multi>1&(all(!equal)),"MSIM",NA))))), by = readClassId]
+  reads <- unique(reads[,.(readClassId, readCount, type)], by = NULL)
+  
+  reads_type_sum <- unique(reads[, list(read_count = sum(readCount)), by = type], by = NULL)
+  reads_type_sum[, nTotal := sum(read_count)]
+  reads_type_sum[, runname := names(distTablesList)[k]]
+  return(reads_type_sum)
+})
+saveRDS(type_dist, file = "type_dist_lr_pacbio.rds")
+```
+
+
+
+
+```{r, eval = FALSE}
+seSpikein <- readRDS("bambuOutput_spikein_bam_May22.rds")
+distTablesList <- metadata(seSpikein)$distTables
+# check for short read 
+type_dist <- lapply(seq_along(distTablesList), function(k){
+  print(k)
+  reads <- data.table(as.data.frame(distTablesList[[k]]))
+  reads[, multi := .N, by = readClassId]
+  reads[, type := ifelse(multi==1&all(equal), "FIM",
+                  ifelse(multi==1&(!all(equal)), "SIM",
+                  ifelse(multi>1&(all(equal)),"MFIM",
+                  ifelse(multi>1&(!all(equal))&(any(equal)),"FSIM",
+                  ifelse(multi>1&(all(!equal)),"MSIM",NA))))), by = readClassId]
+  reads <- unique(reads[,.(readClassId, readCount, type)], by = NULL)
+  
+  reads_type_sum <- unique(reads[, list(read_count = sum(readCount)), by = type], by = NULL)
+  reads_type_sum[, nTotal := sum(read_count)]
+  reads_type_sum[, runname := names(distTablesList)[k]]
+  return(reads_type_sum)
+})
+saveRDS(type_dist, file = "type_dist_spikein.rds")
+```
+
+
+```{r, eval = FALSE}
+sr_se_files <- dir(".", pattern = ".rds", full.names = TRUE)
+# check for short read 
+type_dist_sr <- lapply(sr_se_files, function(b){
+  print(b)
+  rname <- basename(b)
+  sr_se <- readRDS(b)
+  reads <- data.table(as.data.frame(metadata(sr_se)$distTables[[1]]))
+  reads[, multi := .N, by = readClassId]
+  reads[, type := ifelse(multi==1&all(equal), "FIM",
+                  ifelse(multi==1&(!all(equal)), "SIM",
+                  ifelse(multi>1&(all(equal)),"MFIM",
+                  ifelse(multi>1&(!all(equal))&(any(equal)),"FSIM",
+                  ifelse(multi>1&(all(!equal)),"MSIM",NA))))), by = readClassId]
+  reads <- unique(reads[,.(readClassId, readCount, type)], by = NULL)
+  
+  reads_type_sum <- unique(reads[, list(read_count = sum(readCount)), by = type], by = NULL)
+  reads_type_sum[, nTotal := sum(read_count)]
+  reads_type_sum[, runname := basename(b)]
+  return(reads_type_sum)
+})
+saveRDS(type_dist_sr, file = "type_dist_sr.rds")
+```
+
+
+
+
+```{r}
+type_dist_lr <- readRDS("type_dist_lr.rds")#_protein_coding
+type_dist_lr_pacbio <- readRDS("type_dist_lr_pacbio.rds")
+
+type_dist_sr <- readRDS("type_dist_sr.rds")
+type_dist_spikein <- readRDS("type_dist_spikein.rds")
+type_dist_spikein_sr <- readRDS("type_dist_spikein.rds")
+type_dist_spikein_sr <- type_dist_spikein_sr[grep("Illumina", unlist(lapply(type_dist_spikein_sr, function(x) unique(x$runname))))]
+type_dist <- rbindlist(c(type_dist_lr,type_dist_sr,type_dist_spikein, type_dist_spikein_sr, type_dist_lr_pacbio), fill = TRUE)
+type_dist[, runname := gsub("GIS_Hct116_PacBio-SMRTcell_Rep5_Run1","GIS_HCT116_PacBio-SMRTcell_Rep7_Run1",gsub("HCT116","Hct116",gsub("_genome.rds|STAR_alignment|_sorted","", runname)))]
+type_dist[, old_runname := runname]
+temp <- samplesRC_combined[,.(old_runname, runname)]
+setnames(temp, "runname", "new_name")
+type_dist <- temp[type_dist, on = "old_runname"]
+type_dist[!is.na(new_name), runname := new_name]
+type_dist[, `:=`(old_runname = NULL, new_name = NULL)]
+type_dist <- samplesRC_combined[type_dist, on = "runname"]
+type_dist[, `:=`(protocol_type = gsub("-SMRTcell","",protocol_type))]
+type_dist[, protocol_type_factor := factor(protocol_type, c('directRNA','directcDNA','cDNA','PacBio','Illumina'),
+                                                    protocolVec)]
+
+
+
+p_full_length <- ggplot(type_dist[!grepl("all",runname)], aes(x = type, y = read_count/nTotal*100))+
+    geom_boxplot(aes(fill = protocol_type_factor,col = protocol_type_factor), width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+
+    scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec[1:5],
+                       labels = protocolLabel[1:5])+
+    ylab("Percent of reads")+
+    scale_x_discrete(limits = c("FIM","SIM","MSIM","FSIM","MFIM"),
+                     label = c("Unique\n(Full-length)",
+                               "Unique\n(Partial)",
+                               "Multi-mapping\n(Partial)",
+                               "Multi-mapping\n(Full-length/partial)",
+                               "Multi-mapping\n(Full-length)"))+
+    xlab("Alignment type")+
+    theme_classic()
+p_full_length
+```
+
+
+
+
+## e fraction of transcription
+```{r 6-transcript-diversity}
+txLengths.tbldf <- general_list$txLengths.tbldf
+com_data_gene <- readRDS("combinedExpressionDataGene_19June2023.rds")
+com_data_gene[, protocol_general := gsub("-SMRTcell","", protocol_general)]
+geneTable <- unique(txLengths.tbldf[,.(gene_id, gene_biotype,hgnc_symbol)])
+setnames(geneTable, "gene_id","gene_name")
+com_data_gene_tmp <- geneTable[com_data_gene[grepl("ENSG",gene_name)&(method %in% c("salmon_lr","salmon_sr"))], on = "gene_name"]
+
+
+## rank by protocol and cell line 
+## gene order defined for each cell line protocol combination
+geneOrder <- com_data_gene_tmp[,.(gene_name,cellLine,normEst,protocol_general,runname)] #cellLine %in% cellLines
+geneOrder[, aveExp:=mean(normEst,na.rm=TRUE), by = list(gene_name, protocol_general,cellLine)]
+geneOrder <- unique(geneOrder[,.(aveExp, gene_name, protocol_general,cellLine)])
+geneOrder[, geneRank:=rank(-aveExp), by = list(protocol_general,cellLine)]
+com_data_gene_tmp <- com_data_gene_tmp[geneOrder, on = c("gene_name","protocol_general","cellLine")]
+
+
+dt <- do.call("rbind",lapply(unique(com_data_gene_tmp$runname), function(r){
+    dt <- com_data_gene_tmp[runname == r]
+   
+    dt[order(geneRank), cumEst:=cumsum(normEst)/sum(normEst)]
+    dt <- dt[,.(geneRank,cumEst,runname, protocol_general, gene_biotype, aveExp, cellLine)] 
+    return(dt)
+}))
+
+library(ggrepel)
+
+dt[, cell_protocol := paste0(cellLine, protocol_general)]
+dt[, protocol_reduced := gsub("RandomPrimer","",protocol_general)]
+
+
+
+dt_agg <- dt[, list(geneRank_new = 1:max(ceiling(geneRank)),
+                    cumEstFun = approxfun(geneRank, cumEst)(1:max(ceiling(geneRank)))), by = list(protocol_reduced, runname)]
+
+
+dt_agg_ave <- unique(dt_agg[!grepl("Myeloma",runname)&!grepl("RandomPrimer",runname), list(cumEstAve = median(cumEstFun,na.rm = TRUE), cumEstQ1 = quantile(cumEstFun,na.rm = TRUE, prob = 0.25), cumEstQ3 = quantile(cumEstFun,na.rm = TRUE, prob = 0.75)), by = list(protocol_reduced, geneRank_new)])
+```
+
+
+```{r}
+p_transcript_diversity <- ggplot(dt_agg_ave, aes(x = geneRank_new, y = cumEstAve*100, group = protocol_reduced, col = protocol_reduced, fill = protocol_reduced))+
+   
+    geom_ribbon(aes(ymin=pmax(0,cumEstQ1)*100, ymax=pmin(1,cumEstQ3)*100), col = NA, alpha=0.2,show.legend = FALSE)+
+    geom_line()+
+    geom_vline(xintercept = 1000, linetype = 2)+
+   scale_x_log10()+
+     scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+    scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+   geom_text_repel(data = dt_agg_ave[geneRank_new == 1000],aes(label =  paste0(round(cumEstAve*100),"%")), size = 3, nudge_x = -1)+
+    ylab("Percent of total transcription (%)")+
+    xlab("Number of genes (rank by expression)")+
+    theme_classic()
+p_transcript_diversity
+```
+
+
+## f cDNA vs dRNA bias 
+```{r 9-pcr-bias-2}
+data <- readRDS("bambuOutput_May25.rds")
+txLengths <- sum(width(rowRanges(data)))
+geneLengths <- tapply(txLengths, rowData(data)$GENEID, min)
+geneLengths.max <- tapply(txLengths, rowData(data)$GENEID, max)
+
+res <- readRDS("pcr_bias_results_short_read_updated.rds")
+match_names <- res[[5]]
+protRes <- gsub('.*(_|d|D)(irectcDNA|cDNA|irectRNA|Illumina)(Stranded|_|R).*','\\2', match_names)
+cellLines <- "all"
+cellLineRes <- unlist(lapply(strsplit(gsub("STAR_alignment","",match_names),"_"),"[[",2))
+resRelCov = (res[[4]]/res[[1]])
+
+scoreList <- lapply(cellLines, function(k){
+if(k == "Spikein"){
+    meanCount.cdna <- res[[1]][,protRes=='cDNA'&(cellLineRes %in% k)]
+meanCount.dcdna <- res[[1]][,protRes=='irectcDNA'&(cellLineRes %in% k)]
+meanCount.drna <-  res[[1]][,protRes=='irectRNA'&(cellLineRes %in% k)]
+meanCount.illumina <-  res[[1]][,protRes=='Illumina'&(cellLineRes %in% k)]
+mean.cdna <-  resRelCov[,protRes=='cDNA'&(cellLineRes %in% k)]
+mean.dcdna <-  resRelCov[,protRes=='irectcDNA'&(cellLineRes %in% k)]
+mean.drna <-  resRelCov[,protRes=='irectRNA'&(cellLineRes %in% k)]
+mean.illumina <-  resRelCov[,protRes=='Illumina'&(cellLineRes %in% k)]
+}else if(k == "all"){
+    meanCount.cdna <- rowMeans(res[[1]][,protRes=='cDNA'],na.rm=TRUE)
+meanCount.dcdna <- rowMeans(res[[1]][,protRes=='irectcDNA'],na.rm=TRUE)
+meanCount.drna <- rowMeans(res[[1]][,protRes=='irectRNA'],na.rm=TRUE)
+meanCount.illumina <- rowMeans(res[[1]][,protRes=='Illumina'],na.rm=TRUE)
+mean.cdna <- rowMeans(resRelCov[,protRes=='cDNA'],na.rm=TRUE)
+mean.dcdna <- rowMeans(resRelCov[,protRes=='irectcDNA'],na.rm=TRUE)
+mean.drna <- rowMeans(resRelCov[,protRes=='irectRNA'],na.rm=TRUE)
+mean.illumina <- rowMeans(resRelCov[,protRes=='Illumina'],na.rm=TRUE)
+}else{
+     meanCount.cdna <- rowMeans(res[[1]][,protRes=='cDNA'&(cellLineRes %in% k)],na.rm=TRUE)
+meanCount.dcdna <- rowMeans(res[[1]][,protRes=='irectcDNA'&(cellLineRes %in% k)],na.rm=TRUE)
+meanCount.drna <- rowMeans(res[[1]][,protRes=='irectRNA'&(cellLineRes %in% k)],na.rm=TRUE)
+meanCount.illumina <- rowMeans(res[[1]][,protRes=='Illumina'&(cellLineRes %in% k)],na.rm=TRUE)
+mean.cdna <- rowMeans(resRelCov[,protRes=='cDNA'&(cellLineRes %in% k)],na.rm=TRUE)
+mean.dcdna <- rowMeans(resRelCov[,protRes=='irectcDNA'&(cellLineRes %in% k)],na.rm=TRUE)
+mean.drna <- rowMeans(resRelCov[,protRes=='irectRNA'&(cellLineRes %in% k)],na.rm=TRUE)
+mean.illumina <- rowMeans(resRelCov[,protRes=='Illumina'&(cellLineRes %in% k)],na.rm=TRUE)
+}
+
+setBiasCandidates =  meanCount.cdna>30 & meanCount.dcdna>30 & meanCount.drna>30 & meanCount.illumina>30
+score.cdna.dcdna=(mean.cdna-mean.dcdna)/sqrt((mean.cdna*(1-mean.cdna))/meanCount.cdna+(mean.dcdna*(1-mean.dcdna))/meanCount.dcdna)
+score.cdna.dcdna.p.adjust <- p.adjust(pnorm(abs(score.cdna.dcdna), lower.tail = F), method = 'fdr')
+score.cdna.drna=(mean.cdna-mean.drna)/sqrt((mean.cdna*(1-mean.cdna))/meanCount.cdna+(mean.drna*(1-mean.drna))/meanCount.drna)
+score.cdna.drna.p.adjust <- p.adjust(pnorm(abs(score.cdna.drna), lower.tail = F), method = 'fdr')
+score.dcdna.drna=(mean.dcdna-mean.drna)/sqrt((mean.dcdna*(1-mean.dcdna))/meanCount.dcdna+(mean.drna*(1-mean.drna))/meanCount.drna)
+score.dcdna.drna.p.adjust <- p.adjust(pnorm(abs(score.dcdna.drna), lower.tail = F), method = 'fdr')
+score.dcdna.illumina=(mean.dcdna-mean.illumina)/sqrt((mean.dcdna*(1-mean.dcdna))/meanCount.dcdna+(mean.illumina*(1-mean.illumina))/meanCount.illumina)
+score.dcdna.illumina.p.adjust <- p.adjust(pnorm(abs(score.dcdna.illumina), lower.tail = F), method = 'fdr')
+score.cdna.illumina=(mean.cdna-mean.illumina)/sqrt((mean.cdna*(1-mean.cdna))/meanCount.cdna+(mean.illumina*(1-mean.illumina))/meanCount.illumina)
+score.cdna.illumina.p.adjust <- p.adjust(pnorm(abs(score.cdna.illumina), lower.tail = F), method = 'fdr')
+score.drna.illumina=(mean.drna-mean.illumina)/sqrt((mean.drna*(1-mean.drna))/meanCount.drna+(mean.illumina*(1-mean.illumina))/meanCount.illumina)
+score.drna.illumina.p.adjust <- p.adjust(pnorm(abs(score.drna.illumina), lower.tail = F), method = 'fdr')
+
+
+dat <- data.table(meanCount.cdna = meanCount.cdna,
+                  meanCount.dcdna = meanCount.dcdna,
+                  meanCount.drna = meanCount.drna,
+                  meanCount.illumina= meanCount.illumina,
+                  setBiasCandidates = setBiasCandidates,
+                  mean.cdna = mean.cdna,
+                  mean.dcdna = mean.dcdna,
+                  mean.drna = mean.drna,
+                  mean.illumina = mean.illumina,
+                  score.cdna.dcdna = score.cdna.dcdna,
+                  score.cdna.dcdna.p.adjust = score.cdna.dcdna.p.adjust,
+                  score.cdna.drna = score.cdna.drna,
+                  score.cdna.drna.p.adjust = score.cdna.drna.p.adjust,
+                  score.dcdna.drna = score.dcdna.drna,
+                  score.dcdna.drna.p.adjust = score.dcdna.drna.p.adjust,
+                  score.dcdna.illumina = score.dcdna.illumina,
+                  score.dcdna.illumina.p.adjust = score.dcdna.illumina.p.adjust,
+                  score.cdna.illumina = score.cdna.illumina,
+                  score.cdna.illumina.p.adjust = score.cdna.illumina.p.adjust,
+                  score.drna.illumina = score.drna.illumina,
+                  score.drna.illumina.p.adjust = score.drna.illumina.p.adjust,
+                  geneID = names(geneLengths.max))
+				  
+score_dat <- dat[,c(10,12,14,16,18,20), with = FALSE]
+return(list(data.table(number_of_genes = c(apply(score_dat<(-3.5),2,sum,na.rm = TRUE),
+                                                     apply(score_dat> 3.5,2,sum,na.rm = TRUE)),
+           comparison = c("cDNA vs dcDNA", "cDNA vs dRNA", "dcDNA vs dRNA", "dcDNA vs Illumina", "cDNA vs Illumina", "dRNA vs Illumina",
+                          "dcDNA vs cDNA", "dRNA vs cDNA", "dRNA vs dcDNA", "Illumina vs dcDNA", "Illumina vs cDNA", "Illumina vs dRNA"),
+						  cellLine = k),dat))
+
+
+})
+cellLines <- general_list$cellLines
+```
+```{r}
+library(ggpubr)
+
+dat <- scoreList[[1]][[2]]
+p_cdna_drna <- ggplot(data = dat[which(setBiasCandidates)], aes(x = mean.drna, y = mean.cdna))+
+    xlim(0,1)+
+    ylim(0,1)+
+    expand_limits(x = c(0,1), y = c(0,1))+
+    xlab("Mean coverage per gene \n (direct RNA)")+
+    ylab("Mean coverage per gene \n (cDNA)")+
+    geom_hex(aes(fill = stat(count)),
+             binwidth = 0.01) +
+    scale_fill_gradient(name = 'count', low = "grey", high = "black")+
+    stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+
+    theme_classic()
+
+p_cdna_drna
+```
+
+
+## arrane main figure
+```{r}
+library(ggpubr)
+pdf("figure_2_draft_31Aug2023.pdf", width = 10, height = 12)
+ggarrange(p_sequencing_depth+theme(legend.position="none"), 
+          p_mapped_read_length+theme(legend.position="none"),
+          p_coverage_5to3+theme(legend.position="none"), 
+          p_full_length+theme(legend.position="none"), 
+          p_transcript_diversity+theme(legend.position="none"),
+          p_cdna_drna+theme(legend.position="none"),
+           as_ggplot(get_legend(p_sequencing_depth)),
+          as_ggplot(get_legend(p_coverage_5to3)),
+          as_ggplot(get_legend(p_full_length)),
+           as_ggplot(get_legend(p_cdna_drna)),
+          common.legend = TRUE,labels = c(letters[1:6],rep("",4)),
+          ncol = 3, nrow = 4, align = "hv")
+dev.off()
+
+```
+
+# Supplementary Fig. 1 & 3
+
+## a-b expected sequencing throughput and cost
+```{r}
+## all price at USD dollar
+cost.promethion_2880= 600#per flowcell when buy at 2880 flowcells
+cost.promethion_96= 785#per flowcell when buy at 96 flowcells
+cost.promethion_12 = 855 # per flowcell when buy at 12 flowcells  
+cost.gridion_96 = 475  # per flowcell when buy at 96 flowcells 
+cost.gridion_12 = 790 #  per flowcell when buy at 12 flowcells   # 475 per flowcellcost.pacbio = 
+# (49955-10*599)/60
+cost.illumina = 2200 # 
+cost.gridion = 855
+cost.promethion = 2480
+
+#Typical number of reads	1 million full-length per flow cell on MinION/GridION; 7 million per flow cell on PromethION
+readCount.promethion.directRNA=7 # based on the most recent promehion run 
+readCount.gridion.directRNA=1
+
+#5-10 million full-length per flow cell on MinION/GirdION; 15-30 million per flow cell on PromethION
+readCount.promethion.directcDNA=30
+readCount.gridion.directcDNA=10
+readCount.promethion.directcDNA.observed=37
+
+#7–12+ million full-length mapped readsper flow cell on MinION/GridION; 50+ million mapped reads per flow cell on PromethION
+readCount.promethion.PCRcDNA=70 # pcs109
+readCount.gridion.PCRcDNA=20 # pcs111 20
+readCount.promethion.PCRcDNA.observed=135 # pcs110
+
+
+readCount.illumina = 300 #multiplexed 
+
+
+## this section to be updated 
+cost.shortRead=233
+cost.directRNA= 390 ##339 # 599/6 = 100
+cost.directcDNA=150
+cost.directcDNA.single = 420
+cost.PCRcDNA= 140 #63 #100
+cost.PCRcDNA.single= 400 #274
+
+cost.multiplex.directcDNA= 450 # 
+cost.multiplex.PCRcDNA=  140#224   # the price is for 24 plex 
+
+## cost based on minion + kit 
+## cost based on gridion +kit 
+## cost based on promethion + kit 
+
+#cost per samples:
+library(RColorBrewer)
+library(data.table)
+library(ggplot2)
+data_cost <- data.table(cost = c(
+(c(cost.PCRcDNA.single,cost.PCRcDNA*(2:12))+cost.promethion+c(0,rep(cost.multiplex.PCRcDNA,11)))/(1:12), (cost.directRNA*(1:12)+cost.promethion_12*(1:12))/(1:12),
+(c(cost.PCRcDNA.single,cost.PCRcDNA*(2:12))+cost.gridion+c(0,rep(cost.multiplex.PCRcDNA,11)))/(1:12),
+(cost.directRNA*(1:12)+cost.gridion*(1:12))/(1:12),
+(cost.shortRead*(1:12)+cost.illumina)/(1:12)),
+                        samples = rep(c(1:12),5),
+    platform = c(rep(c("PromethION","GridION"),each = 24),rep("Illumina",12)),
+                        protocols = c(rep(rep(c("cDNA","directRNA"),each = 12),2),rep("Illumina",12)))
+
+data_cost[, platform_protocol := paste0(platform,"_", protocols)]
+data_cost[, protocol_factor := factor(protocols, levels = c("directRNA",
+                                                            "cDNA","Illumina"))]
+p_expected_data_cost <- ggplot(data_cost, aes(x = samples, y = cost))+
+    geom_line(aes(group = platform_protocol),,col = "grey")+
+    geom_point(aes(col = protocol_factor, shape = platform), size = 2)+
+    scale_color_manual(values = protocolCol[c(1,3,5)],
+                       name = "Protocol",
+                       limits = protocolVec[c(1,3,5)],
+                       labels = protocolLabel[c(1,3,5)])+
+    scale_shape_manual(values = c(16,17,15), 
+                       breaks = c("PromethION","GridION","Illumina"), 
+                       name = "Platform")+
+    xlab("Number of samples")+
+    ylab("Cost per sample (USD)")+
+    scale_x_continuous(breaks = (1:6)*2)+
+    scale_y_continuous(breaks =((1:8)-1)*500, limits = c(0,3000))+
+    theme_classic()
+
+# throughput in giga base 
+data_readcount <- data.table(bp = c(
+    readCount.promethion.PCRcDNA.observed/(1:12)*700,
+    readCount.promethion.directRNA*rep(1,12)*1000,
+    readCount.gridion.PCRcDNA/(1:12)*700, ## cDNA 
+    readCount.gridion.directRNA*rep(1,12)*1000,
+                                      readCount.illumina/(1:12)*300,
+                                      5/1:12*3000),
+                        samples = rep(c(1:12),6),
+                        platform = c(rep(c("PromethION","GridION"),each = 24),rep("Illumina",12),rep("PacBio",12)),
+                        protocols = c(rep(rep(c(
+                            #"directcDNA",
+                                                "cDNA","directRNA"),each = 12),2),rep("Illumina",12),rep("PacBio",12)))
+
+data_readcount[, platform_protocol := paste0(platform,"_", protocols)]
+data_readcount[, protocol_factor := factor(protocols, levels = c("directRNA",
+                                                                 #"directcDNA",
+                                                                 "cDNA","Illumina","PacBio"))]
+
+p_expected_throughput <- ggplot(data_readcount, aes(x = samples, y = bp*1000000/1024^3))+
+    geom_line(aes(group = platform_protocol),,col = "grey")+
+    geom_point(aes(col = protocol_factor, shape = platform), size = 2)+
+  scale_color_manual(values = protocolCol[-2],
+                       name = "Protocol",
+                       limits = protocolVec[-2],
+                       labels = protocolLabel[-2])+
+    scale_shape_manual(values = c(19,17,15,18), breaks = c("PromethION","GridION","Illumina","PacBio"), name = "Platform")+
+    xlab("Number of samples")+
+    ylab("Sequencing throughput per sample (million)")+
+    scale_x_continuous(breaks = (1:6)*2)+
+    theme_classic()
+p_expected_data_cost
+p_expected_throughput
+```
+## c spike-in number of reads
+```{r}
+plotdata <- samplesRC_combined[,.(protocol_type_factor, runname, total_reads, Platform, demultiplexed,cellLine)]
+plotdata[is.na(demultiplexed), demultiplexed := FALSE]
+## all de-multiplexed are gridion/minion
+
+library(tidyverse)
+#library(see)
+source("https://raw.githubusercontent.com/datavizpyr/data/master/half_flat_violinplot.R")
+
+# short read are all demultiplexed 
+plotdata[Platform == "Illumina", demultiplexed := TRUE]
+plotdata[, special_prep:=ifelse(grepl("allSpik",runname),4,ifelse(demultiplexed,3,ifelse(Platform == "PromethION",2,1)))]
+
+# remove spike-in put it in supplementary 
+p_sequencing_depth_spikein <- ggplot(plotdata[special_prep == 4], aes(x = protocol_type_factor, y = total_reads/1000000))+
+    geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+        alpha = 0.5,
+                      position=position_nudge(0.25), 
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
+     geom_point(aes(col = protocol_type_factor,shape = as.factor(cellLine)),
+               position = position_jitter(0.2),  
+               alpha = 0.8)+
+     scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+    scale_shape_manual(values = c(1,0,2,3),
+                       name = "Spike-in")+
+    xlab("Protocols")+
+    ylab(bquote('Number of reads '(10^6)))+ #\nPromethION runs excluded
+    scale_y_log10(breaks=c(0.001,0.01,0.1,0.5,1, 3, 5, 10, 20, 
+                           40,100),
+                  labels =c(0.001,0.01,0.1,0.5,1, 3, 5, 10, 20,
+                            40,100))+
+    theme_classic()
+print(p_sequencing_depth_spikein)
+```
+
+## d spike-in read length
+```{r}
+p_mapped_read_length_spikein <- ggplot(rlData_mat[special_prep == 4], 
+    aes(x = protocol_type_factor, y = aveLen))+ #/1000
+       geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+        alpha = 0.5,
+                      position=position_nudge(0.25), 
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
+      geom_point(aes(col = protocol_type_factor,shape = as.factor(cellLine)),
+               position = position_jitter(0.2),  
+               alpha = 0.8)+
+     scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+     scale_shape_manual(values = c(1,0,2,3),
+                       name = "Spike-in")+
+    xlab("Protocols")+
+    scale_y_log10()+
+    ylab("Mean read length")+
+    theme_classic()
+p_mapped_read_length_spikein
+```
+
+
+
+## e mapping bases
+```{r}
+lr_bases <- readRDS("lr_bases_May6.rds")
+lr_pacbio_bases <- readRDS("lr_pacbio_bases.rds")
+sr_bases <- readRDS("sr_bases.rds")
+setnames(sr_bases, "runname", "old_runname")
+sr_bases <- samples_wSpikein[,.(runname, old_runname)][sr_bases, on = "old_runname"]
+sr_bases[, old_runname := NULL]
+spikein_bases_sr <- readRDS("spikein_bases.rds")
+spikein_bases_sr[, runname := gsub("\\,","",runname)]
+spikein_bases_sr <- spikein_bases_sr[grepl("Illumina",runname)]
+spikein_bases_lr <- readRDS("spikein_bases_May5.rds")
+spikein_bases_lr[, runname := gsub("sequinMixAv1.0_PacBio","sequinMixAV2_PacBio",runname)]
+bases_data <- rbindlist(list(lr_bases, lr_pacbio_bases,sr_bases, spikein_bases_sr, spikein_bases_lr))
+
+bases_data <- rbind(samples[,.(runname, protocol_type, Platform, demultiplexed, cellLine)],
+                    samples_wSpikein[grepl("Illumina",runname),.(runname, protocol_type, Platform, demultiplexed, cellLine)])[bases_data , on = "runname"]
+bases_data <- bases_data[!is.na(protocol_type)]
+bases_data[, protocol_type := gsub("-SMRTcell","",protocol_type)]
+#bases_data <- bases_data[cellLine %in% cellLines]
+bases_data[, protocol_type_factor := factor(protocol_type, c('directRNA','directcDNA','cDNA',"PacBio","Illumina"),
+                                              protocolVec)]
+
+plotdata <- bases_data[,.(protocol_type_factor, runname, cigarmapped_bases, Platform, demultiplexed,cellLine)]
+plotdata[is.na(demultiplexed), demultiplexed := FALSE]
+plotdata[Platform == "Illumina", demultiplexed := TRUE]
+plotdata[, special_prep:=ifelse(grepl("allSpik",runname),4,ifelse(demultiplexed,3,ifelse(Platform == "PromethION",2,1)))]
+plotdata[is.na(special_prep), special_prep := 1]
+p_total_bases <- ggplot(plotdata[special_prep != 4], aes(x = protocol_type_factor, y = cigarmapped_bases/1024^3))+
+    #, color = variable
+    geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+        alpha = 0.5,
+                      position=position_nudge(0.25), 
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
+     geom_point(aes(col = protocol_type_factor,shape = as.factor(special_prep)),
+               position = position_jitter(0.2),  
+               alpha = 0.8)+
+     scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+    scale_shape_manual(values = c(1,0,2,3),labels = c("MinION/GridION","PromethION","Demultiplexed","Spikein"),
+                       name = "Protocol")+
+    xlab("Protocols")+
+    ylab("Cigar mapped bases(Gb)")+ 
+    scale_y_log10(breaks=c(0.01,0.1,0,0.5,1,5,10,50),
+                  labels =c(0.01,0.1,0,0.5,1,5,10,50))+
+    theme_classic()
+print(p_total_bases)
+```
+
+## f spike-in mapping bases
+```{r}
+p_total_bases_spikein <- ggplot(plotdata[special_prep == 4], aes(x = protocol_type_factor, y = cigarmapped_bases/1024^3))+
+    geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+        alpha = 0.5,
+                      position=position_nudge(0.25), 
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
+     geom_point(aes(col = protocol_type_factor,shape = as.factor(cellLine)),
+               position = position_jitter(0.2),  
+               alpha = 0.8)+
+     scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+    scale_shape_manual(values = c(1,0,2,3),name = "Spike-in")+
+    xlab("Protocols")+
+    ylab("Cigar mapped bases(Gb)")+ 
+    scale_y_log10(breaks=c(0.01,0.1,0,0.5,1,5,10,50),
+                  labels =c(0.01,0.1,0,0.5,1,5,10,50))+
+    theme_classic()
+print(p_total_bases_spikein)
+```
+
+
+
+## g error rate
+```{r}
+plotdata <- bases_data[,.(protocol_type_factor, runname, error_rate, Platform, demultiplexed,cellLine)]
+plotdata[is.na(demultiplexed), demultiplexed := FALSE]
+plotdata[Platform == "Illumina", demultiplexed := TRUE]
+plotdata[, special_prep:=ifelse(grepl("allSpik",runname),4,ifelse(demultiplexed,3,ifelse(Platform == "PromethION",2,1)))]
+plotdata[is.na(special_prep), special_prep := 1]
+p_error_rate <- ggplot(plotdata[special_prep != 4], aes(x = protocol_type_factor, y = error_rate))+
+    geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+    alpha = 0.5,
+                      position=position_nudge(0.25), 
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
+   geom_point(aes(col = protocol_type_factor,shape = as.factor(special_prep)),
+               position = position_jitter(0.2),  
+               alpha = 0.8)+
+     scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+     scale_shape_manual(values = c(1,0,2,3),labels = c("MinION/GridION","PromethION","Demultiplexed","Spikein"),
+                       name = "Protocol")+
+    xlab("Protocols")+
+    ylab("Error rate")+ #\nPromethION runs excluded
+    theme_classic()
+print(p_error_rate)
+```
+
+
+```{r}
+p_error_rate_log10 <- ggplot(plotdata[special_prep != 4], aes(x = protocol_type_factor, y = error_rate))+
+    geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+        alpha = 0.5,position=position_nudge(0.25), adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
+   geom_point(aes(col = protocol_type_factor,shape = as.factor(special_prep)),
+                position = position_jitter(0.2),  
+               alpha = 0.8)+
+     scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+    scale_shape_manual(values = c(1,0,2,3),labels = c("MinION/GridION","PromethION","Demultiplexed","Spikein"),
+                       name = "Protocol")+
+    scale_y_log10()+
+    xlab("Protocols")+
+    ylab("Error rate")+ #\nPromethION runs excluded
+    theme_classic()
+print(p_error_rate_log10)
+```
+
+## h spikein-error rate
+```{r}
+p_error_rate_log10_spikein <- ggplot(plotdata[special_prep == 4], aes(x = protocol_type_factor, y = error_rate))+
+    geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+        alpha = 0.5,
+                      position=position_nudge(0.25), 
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
+   geom_point(aes(col = protocol_type_factor,shape = as.factor(cellLine)),
+                position = position_jitter(0.2),  
+               alpha = 0.8)+
+     scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+   scale_shape_manual(values = c(1,0,2,3),name = "Spike-in")+
+    scale_y_log10()+
+    xlab("Protocols")+
+    ylab("Error rate")+ 
+    theme_classic()
+print(p_error_rate_log10_spikein)
+```
+
+## i spike-in coverage 
+```{r}
+covData <- readRDS(paste0(wkdir,"output_guppy6.4.2/covData.rds"))
+covData[grepl("sequinMixAv1.0_PacBio",runname), runname := gsub("v1.0","V2",runname)]
+covData <- samplesRC_combined[, .(protocol_type_factor, cellLine,runname)][covData, on = "runname"]
+plotData <- unique(covData[, list(aveNorm=mean(ave_bin_count)), by = list(pos_bin,protocol_type_factor, cellLine)])
+plotData[, normCount:=aveNorm/max(aveNorm), by = list(protocol_type_factor,cellLine)]
+
+
+plotData[, mean_count :=mean(normCount), by = list(protocol_type_factor,pos_bin)]
+plotData[, min_count := min(normCount), by = list(protocol_type_factor,pos_bin)]
+plotData[, max_count := max(normCount), by = list(protocol_type_factor,pos_bin)]
+
+plotData[, pc := paste0(protocol_type_factor," ",cellLine)]
+p_coverage_5to3_spikein <- ggplot(plotData[grep("sequin|SIRV",cellLine)], aes(x = pos_bin, y = normCount, group = pc))+
+    geom_line(aes(col = protocol_type_factor))+
+    scale_x_continuous(limits = c(0,100),
+                       breaks = c(0,100),
+                     labels = c("5'","3'"))+
+    scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec[1:5],
+                       labels = protocolLabel[1:5])+
+    ylab("Coverage")+
+    xlab("Transcription direction")+
+    theme_classic()
+p_coverage_5to3_spikein
+```
+
+## j read coverage  spike-in
+```{r 8-read-coverage, eval = FALSE}
+rdfile <- c(dir("readLength17Apr/", full.names = TRUE, recursive = TRUE),
+            dir("readLength17Apr_pacbio/", full.names = TRUE, recursive = TRUE),
+            dir("readLength17Apr_spikein/", full.names = TRUE, recursive = TRUE))
+
+rdfile_name <- gsub("readLength_","",tools::file_path_sans_ext(BiocGenerics::basename(rdfile)))
+txLengths.tbldf <- general_list$txLengths.tbldf
+txInfo <- txLengths.tbldf[,.(tx_name, nexon, tx_len, nisoform, gene_biotype)]
+rlData <- do.call("rbind",lapply(seq_along(rdfile_name), function(r){
+    print(r)
+        rlData <- readRDS(rdfile[r])
+        rlData <- txInfo[rlData, on = "tx_name"]
+        rlData[, txCvr:=aligned_len/tx_len]
+        rlData <- rlData[!is.na(txCvr)]
+        rlData[,runname := rdfile_name[r]]
+        rlData[, txCvr_round:=ceiling(txCvr*1000)/1000]
+        cvr <- unique(rlData[,list(n=.N), by = list(txCvr_round,
+                                                 runname)])
+        cvr[order(txCvr_round, decreasing = TRUE), cn:=cumsum(n)/sum(n)]
+        return(cvr)
+    })
+    )
+saveRDS(rlData, file = paste0(wkdir,"readCoverage_May6.rds"))
+```
+
+```{r 8-read-coverage-2}
+rlData <- readRDS(paste0(wkdir,"readCoverage_May6.rds"))
+rlData_sr <- readRDS(paste0(wkdir,"readCoverage.rds"))
+rlData_sr <- rlData_sr[grepl("Illumina",runname)]
+rlData_sr[, runname := gsub("\\,","",runname)]
+name_rr <- rbind(samples[grep("Illumina",runname),.(old_runname, runname)],
+                 samples_wSpikein[grep("Illumina",runname),.(old_runname, runname)])
+setnames(rlData_sr, "runname","old_runname")
+rlData_sr <- name_rr[rlData_sr, on = "old_runname"]
+rlData_sr[, old_runname:=NULL]
+# why illumina spikein so strange 
+cvr_dt <- rbind(samples[,.(runname, cellLine, protocol_type)],
+                samples_wSpikein[grep("Illumina",runname),.(runname, cellLine, protocol_type)])[rbind(rlData,rlData_sr), on = "runname"]
+
+cvr_agg <- unique(cvr_dt[grepl("allSpik",runname),list(cumEstAve=median(cn),
+                                                      cumEstSD = sd(cn)), by = list(protocol_type,cellLine, txCvr_round)])  
+
+cvr_agg[order(protocol_type, cellLine, txCvr_round), cumsumEstAve:=cumsum(cumEstAve), by = list(protocol_type, cellLine)]
+cvr_agg[, cumEstDisp:=cumEstSD/cumsumEstAve]
+cvr_agg[, cell_protocol := paste0(cellLine, protocol_type)]
+p_read_coverage_spikein <- ggplot(cvr_agg, aes(x = (-txCvr_round), y = cumEstAve*100,group = cell_protocol))+
+    geom_line(aes(color = protocol_type))+
+    scale_x_continuous(breaks = -(5:0)/5,
+                       limits = c(-1,0),
+                       label = (5:0)*20,expand = c(0,0))+
+    scale_y_continuous(expand = c(0,0))+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+    scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    ylab("Percent of reads")+
+    xlab("Coverage proportion of transcript(%)")+
+    theme_classic()
+p_read_coverage_spikein
+```
+
+
+## k read coverage 
+```{r}
+cvr_agg <- unique(cvr_dt[cellLine %in% cellLines,list(cumEstAve=median(cn),
+                                                      cumEstSD = sd(cn)), by = list(protocol_type,cellLine, txCvr_round)]) 
+
+cvr_agg[order(protocol_type, cellLine, txCvr_round), cumsumEstAve:=cumsum(cumEstAve), by = list(protocol_type, cellLine)]
+cvr_agg[, cumEstDisp:=cumEstSD/cumsumEstAve]
+cvr_agg[, protocol_type := gsub("-SMRTcell","", protocol_type)]
+cvr_agg[, cell_protocol := paste0(cellLine, protocol_type)]
+p_read_coverage <- ggplot(cvr_agg, aes(x = (-txCvr_round), y = cumEstAve*100,group = cell_protocol))+
+    geom_line(aes(color = protocol_type))+
+    scale_x_continuous(breaks = -(5:0)/5,
+                       limits = c(-1,0),
+                       label = (5:0)*20,expand = c(0,0))+
+    scale_y_continuous(expand = c(0,0))+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+    scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    ylab("Percent of reads")+
+    xlab("Coverage proportion of transcript(%)")+
+    theme_classic()
+p_read_coverage
+```
+
+## m transcript diveristy by expression
+```{r}
+library(ggpubr)
+# for salmon
+my_comparisons <- list( 
+                        c("cDNA", "directRNA"), 
+                        c("cDNA", "Illumina"), 
+                        c("Illumina", "directRNA"),
+                        c("Illumina", "directcDNA"),
+                          c("Illumina", "PacBio"),
+                        c("directcDNA","PacBio"))
+
+
+p_transcript_diversity_boxplot <- ggplot(dt_agg[geneRank_new == 1000], aes(x = reorder(protocol_reduced,cumEstFun),  y = cumEstFun*100))+
+    geom_boxplot()+
+    stat_compare_means(comparisons = my_comparisons,
+                        label.y = c(1,0.95,0.9,0.85,0.8,0.75)*100)+
+    labs(x = "Protocol", y = "Percent of transcription \n for top 1000 ranked genes")+
+    theme_classic()
+p_transcript_diversity_boxplot
+```
+## n transcript diversity by gene length
+```{r}
+geneTable <- unique(txLengths.tbldf[,list(geneLengthMax = max(tx_len)), by = list(gene_id, gene_biotype,hgnc_symbol)])
+setnames(geneTable, "gene_id","gene_name")
+geneTable[, geneRank := rank(geneLengthMax)]
+com_data_gene_tmp <- geneTable[com_data_gene[grepl("ENSG",gene_name)&(method %in% c("salmon_lr","salmon_sr"))], on = "gene_name"]
+
+## rank by protocol and cell line 
+dt <- do.call("rbind",lapply(unique(com_data_gene_tmp$runname), function(r){
+    dt <- com_data_gene_tmp[runname == r]
+    dt[order(geneRank), cumEst:=cumsum(normEst)/sum(normEst)]
+    dt <- dt[,.(geneRank,cumEst,runname, protocol_general, gene_biotype, cellLine)] 
+    return(dt)
+}))
+
+library(ggrepel)
+
+dt[, cell_protocol := paste0(cellLine, protocol_general)]
+dt[, protocol_reduced := gsub("RandomPrimer","",protocol_general)]
+
+dt_agg_geneLength <- dt[, list(geneRank_new = 1:max(ceiling(geneRank)),
+                    cumEstFun = approxfun(geneRank, cumEst)(1:max(ceiling(geneRank)))), by = list(protocol_reduced, runname)]
+
+dt_agg_ave_geneLength <- unique(dt_agg_geneLength[!grepl("Myeloma",runname)&!grepl("RandomPrimer",runname), list(cumEstAve = median(cumEstFun,na.rm = TRUE), cumEstQ1 = quantile(cumEstFun,na.rm = TRUE, prob = 0.25), cumEstQ3 = quantile(cumEstFun,na.rm = TRUE, prob = 0.75)), by = list(protocol_reduced, geneRank_new)])
+```
+
+# Supplementary Text Fig. 13
+```{r}
+p_transcript_diversity_by_geneLength <- ggplot(dt_agg_ave_geneLength, aes(x = geneRank_new, y = cumEstAve*100, group = protocol_reduced, col = protocol_reduced, fill = protocol_reduced))+
+    geom_ribbon(aes(ymin=pmax(0,cumEstQ1)*100, ymax=pmin(1,cumEstQ3)*100), col = NA, alpha=0.2,show.legend = FALSE)+
+    geom_line()+
+    geom_vline(xintercept = 31063, linetype = 2)+
+     scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec,
+                       labels = protocolLabel)+
+    scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+   geom_text_repel(data = dt_agg_ave_geneLength[geneRank_new == 31063],aes(label =  paste0(round(cumEstAve*100),"%")), size = 3, nudge_x = -1000)+
+    ylab("Percent of total transcription")+
+    xlab("Number of genes (rank by gene length)")+
+    theme_classic()
+p_transcript_diversity_by_geneLength
+```
+
+## o transcript diversity by gene length boxplot version with p-value
+```{r}
+# 31603 1kb
+# 46545.5 3kb
+library(ggpubr)
+my_comparisons <- list( c("cDNA", "directRNA"), c("cDNA", "Illumina"),c("cDNA", "directcDNA"),
+                        c("directRNA","directcDNA"),c("Illumina", "directRNA"),c("Illumina", "directcDNA"),c("directcDNA","PacBio"))#,c("directRNA","PacBio"),c("directcDNA","PacBio"))#
+p_transcript_diversity_boxplot_by_geneLength <- ggplot(dt_agg_geneLength[geneRank_new == 31063], aes(x = reorder(protocol_reduced,cumEstFun),  y = cumEstFun*100))+
+    geom_boxplot()+
+    stat_compare_means(comparisons = my_comparisons,
+                       label.y = seq(0.4,0.2,length.out = 7)*100)+ 
+     labs(x = "Protocol", y = "Percent of transcription \n for genes <= 1kb")+
+    theme_classic()
+
+p_transcript_diversity_boxplot_by_geneLength
+```
+
+
+
+
+## l full-length filter by protein coding genes
+filter out single exon read classes and those not compatible to protein coding genes 
+```{r, eval = FALSE}
+ensemblAnnotations.transcripts <- general_list$ensemblAnnotations.transcripts
+
+seOutput <- readRDS("bambuOutput_May25.rds")
+distTablesList <- metadata(seOutput)$distTables
+# check for short read 
+type_dist <- lapply(seq_along(distTablesList), function(k){
+  print(k)
+  reads <- data.table(as.data.frame(distTablesList[[k]]))
+  # filter to use only spliced read class
+  reads <- reads[which(!grepl("unspliced", readClassId))]
+  reads <- reads[annotationTxId %in% unique(ensemblAnnotations.transcripts[gene_biotype == "protein_coding"]$tx_name)]
+  reads[, multi := .N, by = readClassId]
+  reads[, type := ifelse(multi==1&all(equal), "FIM",
+                  ifelse(multi==1&(!all(equal)), "SIM",
+                  ifelse(multi>1&(all(equal)),"MFIM",
+                  ifelse(multi>1&(!all(equal))&(any(equal)),"FSIM",
+                  ifelse(multi>1&(all(!equal)),"MSIM",NA))))), by = readClassId]
+  reads <- unique(reads[,.(readClassId, readCount, type)], by = NULL)
+  
+  reads_type_sum <- unique(reads[, list(read_count = sum(readCount)), by = type], by = NULL)
+  reads_type_sum[, nTotal := sum(read_count)]
+  reads_type_sum[, runname := names(distTablesList)[k]]
+  return(reads_type_sum)
+})
+saveRDS(type_dist, file = "type_dist_lr_spliced_reads_only_protein_coding.rds")
+
+## 107
+reads_type_sum[, perc := read_count/nTotal]
+```
+
+
+```{r, eval = FALSE}
+seOutputPacBio <- readRDS("bambuOutput_PacBio_May22.rds")
+distTablesList <- metadata(seOutputPacBio)$distTables
+# check for short read 
+type_dist <- lapply(seq_along(distTablesList), function(k){
+  print(k)
+  reads <- data.table(as.data.frame(distTablesList[[k]]))
+  # filter to use only spliced read class
+  reads <- reads[which(!grepl("unspliced", readClassId))]
+  reads <- reads[annotationTxId %in% unique(ensemblAnnotations.transcripts[gene_biotype == "protein_coding"]$tx_name)]
+  reads[, multi := .N, by = readClassId]
+  reads[, type := ifelse(multi==1&all(equal), "FIM",
+                  ifelse(multi==1&(!all(equal)), "SIM",
+                  ifelse(multi>1&(all(equal)),"MFIM",
+                  ifelse(multi>1&(!all(equal))&(any(equal)),"FSIM",
+                  ifelse(multi>1&(all(!equal)),"MSIM",NA))))), by = readClassId]
+  reads <- unique(reads[,.(readClassId, readCount, type)], by = NULL)
+  
+  reads_type_sum <- unique(reads[, list(read_count = sum(readCount)), by = type], by = NULL)
+  reads_type_sum[, nTotal := sum(read_count)]
+  reads_type_sum[, runname := names(distTablesList)[k]]
+  return(reads_type_sum)
+})
+saveRDS(type_dist, file = "type_dist_lr_pacbio__spliced_reads_only_protein_coding.rds")
+```
+
+```{r, eval = FALSE}
+sr_se_files <- dir("srSe_revised/", pattern = ".rds", full.names = TRUE)
+# check for short read 
+type_dist_sr <- lapply(sr_se_files, function(b){
+  print(b)
+  rname <- basename(b)
+  sr_se <- readRDS(b)
+  reads <- data.table(as.data.frame(metadata(sr_se)$distTables[[1]]))
+  reads[, multi := .N, by = readClassId]
+  reads[, type := ifelse(multi==1&all(equal), "FIM",
+                  ifelse(multi==1&(!all(equal)), "SIM",
+                  ifelse(multi>1&(all(equal)),"MFIM",
+                  ifelse(multi>1&(!all(equal))&(any(equal)),"FSIM",
+                  ifelse(multi>1&(all(!equal)),"MSIM",NA))))), by = readClassId]
+  reads <- unique(reads[,.(readClassId, readCount, type)], by = NULL)
+  
+  reads_type_sum <- unique(reads[, list(read_count = sum(readCount)), by = type], by = NULL)
+  reads_type_sum[, nTotal := sum(read_count)]
+  reads_type_sum[, runname := basename(b)]
+  return(reads_type_sum)
+})
+saveRDS(type_dist_sr, file = "type_dist_sr_filtered.rds")
+```
+
+
+```{r}
+type_dist_lr <- readRDS("type_dist_lr_spliced_reads_only_protein_coding.rds")#_protein_coding
+type_dist_lr_pacbio <- readRDS("type_dist_lr_pacbio__spliced_reads_only_protein_coding.rds")
+type_dist_sr <- readRDS("type_dist_sr.rds")
+type_dist_spikein <- readRDS("type_dist_spikein.rds")
+type_dist_spikein_sr <- readRDS("type_dist_spikein.rds")
+type_dist_spikein_sr <- type_dist_spikein_sr[grep("Illumina", unlist(lapply(type_dist_spikein_sr, function(x) unique(x$runname))))]
+type_dist <- rbindlist(c(type_dist_lr,type_dist_sr,type_dist_spikein, type_dist_spikein_sr, type_dist_lr_pacbio), fill = TRUE)
+type_dist[, runname := gsub("GIS_Hct116_PacBio-SMRTcell_Rep5_Run1","GIS_HCT116_PacBio-SMRTcell_Rep7_Run1",gsub("HCT116","Hct116",gsub("_genome.rds|STAR_alignment|_sorted","", runname)))]
+type_dist[, old_runname := runname]
+temp <- samplesRC_combined[,.(old_runname, runname)]
+setnames(temp, "runname", "new_name")
+type_dist <- temp[type_dist, on = "old_runname"]
+type_dist[!is.na(new_name), runname := new_name]
+type_dist[, `:=`(old_runname = NULL, new_name = NULL)]
+type_dist <- samplesRC_combined[type_dist, on = "runname"]
+type_dist[, `:=`(protocol_type = gsub("-SMRTcell","",protocol_type))]
+type_dist[, protocol_type_factor := factor(protocol_type, c('directRNA','directcDNA','cDNA','PacBio','Illumina'),
+                                                    protocolVec)]
+
+p_full_length_filtered <- ggplot(type_dist[!grepl("all",runname)], aes(x = type, y = read_count/nTotal*100))+
+    #geom_violin(draw_quantiles = NULL, trim = TRUE,adjust = 0.5)+
+    geom_boxplot(aes(fill = protocol_type_factor,col = protocol_type_factor), width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+
+    scale_fill_manual(values = protocolCol,
+                      name = "Protocol",
+                      limits = protocolVec,
+                      labels = protocolLabel)+
+    scale_color_manual(values = protocolCol,
+                       name = "Protocol",
+                       limits = protocolVec[1:5],
+                       labels = protocolLabel[1:5])+
+    ylab("Percent of reads")+
+    scale_x_discrete(limits = c("FIM","SIM","MSIM","FSIM","MFIM"),
+                     label = c("Unique\n(Full-length)",
+                               "Unique\n(Partial)",
+                               "Multi-mapping\n(Partial)",
+                               "Multi-mapping\n(Full-length/partial)",
+                               "Multi-mapping\n(Full-length)"))+
+    xlab("Alignment type")+
+    theme_classic()
+p_full_length_filtered
+```
+
+
+## p matched mappable read length
+```{r}
+rlData <- readRDS(paste0(wkdir,"readLengthData_May6.rds"))
+rlData[grepl("PacBio",runname)&grepl("sequin",runname), runname := gsub("v1.0","V2",runname)]
+rlData[, old_runname := runname]
+temp <- samplesRC_combined[,.(old_runname, runname)]
+setnames(temp, "runname", "new_name")
+rlData <- temp[rlData, on = "old_runname"]
+rlData[!is.na(new_name), runname := new_name]
+rlData[, `:=`(old_runname = NULL, new_name = NULL)]
+rlData_mat <- samplesRC_combined[rlData, on = "runname"]
+
+rlData_mat[Platform == "Illumina", demultiplexed := TRUE]
+rlData_mat[, special_prep:=ifelse(grepl("allSpik",runname),4,ifelse(demultiplexed,3,ifelse(Platform == "PromethION",2,1)))]
+rlData_mat[is.na(special_prep), special_prep := 1]
+library(ggpubr)
+rlData_mat[, nc := all(c("cDNA","directcDNA","directRNA") %in% protocol_type), by = cellLineRep ]
+rldata_matched <- unique(rlData_mat[!(protocol_type %in% c("PacBio","Illumina"))&nc&(!is.na(cellLineRep)), list(aveLen = mean(aveLen)), by = list(cellLineRep, protocol_type, protocol_type_factor, cellLine)])
+p_mapped_read_length_matched <- ggplot(rldata_matched, 
+    aes(x = protocol_type_factor, y = aveLen))+ #/1000
+       
+    geom_boxplot(col = "black",width = 0.5)+
+    geom_line(aes(group = cellLineRep), col = "grey", size = 0.4)+
+    geom_point(aes(col = cellLine), alpha = 0.5)+
+    stat_compare_means(paired = TRUE, method = "t.test", 
+                       comparisons = list(c("cDNA","directcDNA"),c("directcDNA","directRNA")))+
+     scale_color_brewer(type = "qual", palette= 3)+
+    xlab("Protocols")+
+    ylab("Mean read length(Mappable)")+
+    theme_classic()
+p_mapped_read_length_matched
+```
+
+
+## q matched read length for one cellline
+```{r}
+rlData <- readRDS("readLengthData_replicate_matched.rds")
+rlData <- unique(rlData[,list(meanLen=max(meanLen,na.rm = TRUE)), by =  list(cellLinerep, protocol_type,tx_name)])
+rlData_wide <- dcast(rlData, cellLinerep + tx_name ~ protocol_type, value.var = "meanLen")
+rlData_long <- melt(rlData_wide, id.vars = c("cellLinerep","tx_name","directRNA"), measure.vars = c("cDNA","directcDNA"))
+
+
+txLengths <- general_list$txLengths
+rlData_long <- data.table(txLengths)[rlData_long, on = "tx_name"]
+
+library(ggpubr)
+Mode <- function(x) {
+  ux <- unique(na.omit(x))
+  ux[which.max(tabulate(match(x, ux)))]
+}
+sum_stats <- unique(rlData_long[, list(modeValue = Mode((value-directRNA)/tx_len),
+                                meanValue = mean((value-directRNA)/tx_len,na.rm = TRUE)), by = list(cellLinerep, variable)])
+p_coverage_difference <- ggplot(rlData_long[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(x = -(value-directRNA)/tx_len*100, fill = cellLinerep))+
+    geom_density(alpha = 0.5, col = "white")+
+    xlab("Transcript coverage reduction percentage (%) \n PCR cDNA comparing to direct RNA")+
+    ylab("Density")+
+    facet_wrap(~cellLinerep, nrow = 1)+
+    geom_vline(data = sum_stats[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(xintercept = modeValue*100), col = "grey", linetype = "dashed")+
+    geom_text(data = sum_stats[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(x = modeValue*100, y = 0.03, label = paste0("Mode: ", modeValue)))+
+     geom_vline(data = sum_stats[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(xintercept = -meanValue*100), col = "grey", linetype = "dashed")+
+    geom_text(data = sum_stats[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(x = -meanValue*100+5, y = 0.02, label = paste0("Mean: ", -round(meanValue*100))))+
+   theme_classic()
+```
+
+## r read length scatter plot 
+```{r}
+p_coverage_scatterplot <- ggplot(rlData_long[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(x =  directRNA, y = value))+
+    geom_abline(intercept = 0, slope = 1)+
+    geom_hex(binwidth = c(0.005, 0.005), size = 0.5, alpha = 0.1, color = "steelblue")+
+    geom_density_2d()+
+   ylab("Read length (PCR cDNA)")+
+    xlab("Read length (directRNA)")+
+    facet_wrap(~cellLinerep)+
+    scale_x_log10()+
+    scale_y_log10()+
+    theme_classic()
+```
+
+## supplementary plot
+```{r}
+pdf("supp_figure_2_draft_17oct2023.pdf", width = 14, height = 20)
+ggdraw() +
+     draw_plot(p_expected_data_cost+theme(legend.position="none"), 0,16/21,1/3,5/21)+
+     draw_plot(p_expected_throughput+theme(legend.position="none"),1/3,16/21, 1/3,5/21)+
+     draw_plot(p_total_bases+theme(legend.position="none"), 2/3,16/21,1/3,5/21)+
+    draw_plot(p_error_rate_log10+theme(legend.position="none"), 0,11/21,1/3,5/21)+
+     draw_plot(p_read_coverage+theme(legend.position="none"), 1/3,11/21,1/3,5/21)+
+    draw_plot(p_full_length_filtered+theme(legend.position="none"), 2/3,11/21,1/3,5/21)+
+    draw_plot(p_transcript_diversity_boxplot+theme(legend.position="none"), 0,6/21,1/3,5/21)+
+    draw_plot(p_transcript_diversity_by_geneLength+theme(legend.position="none"), 1/3,6/21,1/3,5/21)+
+    draw_plot(p_transcript_diversity_boxplot_by_geneLength+theme(legend.position="none"),2/3,6/21,1/3,5/21)+
+    draw_plot(p_mapped_read_length_matched+theme(legend.position="none"),0,1/21,1/4,5/26)+
+    draw_plot(p_coverage_difference +theme(legend.position="none"), 1/4,7/42,3/4,5/42)+
+    draw_plot( p_coverage_scatterplot +theme(legend.position="none"),1/4,1/21,3/4,5/42)+
+    draw_plot(as_ggplot(get_legend(p_expected_data_cost)), 0,0,1/5,1/21)+
+    draw_plot( as_ggplot(get_legend(p_expected_throughput)), 1/5,0,1/5,1/21)+
+    draw_plot( as_ggplot(get_legend(p_total_bases)), 2/5,0,1/5,1/21)+
+    draw_plot(as_ggplot(get_legend(p_read_coverage)), 3/5,0,1/5,1/21)+
+    draw_plot(as_ggplot(get_legend(p_mapped_read_length_matched)),4/5,0,1/5,1/21)
+dev.off()
+```
+
+
+
+```{r}
+pdf("supp_figure_3_draft_170ct2023.pdf", width = 7, height = 5)
+ggdraw() +
+        draw_plot(p_sequencing_depth_spikein+theme(legend.position="none"),0,4/7, 1/3,3/7)+
+    draw_plot(p_mapped_read_length_spikein+theme(legend.position="none"),1/3,4/7, 1/3,3/7)+
+draw_plot(p_total_bases_spikein+theme(legend.position="none"), 2/3,4/7,1/3,3/7)+
+draw_plot(p_error_rate_log10_spikein+theme(legend.position="none"), 0,1/7,1/3,3/7)+
+    draw_plot(p_coverage_5to3_spikein +theme(legend.position="none"),1/3,1/7,1/3,3/7)+
+    draw_plot( p_read_coverage_spikein +theme(legend.position="none"), 2/3,1/7,1/3,3/7)+
+    
+      draw_plot( as_ggplot(get_legend(p_sequencing_depth_spikein)), 0,0,1/2,1/7)+
+     draw_plot(as_ggplot(get_legend(p_coverage_5to3_spikein)), 1/2,0,1/2,1/7)
+dev.off()
+```
+
+
+# Supplementary Table 2
+```{r}
+dat <- scoreList[[1]][[2]]
+write.table(dat[which(setBiasCandidates&abs(score.cdna.drna) > 3.5)][,
+        .(geneID, meanCount.cdna,meanCount.drna, score.cdna.drna, score.cdna.drna.p.adjust)],
+        file = "Supp_table2.txt",
+        col.names = TRUE, row.names = FALSE, sep = ",", quote = FALSE)
+```
+
+
+
+## read-length matched sample version
+```{r}
+rlData <- readRDS(paste0(wkdir,"readLengthData_May6.rds"))
+rlData[grepl("PacBio",runname)&grepl("sequin",runname), runname := gsub("v1.0","V2",runname)]
+rlData[, old_runname := runname]
+temp <- samplesRC_combined[,.(old_runname, runname)]
+setnames(temp, "runname", "new_name")
+rlData <- temp[rlData, on = "old_runname"]
+rlData[!is.na(new_name), runname := new_name]
+rlData[, `:=`(old_runname = NULL, new_name = NULL)]
+rlData_mat <- samplesRC_combined[rlData, on = "runname"]
+
+
+rlData_mat[, special_prep:=ifelse(grepl("allSpik",runname),4,ifelse(Platform == "PromethION",2,ifelse(demultiplexed,3,
+                         1)))]
+rlData_mat[is.na(special_prep), special_prep := 1]
+
+```
+
+```{r}
+library(ggpubr)
+rlData_mat[, nc := all(c("cDNA","directcDNA","directRNA") %in% protocol_type), by = cellLineRep ]
+rldata_matched <- unique(rlData_mat[!(protocol_type %in% c("PacBio","Illumina"))&nc&(!is.na(cellLineRep)), list(aveLen = mean(aveLen)), by = list(cellLineRep, protocol_type, protocol_type_factor, cellLine)])
+p_mapped_read_length_matched <- ggplot(rldata_matched, 
+    aes(x = protocol_type_factor, y = aveLen))+ #/1000
+       
+    geom_boxplot(col = "black",width = 0.5)+
+    geom_line(aes(group = cellLineRep), col = "grey", size = 0.4)+
+    geom_point(aes(col = cellLine), alpha = 0.5)+
+    stat_compare_means(paired = TRUE, method = "t.test", 
+                       comparisons = list(c("cDNA","directcDNA"),c("directcDNA","directRNA")))+
+     scale_color_brewer(type = "qual", palette= 3)+
+    xlab("Protocols")+
+    ylab("Average read length(Mappable)")+
+    theme_classic()
+p_mapped_read_length_matched
+pdf("read_length_boxplot_matched_replicates.pdf", width = 4, height = 4)
+p_mapped_read_length_matched + theme(legend.position = "top")
+dev.off()
+```
+
+# reviewer response figure
+
+## r3.1 expected cost and throughput 
+```{r}
+library(ggpubr)
+pdf("r3.1_25Oct2023.pdf", width = 7, height = 3.5)
+ggarrange(p_expected_data_cost + theme(legend.position = "top"), p_expected_throughput + theme(legend.position = "top"), nrow = 1, ncol =2, align = "hv")
+dev.off()
+```
+
+
+
+## r3.14 coverage bias
+```{r}
+pdf("r3.14.pdf", width = 10, height = 4.5)
+ggdraw() +
+     draw_plot(p_mapped_read_length_matched+theme(legend.position="none"), 0,1/4,1.5/5,3/4)+
+     draw_plot(p_coverage_difference+theme(legend.position="none"),1.5/5,5/8, 2/5,3/8)+
+    draw_plot(p_coverage_scatterplot+theme(legend.position="none"),1.5/5,1/4, 2/5,3/8)+
+       draw_plot(p_cdna_drna+theme(legend.position="none"), 3.5/5,1/4,1.5/5,3/4)+
+    draw_plot(as_ggplot(get_legend(p_mapped_read_length_matched)), 0,0,1/2,1/4)
+dev.off()
+```
+
+# Supplementary Text Fig. 1
+full-length filtering distance analysis
+full-length filtered 
+full-length analysis for public dataset from literature papers
+```{r}
+rin_data_se_files <- dir("RIN_data/se/", pattern = ".rds", full.names = TRUE)
+# check for short read 
+type_dist_rin_data <- lapply(rin_data_se_files, function(b){
+  print(b)
+  rname <- basename(b)
+  rin_se <- readRDS(b)
+  reads <- data.table(as.data.frame(metadata(rin_se)$distTables[[1]]))
+  reads[, multi := .N, by = readClassId]
+  reads[, type := ifelse(multi==1&all(equal), "FIM",
+                  ifelse(multi==1&(!all(equal)), "SIM",
+                  ifelse(multi>1&(all(equal)),"MFIM",
+                  ifelse(multi>1&(!all(equal))&(any(equal)),"FSIM",
+                  ifelse(multi>1&(all(!equal)),"MSIM",NA))))), by = readClassId]
+  reads <- unique(reads[,.(readClassId, readCount, type)], by = NULL)
+  
+  reads_type_sum <- unique(reads[, list(read_count = sum(readCount)), by = type], by = NULL)
+  reads_type_sum[, nTotal := sum(read_count)]
+  reads_type_sum[, runname := basename(b)]
+  return(reads_type_sum)
+})
+saveRDS(type_dist_rin_data, file = "type_dist_rin_se.rds")
+```
+
+
+```{r}
+rin_data_se_files <- dir("RIN_data/se/", pattern = ".rds", full.names = TRUE)
+# check for short read 
+type_dist_rin_data_spliced <- lapply(rin_data_se_files, function(b){
+  print(b)
+  rname <- basename(b)
+  rin_se <- readRDS(b)
+  reads <- data.table(as.data.frame(metadata(rin_se)$distTables[[1]]))
+  reads <- reads[which(!grepl("unspliced", readClassId))]
+  reads <- reads[annotationTxId %in% unique(ensemblAnnotations.transcripts[gene_biotype == "protein_coding"]$tx_name)]
+  reads[, multi := .N, by = readClassId]
+  reads[, type := ifelse(multi==1&all(equal), "FIM",
+                  ifelse(multi==1&(!all(equal)), "SIM",
+                  ifelse(multi>1&(all(equal)),"MFIM",
+                  ifelse(multi>1&(!all(equal))&(any(equal)),"FSIM",
+                  ifelse(multi>1&(all(!equal)),"MSIM",NA))))), by = readClassId]
+  reads <- unique(reads[,.(readClassId, readCount, type)], by = NULL)
+  
+  reads_type_sum <- unique(reads[, list(read_count = sum(readCount)), by = type], by = NULL)
+  reads_type_sum[, nTotal := sum(read_count)]
+  reads_type_sum[, runname := basename(b)]
+  return(reads_type_sum)
+})
+saveRDS(type_dist_rin_data_spliced, file = "type_dist_rin_se_spliced_reads_only_protein_coding.rds")
+```
+
+
+
+```{r}
+rin_match_data <- data.table(runname = c("ERR9834002","ERR9829522","ERR9834006","ERR9834011","ERR9834013"),
+                             rin_value = c(9.8, 9.6,9.3,8.4,7.7))
+## rin data plot 
+type_dist_rin_data <- readRDS("type_dist_rin_se.rds")#_protein_coding
+type_dist_rin_data_spliced <- readRDS("type_dist_rin_se_spliced_reads_only_protein_coding.rds")
+type_dist_rin_data <- do.call("rbind",type_dist_rin_data)
+type_dist_rin_data_spliced <- do.call("rbind",type_dist_rin_data_spliced)
+type_dist_rin_data[, spliced_type := "All reads"]
+type_dist_rin_data_spliced[, spliced_type := "Spliced reads from \n protein coding genes"]
+type_dist <- rbindlist(list(type_dist_rin_data,type_dist_rin_data_spliced), fill = TRUE)
+type_dist[, runname := gsub(".rds","",runname)]
+type_dist <- rin_match_data[type_dist, on = "runname"]
+sum_stats <- unique(type_dist[, list(full_length = sum(.SD[type %in% c("FIM","FSIM","MFIM")]$read_count)), by = list(rin_value,runname, nTotal, spliced_type)], by = NULL)
+sum_stats[, percentage := full_length/nTotal]
+p_full_length_rin_data <- ggplot(type_dist, aes(x = type, y = read_count/nTotal))+
+    geom_point(aes(col = as.factor(rin_value)), size = 4, shape = 16)+
+    scale_color_brewer(type = "seq", direction = 2, palette = 1)+
+    ylab("Fraction of reads")+
+    scale_x_discrete(limits = c("FIM","SIM","MSIM","FSIM","MFIM"),
+                     label = c("Unique\n(Full-length)",
+                               "Unique\n(Partial)",
+                               "Multi-mapping\n(Partial)",
+                               "Multi-mapping\n(Full-length/partial)",
+                               "Multi-mapping\n(Full-length)"))+
+    facet_wrap(~spliced_type)+
+    xlab("Alignment type")+
+    theme_classic()
+p_full_length_rin_data
+pdf("full_length_rin_data_spliced_reads_protein_coding_genesonly.pdf", width = 8, height = 4)
+p_full_length_rin_data + theme(legend.position = "top")
+dev.off()
+```
+
+
+
+# Supplementary Text Fig. 2
+adapter presence in cDNA vs dcDNA to see whether the shortened reads are because of incomplete reverse transcription or incomplete sequencing , whether reads are artefacts (pychpper results)
+
+5' 3' distance from reads to annotations
+```{r}
+sefiles <- dir("RunBambu5Jul/se", pattern = ".rds", full.names = TRUE)
+rcfiles <- dir("RunBambu5Jul/rc", pattern = ".rds", full.names = TRUE)
+raw_reads_files <- dir("RunBambu5Jul/raw_reads", pattern = ".rds", full.names = TRUE)
+rnames <- gsub("_readClassSe_bambuOutput_5Jul_trackReads.rds","",basename(sefiles))
+
+library(bambu)
+np <- lapply(rnames, function(rname){
+    print(match(rname,rnames))
+    temp_se <- readRDS(sefiles[grep(rname,sefiles)])
+    raw_reads <- readRDS(raw_reads_files[grep(rname, raw_reads_files)])
+    temp_annotations <- rowRanges(temp_se)
+    readToTranscriptMap <- data.table(as.data.frame(metadata(temp_se)$readToTranscriptMaps[[1]]))
+    readToTranscriptMap[, status := unlist(lapply(compatibleMatches, function(x) ifelse(is.null(x), NA, x)))]
+    readToTranscriptMap_1to1 <- readToTranscriptMap[!is.na(status), list(txid = unlist(compatibleMatches)), by= readId]
+    readToTranscriptMap_1to1 <- data.table(as.data.frame(rowData(temp_se)))[,.(txid,TXNAME)][readToTranscriptMap_1to1, on = "txid"]
+    compare_output <- compareTranscripts(raw_reads[readToTranscriptMap_1to1$readId],
+                       temp_annotations[readToTranscriptMap_1to1$TXNAME])
+    compare_output <- data.table(compare_output)
+    distance_data <- unique(compare_output[, list(tss = min(abs(alternativeTSS)),
+                                           tes = min(abs(alternativeTES))), by = queryId])
+    saveRDS(distance_data, file = paste0("distanceData/",rname,".rds"))
+    
+})
+```
+
+
+```{r}
+sefiles <- dir("RunBambu5Jul/se", pattern = ".rds", full.names = TRUE)
+rnames <- gsub("_readClassSe_bambuOutput_5Jul_trackReads.rds","",basename(sefiles))
+distanceData_files <- dir("RunBambu5Jul/distanceData/", full.names = TRUE)
+knames <- gsub(".rds","",basename(distanceData_files))
+distanceData <- do.call("rbind",lapply(seq_along(distanceData_files), function(k){
+    data <- readRDS(distanceData_files[k])
+    return(data.table(tss_mean = mean(data$tss, na.rm = TRUE),
+                      tss_median = median(data$tss, na.rm = TRUE),
+                      tss_sd = sd(data$tss, na.rm = TRUE),
+                      tes_mean = mean(data$tes, na.rm = TRUE),
+                      tes_median = median(data$tes, na.rm = TRUE),
+                      tes_sd = sd(data$tes, na.rm = TRUE),
+                      n_total = nrow(data),
+                      runname = knames[k]))
+}))
+saveRDS(distanceData, file = "RunBambu5Jul/summarised_distanceData.rds")
+
+
+distanceData <- readRDS("RunBambu5Jul/summarised_distanceData.rds")
+distanceData[, protocol := gsub("Stranded","", unlist(strsplit(runname,"_"))[3]), by = runname]
+p_tss <- ggplot(distanceData[n_total >=400000], aes(x = protocol, y = tss_mean))+
+    geom_boxplot()
+
+p_tes <- ggplot(distanceData[n_total >=400000], aes(x = protocol, y = tes_mean))+
+    geom_boxplot()
+
+ggarrange(p_tss, p_tes, nrow = 1)
+
+
+
+plotdata <- melt(distanceData[n_total >=400000], id.vars = c("runname","n_total","protocol"),
+             measure.vars = c("tss_mean","tes_mean"))
+labeldata <- unique(plotdata[, list(meanValue = mean(value)), by = list(variable, protocol)])
+labeldata[, value := 450]
+p_tss_tes <- ggplot(plotdata, aes(x = variable, y = value, fill = protocol, col = protocol))+
+    geom_boxplot(alpha = 0.8)+
+    geom_point(aes(size = n_total), position = position_dodge(width = 0.75),shape = 16, alpha = 0.5)+
+    scale_fill_brewer(type = "qual", palette = 3)+
+    scale_color_brewer(type = "qual", palette = 3)+
+    scale_size_continuous(trans = "log10")+
+      geom_text(data = labeldata, aes(label = round(meanValue,0)), position = position_dodge(width = 0.75), color = "black", size = 4) +
+    ylab("Mean distance to annotated start/end")+
+    xlab("")+
+    theme_classic()+
+     theme(legend.position = "top")
+
+
+pdf(paste0(wkdir, "distance_between_observed_startends_to_annotated_startends.pdf"), width = 6, height = 4)
+p_tss_tes
+dev.off()
+ 
+
+> mean(plotdata[protocol == "cDNA"&(variable == "tes_mean")]$value)
+[1] 287.28
+> mean(plotdata[protocol == "directcDNA"&(variable == "tes_mean")]$value)
+[1] 269.4142
+> mean(plotdata[protocol == "directRNA"&(variable == "tes_mean")]$value)
+[1] 329.5
+
+ sum(plotdata[protocol == "directRNA"&(variable == "tes_mean")]$value*plotdata[protocol == "directRNA"&(variable == "tes_mean")]$n_total)/sum(plotdata[protocol == "directRNA"&(variable == "tes_mean")]$n_total)
+ 
+ 
+ k <- which(knames %in% "SGNex_A549_directRNA_replicate4_run1")
+ tes_A549_directRNA_replicate4_run1_data <- readRDS(distanceData_files[k])
+ labeldata <- data.table(value = c(round(mean(na.omit(tes_A549_directRNA_replicate4_run1_data$tes))), median(na.omit(tes_A549_directRNA_replicate4_run1_data$tes))),
+                         type = c("Mean", "Median"))
+p_tss_tes_histogram_A549_directRNA_replicate4_run1 <- ggplot(tes_A549_directRNA_replicate4_run1_data, aes(x = tes))+
+     geom_vline(xintercept = labeldata$value, linetype = "dashed")+
+    geom_text(data = labeldata, aes(x = value, y = 120000, label = value))+
+     geom_histogram(binwidth = 0.1, col = "lightblue", fill = "lightblue")+scale_x_log10()+theme_classic()
+ 
+
+
+pdf(paste0(wkdir, "distance_between_observed_startends_to_annotated_startends_final.pdf"), width = 7, height = 3.5)
+ggarrange(p_tss_tes_histogram_A549_directRNA_replicate4_run1,p_tss_tes, nrow = 1, widths = c(0.8,1))
+dev.off()
+```
+
+# Supplementary Text Fig. 4
+fraction of reads cut short: 5', 3' or both ends 
+```{r}
+seOutput <- readRDS("bambuOutput_May25.rds")
+distTablesList <- metadata(seOutput)$distTables
+library(BiocFileCache)
+bfc1 <- BiocFileCache("RunBambu22Apr/rc", ask = FALSE)
+info <- bfcinfo(bfc1)
+annotation_ranges <- rowRanges(seOutput)
+data_reads <- lapply(seq_along(distTablesList), function(k){
+  print(k)
+  reads <- data.table(as.data.frame(distTablesList[[k]]))
+  reads[, multi := .N, by = readClassId]
+  r_name <- names(distTablesList)[k]
+  rc <- readRDS(info[grepl(r_name,info$rname),]$rpath)
+  
+  rc_ranges <- rowRanges(rc)
+  reads_filtered <- reads[!grepl("unidentified",annotationTxId)]
+  out <- compareTranscripts(rc_ranges[reads_filtered$readClassId], annotation_ranges[reads_filtered$annotationTxId])
+  setnames(out, c("queryId","subjectId"),c("readClassId","annotationTxId"))
+  reads_filtered <- data.table(out)[reads_filtered, on = c("readClassId","annotationTxId")]
+  thresholdVec <- c(0,1,5,30,50,NA)
+  perc_out <- lapply(seq_along(thresholdVec), function(mm){
+       threshold_value <- thresholdVec[mm]
+      if(mm <=5){
+           reads_filtered[, `:=`(V5 = (!alternativeFirstExon&(abs(alternativeTSS)<=threshold_value)),
+                            V3 = (!alternativeLastExon&(abs(alternativeTES)<=threshold_value)))]
+      }else{
+          reads_filtered[, `:=`(V5 = (!alternativeFirstExon),
+                            V3 = (!alternativeLastExon))]
+      }
+      
+      reads_filtered[, `:=`(V5and3 = V5&V3)]
+      reads_summed <- unique(reads_filtered[,list(prime5 = any(V5&(!grepl("unspliced",readClassId))),
+                                                  prime3 = any(V3&(!grepl("unspliced",readClassId))),
+                                                  prime5and3 = any(V5and3&(!grepl("unspliced",readClassId))),
+                                                  prime5_all = any(V5),
+                                                  prime3_all = any(V3),
+                                                  prime5and3_all = any(V5and3)),
+                                                  by = list(readClassId,readCount)])
+      perc_out <- data.table(
+          readCount_firstExonCovered = sum(reads_summed$prime5*reads_summed$readCount),
+          readCount_lastExonCovered = sum(reads_summed$prime3*reads_summed$readCount),
+          readCount_firstlastExonCovered = sum(reads_summed$prime5and3*reads_summed$readCount),
+          readCount_firstExonCovered_all = sum(reads_summed$prime5_all*reads_summed$readCount),
+          readCount_lastExonCovered_all = sum(reads_summed$prime3_all*reads_summed$readCount),
+          readCount_firstlastExonCovered_all = sum(reads_summed$prime5and3_all*reads_summed$readCount),
+           nTotal = sum(reads_summed$readCount),
+                         nSplicedTotal = sum(reads_summed[which(!grepl("unspliced",readClassId))]$readCount),
+                         runname = r_name)
+      perc_out[, filter_value := threshold_value]
+      return(perc_out)
+  })
+  perc_out <- do.call("rbind",perc_out)
+  perc_out[, protocol:=strsplit(runname, '\\_')[[1]][3], by = runname]
+  return(perc_out)
+})
+saveRDS(data_reads, file = "first_last_exon_coverage_filtered_version.rds")
+```
+
+
+```{r}
+data_reads <- readRDS("first_last_exon_coverage.rds")
+data <- do.call("rbind",data_reads)
+data[, protocol := gsub("Stranded","", protocol)]
+
+dataLong <- melt(data, id.vars = c("runname","protocol","nTotal"), measure.vars = colnames(data)[4:6])
+ggplot(dataLong, aes(x = protocol, y = value/nTotal, fill = variable))+
+     geom_abline(intercept = c(0.8,0.9), slope = 0, col = "grey")+
+    geom_boxplot()+
+    theme_classic()
+
+
+
+## spliced reads only
+data_reads <- readRDS("first_last_exon_coverage_splicedOnly.rds")
+data <- do.call("rbind",data_reads)
+data[, protocol := gsub("Stranded","", protocol)]
+
+dataLong <- melt(data, id.vars = c("runname","protocol","nSplicedTotal"), measure.vars = colnames(data)[7:9])
+ggplot(dataLong, aes(x = protocol, y = value/nSplicedTotal, fill = variable))+
+     geom_abline(intercept = c(0.8,0.9), slope = 0, col = "grey")+
+    geom_boxplot()+
+    theme_classic()
+
+# 1/50bp
+data_reads <- readRDS("first_last_exon_coverage_splicedOnly_1bp_50bp.rds")
+data <- do.call("rbind",data_reads)
+data[, protocol := gsub("Stranded","", protocol)]
+
+dataLong <- melt(data, id.vars = c("runname","protocol","nSplicedTotal"), measure.vars = colnames(data)[4:6])
+ggplot(dataLong, aes(x = protocol, y = value/nSplicedTotal, fill = variable))+
+     geom_abline(intercept = c(0.8,0.9), slope = 0, col = "grey")+
+    geom_boxplot()+
+    theme_classic()
+
+
+dataLong <- melt(data, id.vars = c("runname","protocol","nTotal"), measure.vars = colnames(data)[10:12])
+ggplot(dataLong, aes(x = protocol, y = value/nTotal, fill = variable))+
+     geom_abline(intercept = c(0.8,0.9), slope = 0, col = "grey")+
+    geom_boxplot()+
+    theme_classic()
+
+
+data_reads <- readRDS("first_last_exon_coverage_filtered_version.rds")
+data <- do.call("rbind",data_reads)
+data[, protocol := gsub("Stranded","", protocol)]
+filter_threshold <- 30
+
+
+dataLong <- melt(data[is.na(filter_value)], id.vars = c("runname","protocol","nTotal"), measure.vars = colnames(data)[4:6])
+dataLong[, variable:=gsub("readCount_|_all|Covered","",variable)]
+p_first_last_exon_coverage <- ggplot(dataLong, aes(x = protocol, y = value/nTotal, fill = factor(variable, levels = c("firstExon","lastExon","firstlastExon"))))+
+    geom_hline(yintercept = c(0.8,0.95), col = "grey", linetype = "dashed")+
+    geom_boxplot(outlier.size = 1, outlier.color = "grey", outlier.shape = 16)+
+    ylim(0.3,1)+
+    scale_fill_brewer(type = "qual", palette = 1, name = "Start End coverage")+
+    ylab("Fraction of reads")+
+    theme_classic()+
+    theme(legend.position = "top")
+pdf("fraction_first_last_exon_coverage.pdf", width = 6, height = 4)
+p_first_last_exon_coverage
+dev.off()
+
+dataLong[, perc := value/nTotal]
+
+
+sum_stats <- unique(dataLong[,list(med_value = median(perc)), by = list(protocol, variable)])
+> sum_stats
+     protocol      variable med_value
+1:  directRNA     firstExon 0.7157390
+2: directcDNA     firstExon 0.6439820
+3:       cDNA     firstExon 0.8037574
+4:  directRNA      lastExon 0.9084847
+5: directcDNA      lastExon 0.8110492
+6:       cDNA      lastExon 0.8637533
+7:  directRNA firstlastExon 0.6325483
+8: directcDNA firstlastExon 0.4696291
+9:       cDNA firstlastExon 0.6700289
+
+
+pList <- lapply(unique(data$filter_value)[1:5], function(filter_threshold){
+    dataLong <- melt(data[filter_value == filter_threshold], id.vars = c("runname","protocol","nSplicedTotal"), measure.vars = colnames(data)[1:3])
+p1 <- ggplot(dataLong, aes(x = protocol, y = value/nSplicedTotal, fill = variable))+
+     geom_abline(intercept = c(0.8,0.9), slope = 0, col = "grey")+
+    geom_boxplot()+
+    ggtitle(paste(filter_threshold,"Spliced reads"))+
+    theme_classic()
+
+
+dataLong <- melt(data[filter_value == filter_threshold], id.vars = c("runname","protocol","nTotal"), measure.vars = colnames(data)[4:6])
+p2 <- ggplot(dataLong, aes(x = protocol, y = value/nTotal, fill = variable))+
+     geom_abline(intercept = c(0.8,0.9), slope = 0, col = "grey")+
+    geom_boxplot()+
+     ggtitle(paste(filter_threshold,"All reads"))+
+    theme_classic()
+
+p <- ggarrange(p1+theme(legend.position = "none"),p2+theme(legend.position = "none"), nrow = 1)
+return(p)
+})
+
+
+ggarrange(plotlist = pList, ncol = 1, nrow = 5)
+
+
+```
+
+
+
+

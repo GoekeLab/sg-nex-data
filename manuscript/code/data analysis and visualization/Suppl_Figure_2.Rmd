@@ -1,0 +1,209 @@
+---
+title: "Source comparison"
+output: html_notebook
+---
+
+## library set-up
+```{r}
+library(readxl)
+library(data.table)
+library(ggplot2)
+library(GGally)
+```
+
+
+
+```{r}
+data_comparison <- data.table(as.data.frame(read_xlsx('data_comparison (1).xlsx', sheet = 1)))
+```
+
+```{r}
+data_comparison <- data_comparison[c(1:25,33,34,37)]
+data_comparison <- data_comparison[,c(1,2,3,4,5,6,11,10,14,15,16,23,24,17),with= TRUE]
+# prreprocess
+setnames(data_comparison, 1:14, c("data_name","purpose","species","number_runs",
+                                  "number_celllines","number_protocols","number_replicates","pacbio",
+                                  "number_spikeins","number_reads","number_long_reads",
+                                  "short_read","m6a","number_dRNA_reads"))
+
+data_comparison[,`:=`(number_reads = as.numeric(gsub("\\^|,","",number_reads)),
+                      number_long_reads = as.numeric(gsub("\\^|,","",number_long_reads)),
+                       number_dRNA_reads = as.numeric(gsub("\\^|,","",number_dRNA_reads)),
+                      number_celllines = as.numeric(gsub(" \\(.*","",number_celllines)),
+                      number_protocols = as.numeric(gsub("\\^|,","",number_protocols)),
+                      species = tolower(species))]
+
+data_comparison[20]$number_reads <- data_comparison[20]$number_long_reads <- 48000000
+
+```
+
+
+```{r}
+data_comparison[is.na(number_dRNA_reads), number_dRNA_reads := 0]
+data_comparison[1]$pacbio <- 1
+data_comparison[1]$number_celllines <- 14
+data_comparison[26]$number_protocols <- 1
+data_comparison[27]$number_protocols <- 2
+data_comparison[data_name=="GTEx_ONT"]$number_runs <- 95
+data_comparison[data_name=="GTEx_ONT"]$number_celllines <- 15
+data_comparison$number_protocols <- data_comparison$number_protocols+data_comparison$pacbio*1
+data_comparison[26:27]$number_replicates <- 3
+
+```
+
+```{r}
+plotdata <- data_comparison[order(number_protocols)]
+
+plotdata[, ord := paste0(data_name, "-", species)]
+plotdata[, ord := factor(ord, plotdata$ord)]
+# protocols, celllines, spikein, reads
+plotdata[, max_protocols := max(number_protocols), by = data_name]
+p_protocol <- ggplot(data = unique(plotdata[,.(data_name, max_protocols)]), aes(x = reorder(data_name,max_protocols), y = max_protocols))+
+    geom_bar(fill = "steelblue",stat = "identity", position = position_stack())+
+        coord_flip()+
+    xlab("Data source")+
+    ylab("Number of protocols")+
+        theme_classic()+
+    scale_fill_brewer(type = "qual", palette = 3)+
+    theme(axis.text.y = element_text(face = plotdata$face),
+        axis.ticks.y = element_blank())
+p_protocol
+```
+
+```{r}
+# protocols, celllines, spikein, reads
+plotdata <- data_comparison[!is.na(number_reads)][order(number_reads)]
+plotdata[, ord := paste0(data_name, "-", species)]
+plotdata[, ord := factor(ord, plotdata$ord)]
+plotdata[, sum_reads := sum(number_reads), by = data_name]
+p_number_reads <- ggplot(data = plotdata, aes(x = reorder(data_name,sum_reads), y = number_reads/1000000, fill = species))+
+    geom_bar(stat = "identity", position = position_stack())+
+        coord_flip()+
+    xlab("Data source")+
+     scale_fill_brewer(type = "qual", palette = 3)+
+    ylab("Number of reads (million)")+
+    theme_classic()+
+    theme(axis.text.y = element_text(face = plotdata$face),
+        axis.ticks.y = element_blank())
+        
+p_number_reads
+```
+```{r}
+# protocols, celllines, spikein, reads
+plotdata <- data_comparison[!is.na(number_dRNA_reads)][order(number_dRNA_reads)]
+plotdata[, ord := paste0(data_name, "-", species)]
+plotdata[, ord := factor(ord, plotdata$ord)]
+plotdata[, sum_dRNA_reads := sum(number_dRNA_reads), by = data_name]
+p_number_dRNA_reads <- ggplot(data = plotdata, aes(x = reorder(data_name,sum_dRNA_reads), y = number_dRNA_reads/1000000, fill = species))+
+    geom_bar(stat = "identity", position = position_stack())+
+        coord_flip()+
+    xlab("Data source")+
+     scale_fill_brewer(type = "qual", palette = 3)+
+    ylab("Number of reads (million)")+
+    theme_classic()+
+    theme(axis.text.y = element_text(face = plotdata$face),
+        axis.ticks.y = element_blank())
+        
+p_number_dRNA_reads
+```
+
+```{r}
+# protocols, celllines, spikein, reads
+plotdata <- data_comparison[!is.na(number_long_reads)][order(number_long_reads)]
+plotdata[, ord := paste0(data_name, "-", species)]
+plotdata[, ord := factor(ord, plotdata$ord)]
+plotdata[, sum_long_reads := sum(number_long_reads), by = data_name]
+p_number_long_reads <- ggplot(data = plotdata, aes(x = reorder(data_name,sum_long_reads), y = number_long_reads/1000000, fill = species))+
+    geom_bar(stat = "identity", position = position_stack())+
+        coord_flip()+
+    xlab("Data source")+
+     scale_fill_brewer(type = "qual", palette = 3)+
+    scale_y_continuous(breaks = c(0,100,200,500,1000), labels = c(0,100,200,500,1000))+
+    ylab("Number of long reads (million)")+
+        theme_classic()+
+    theme(axis.text.y = element_text(face = plotdata$face),
+        axis.ticks.y = element_blank())
+
+
+p_number_long_reads
+```
+
+```{r}
+plotdata <- data_comparison[order(number_celllines)]
+plotdata[, ord := paste0(data_name, "-", species)]
+plotdata[, ord := factor(ord, plotdata$ord)]
+plotdata[, sum_celllines := sum(number_celllines), by = data_name]
+# protocols, celllines, spikein, reads
+p_number_celllines <-  ggplot(data = plotdata, aes(x = reorder(data_name,sum_celllines), y = number_celllines, fill = species))+
+    geom_bar(stat = "identity", position = position_stack())+
+        coord_flip()+
+    xlab("Data source")+
+     scale_fill_brewer(type = "qual", palette = 3)+
+    ylab("Number of tissues(+celllines)")+
+        theme_classic()+
+    theme(axis.text.y = element_text(face = plotdata$face),
+        axis.ticks.y = element_blank())
+p_number_celllines
+```
+```{r}
+plotdata <- data_comparison[order(number_spikeins)]
+plotdata[, ord := paste0(data_name, "-", species)]
+plotdata[, ord := factor(ord, plotdata$ord)]
+# protocols, celllines, spikein, reads
+
+p_number_spikeins <- ggplot(data = unique(plotdata[,.(data_name, number_spikeins)]), aes(x = reorder(data_name,number_spikeins), y = number_spikeins))+
+    geom_bar(fill = "steelblue",stat = "identity")+
+        coord_flip()+
+    xlab("Data source")+
+    ylab("Number of spikeins")+
+          theme_classic()+
+    theme(axis.text.y = element_text(face = plotdata$face),
+        axis.ticks.y = element_blank())
+p_number_spikeins
+```
+```{r}
+plotdata <- data_comparison[order(number_runs)]
+plotdata[, ord := paste0(data_name, "-", species)]
+plotdata[, ord := factor(ord, plotdata$ord)]
+# protocols, celllines, spikein, reads
+plotdata[, max_replicates := max(number_replicates), by = data_name]
+p_number_replicates <- ggplot(data = unique(plotdata[,.(data_name, max_replicates)]), aes(x = reorder(data_name, max_replicates), y = max_replicates))+
+    geom_bar(fill = "steelblue",stat = "identity")+
+        coord_flip()+
+    xlab("Data source")+
+    ylab("Number of replicates")+
+       theme_classic()+
+    theme(axis.text.y = element_text(face = plotdata$face),
+        axis.ticks.y = element_blank())
+p_number_replicates
+```
+```{r, fig.width = 14, fig.height = 6}
+library(ggpubr)
+pdf("data_comparison_14Nov2023.pdf", width = 14, height = 6)
+ggarrange(p_number_reads, p_number_long_reads, p_number_dRNA_reads,p_protocol,
+       p_number_celllines, p_number_spikeins,p_number_replicates, labels = "auto",
+       ncol = 4, nrow = 2, common.legend = TRUE,legend = "bottom",align = "hv")
+dev.off()
+
+```
+
+supplementary table
+```{r}
+write.table(data_comparison, file = "data_comparison_updated_14Nov2023.csv", row.names = FALSE, col.names = TRUE, quote = FALSE, sep = ",")
+```
+
+
+
+## check sources
+### gtex
+```{r}
+gtex <- data.table(as.data.frame(read_xlsx('41586_2022_5035_MOESM4_ESM.xlsx', sheet = 1)))
+gtex <- gtex[!is.na(sample_name)]
+gtex[, rep_no := .N, by= sample_name]
+```
+
+### lrgasp
+```{r}
+lrgasp <- fread("9686273d36eab36cec996a8d.txt")
+```
+

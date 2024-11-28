@@ -1,0 +1,334 @@
+---
+title: "SG-NEx manuscript Figure 1"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  pdf_document:
+    toc: yes
+  html_notebook:
+    toc: yes
+---
+
+Included figures:
+1. core cell line barplot by protocol
+2. other samples barplot by protocol
+
+# load library
+```{r 0-library-loads, results = 'hide'}
+require(GenomicAlignments) ##readGAlignments
+require(AnnotationDbi)#loadDb
+require(data.table)#fast large dataset manipulation
+require(readxl)
+
+
+require(ggplot2)
+require(RColorBrewer)
+require(gridExtra)
+
+library(gplots)
+library(RColorBrewer)
+library(limma)
+
+library(tximport) # 
+```
+
+
+```{r 1-load-sample-info}
+cat('Setting working directory')
+wkdir <- '.'
+general_list <- readRDS(paste0(wkdir,"general_list2023-08-29.rds"))
+
+samples <- general_list$samples
+samples_wSpikein <- general_list$samples_wSpikein
+cellLines <- general_list$cellLines
+protocolCol <- general_list$protocolCol
+protocolVec <- general_list$protocolVec
+protocolLabel <- general_list$protocolLabel
+saveDate <- general_list$saveDate
+```
+
+
+# Fig. 1b-c
+```{r}
+## Figure 1 ========================
+plotData_wide <- samples[,list(nrun=length(runname)), by = list(cancer_type,cellLine, protocol_type)]
+plotData_wide[, protocol_type := gsub("-SMRTcell","",protocol_type)]
+plotData_wide[, cellLine_general := ifelse(cellLine %in% cellLines, cellLine, cancer_type)]
+plotData_wide <- rbind(plotData_wide, 
+                       data.table(cancer_type = rep(unique(plotData_wide$cancer_type),each = 1),
+                                  cellLine = rep(unique(plotData_wide$cancer_type),each = 1),
+                                  cellLine_general = rep(unique(plotData_wide$cancer_type),each = 1),
+                                  nrun = NA, 
+                        protocol_type = NA))
+plotData_wide[,nrun:=sum(nrun,na.rm=TRUE), by = list(cellLine_general, protocol_type)]
+plotData_wide <- unique(plotData_wide[!is.na(protocol_type),c("protocol_type","cellLine_general", "nrun","cancer_type"),with = FALSE], by = NULL)
+plotData_wide[,ttrun:=sum(nrun,na.rm=TRUE), by = cellLine_general]
+plotData_wide <- plotData_wide[order(ttrun, cancer_type, nrun, decreasing = TRUE)]   
+plotData_wide
+
+
+
+cancer_typeVar <- unique(plotData_wide$cancer_type)
+cancer_typeCol <- c(brewer.pal(9,"Paired"),brewer.pal(8,"Accent")[8:7])
+
+p_core_cellLine <- ggplot(plotData_wide[cellLine_general %in% cellLines], aes(x = reorder(cellLine_general,-nrun), y = nrun, fill = factor(protocol_type, levels = protocolVec)))+
+    geom_bar(stat = "identity",alpha = 0.5)+
+    ylab("Number of replicates")+
+    xlab("Cell lines")+
+    scale_y_discrete(limits = c(0,5,10,15,20,25))+
+    scale_fill_manual(values = protocolCol,
+                      labels = protocolLabel,
+                      limits = protocolVec,
+                      name = "Protocols")+
+    theme_classic()+
+    theme(axis.text.x = element_text(angle = (90), hjust = 0))
+p_core_cellLine
+pdf(paste0(wkdir,"figure1/Number_of_runsCellLines",saveDate,".pdf"), width = 6, height = 4)
+print(p_extended)
+dev.off()
+```
+
+
+
+
+## main figure 1b
+```{r}
+plotData_wide_all <- samples[,list(nrun=length(runname)), by = list(cellLine)]
+plotData_wide_all[, cellLine_general := ifelse(!(cellLine %in% cellLines), "others", cellLine)]
+plotData_wide_all[, nrun := sum(nrun), by = cellLine_general]
+plotData_wide_all <- unique(plotData_wide_all[,.(cellLine_general, nrun)])
+plotData_wide_all
+#
+p_extended <- ggplot(plotData_wide_all, aes(x = reorder(cellLine_general,-nrun), y = nrun))+
+    geom_bar(stat = "identity",alpha = 0.5, col = "white", fill = "lightblue")+
+    ylab("Number of replicates")+
+    xlab("Cell lines")+
+    scale_y_continuous(breaks = c(0,5,10,15,20,25))+
+    theme_classic()+
+    theme(axis.text.x = element_text(angle = (90), hjust = 0))
+p_extended
+
+pdf(paste0(wkdir,"figure1/Number_of_runsCellLinesExtendedDataset",saveDate,".pdf"), width = 6, height = 4)
+print(p_extended)
+dev.off()
+```
+
+
+```{r spike-in-samples}
+samples_wSpikein[grepl("PacBio", runname), RNAcontent := "sequin MixA V2 E2 SIRV-4"]
+samples_wSpikein[, `:=`(sequin_mixa_v1 = grepl("sequin",RNAcontent)&grepl("v1",RNAcontent),
+                        sequin_mixa_v2 = grepl("sequin",RNAcontent)&grepl("V2",RNAcontent),
+                        sirv_1_e2 = grepl("SIRV-1",RNAcontent),
+                        sirv_4 = grepl("SIRV-4", RNAcontent))]
+
+plotData_spikein <- unique(samples_wSpikein[, list(sequin_mixa_v1 = sum(sequin_mixa_v1),
+                                         sequin_mixa_v2 = sum(sequin_mixa_v2),
+                                         sirv_1_e2= sum(sirv_1_e2),
+                                         sirv_4 = sum(sirv_4)), by = list(protocol_type)], 
+                        by = NULL)
+plotData <- melt(plotData_spikein, id.vars = "protocol_type", measure.vars = colnames(plotData_spikein)[-1])
+setnames(plotData, c("variable","value"),c("cellLine_general","nrun"))
+```
+
+
+```{r}
+plotData_wide <- rbindlist(list(plotData_wide,plotData), fill = TRUE)
+plotData_wide[, ord := sprintf("%02i", frank(plotData_wide, nrun, ties.method = "first"))]
+```
+
+
+```{r, fig.width = 8, fig.height = 4}
+plotData_wide[, cellLine_names := gsub("sirv_4","SIRV-4",gsub("sirv_1_e2","SIRV-1 E2",gsub("sequin_mixa_v2","Sequin MixA V2",gsub("sequin_mixa_v1","Sequin MixA V1",cellLine_general))))]
+p_samples <- ggplot(plotData_wide[!grepl("sequin|sirv",cellLine_general)], aes(x = ord, y = nrun))+
+    geom_col(fill = "lightblue", col = "white") +
+  # independent x-axis scale in each facet, 
+  # drop absent factor levels (actually not required here)
+  facet_wrap(~ protocol_type, scales = "free", drop = TRUE, nrow = 1) +
+  # use named character vector to replace x-axis labels
+  scale_x_discrete(labels = plotData_wide[, setNames(as.character(cellLine_general), ord)]) + 
+  # replace x-axis title
+  xlab(NULL) +
+    ylab("Number of replicates")+
+    xlab("Cell lines")+
+    coord_flip()+
+    theme_classic()+
+    # rotate x-axis labels
+  theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=.5))
+
+p_samples
+
+pdf(paste0(wkdir,"figure1/Number_of_runsCellLinesExtendedDataset",saveDate,"_byprotocol.pdf"), width = 10, height = 4)
+print(p_samples)
+dev.off()
+```
+```{r, fig.width = 8, fig.height = 3}
+p_spikein <- ggplot(plotData_wide[grepl("sequin|sirv",cellLine_general)], aes(x = ord, y = nrun))+
+    geom_col(fill = "lightblue", col = "white") +
+  # independent x-axis scale in each facet, 
+  # drop absent factor levels (actually not required here)
+  facet_wrap(~ protocol_type, scales = "free", drop = TRUE, nrow = 1) +
+  # use named character vector to replace x-axis labels
+  scale_x_discrete(labels = plotData_wide[, setNames(as.character(cellLine_names), ord)]) + 
+  # replace x-axis title
+  xlab(NULL) +
+    ylab("Number of replicates")+
+    xlab("Cell lines")+
+    coord_flip()+
+    theme_classic()+
+    # rotate x-axis labels
+  theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=.5))
+
+p_spikein
+pdf(paste0(wkdir,"Number_of_runsCellLinesExtendedDataset",saveDate,"_spikeinSamplesOnly_byprotocol.pdf"), width = 10, height = 4)
+print(p_spikein)
+dev.off()
+```
+
+```{r}
+p_samples <- ggplot(plotData_wide[!grepl("sequin|sirv",cellLine_general)], aes(x = cellLine_general, y = protocol_type))+
+geom_point(aes(size = nrun), alpha = 0.7, color = "lightblue")+
+    scale_size_continuous(limits = c(1, 15), range = c(1,15), breaks = c(1,5,10,15)) + 
+    geom_text(aes(label = nrun))+
+    ylab("")+
+    xlab("Cell lines")+
+    coord_flip()+
+    theme_minimal()+
+    # rotate x-axis labels
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank())+ labs(x=NULL)
+
+p_spikein <- ggplot(plotData_wide[grepl("sequin|sirv",cellLine_general)], aes(x = cellLine_names, y = protocol_type))+
+geom_point(aes(size = nrun), alpha = 0.7, color = "lightblue")+
+    scale_size_continuous(limits = c(1, 15), range = c(1,15), breaks = c(1,5,10,15)) + 
+    geom_text(aes(label = nrun))+
+    ylab("Number of replicates")+
+    xlab("Cell lines")+
+    coord_flip()+
+    theme_minimal()+
+    # rotate x-axis labels
+  theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=.5))#,plot.margin=unit(c(0,1,1,1),"cm")
+```
+```{r, fig.width = 8, fig.height = 8}
+library(ggpubr)
+pdf(paste0(wkdir,"figure1/Number_of_runsCellLinesExtendedDataset",saveDate,"_dotplot.pdf"), width = 8, height = 8)
+grid.arrange(p_samples, p_spikein,heights=c(1.8,1))
+dev.off()
+```
+
+## figure 1c
+```{r}
+valueLabels <- c("Illumina","PacBio","RNA","PCR-free cDNA","cDNA")
+blank_theme <- theme_minimal()+
+    theme(
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.border = element_blank(),
+        panel.grid=element_blank(),
+        axis.ticks = element_blank(),
+        plot.title=element_text(size=14, face="bold")
+    )
+
+## extended data set pie chart ==================== 
+ df <- data.table(table(samples$protocol_type)) #[cellLine %in% cellLines]
+df[, V1 := gsub("-SMRTcell","", V1)]
+df$pos <- c(125,95,55,15,3)
+ pie <- ggplot(df, aes(x="", y=N, fill=V1))+ 
+    geom_bar(width = 1, stat = "identity")+coord_polar("y", start=0) 
+ library(scales)
+ p <- pie + scale_fill_manual(values = protocolCol,
+                             breaks = protocolVec, 
+                              labels = protocolLabel, name = "Protocol") +  blank_theme + 
+     theme(axis.text.x=element_blank()) + 
+     geom_text(aes(y = pos,  label = N), size=5) 
+ pdf(paste0(wkdir,"figure1/Number_of_runsProtocolExtendedDataset",saveDate,".pdf"), width = 6, height = 8)
+ print(p)
+ dev.off() 
+
+``` 
+# main text 
+```{r}
+# total number of sequencing libaries 
+sum(plotData_wide_all$nrun)
+# total number of cell lines (including patient samples)
+length(unique(samples$cellLine))
+```
+
+
+```{r}
+# average sequencing depth for core cell line: number of reads per run 
+salmon_sr <- readRDS(paste0(wkdir,"salmon_sr.rds"))
+
+readCountONT <- readRDS("readCount_guppy_6_4_2_May6.rds")
+readCountPacBio <- readRDS("readCount_pacbio.rds")
+readCountSpikein <- readRDS("readCount_spikein_May5.rds")
+readCountSpikeinSR <- readRDS("readCount_spikein.rds")
+readCountSpikeinSR <- readCountSpikeinSR[grepl("Illumina", runname)]
+
+
+readCount <- do.call("rbind",list(readCountONT, readCountPacBio, readCountSpikein, readCountSpikeinSR))
+readCount[, runname := gsub(",","",runname)]
+# for PacBio remove sirv-1, change sequin MixA V1 to sequin MixAv2
+readCount[grepl("PacBio",runname)&grepl("sequin",runname), runname := gsub("v1.0","V2",runname)]
+readCount <- readCount[-which(grepl("PacBio",runname)&grepl("SIRV-1",runname))]
+
+samples <- samples_wSpikein[data.table(runname = readCount$runname), on = "runname"]
+samples[grepl("allSpikinReadsCombined",runname), `:=`(
+    old_runname = runname,
+    protocol = unlist(strsplit(gsub("__","_",runname),"_"))[3],
+    cellLine = gsub("v1.0","V1",gsub(",","",unlist(strsplit(gsub("__","_",runname),"_"))[2]))), 
+    by = runname]
+samples[grepl("allSpikinReadsCombined",runname), `:=`(techRep = paste0("run",1:.N)), by = list(cellLine)]
+samples[grepl("allSpikinReadsCombined",runname), `:=`(protocol_type = protocol, bioRep = "replicate1")]
+
+
+readCount <- samples[readCount, on = "runname"]
+readCountSR <-unique(salmon_sr[,.(runname, ntotal)])
+setnames(readCountSR, c("runname","ntotal"),c("old_runname","total_reads"))
+readCountSR <- samples_wSpikein[readCountSR, on = "old_runname"]
+
+
+
+samplesRC_combined <- rbindlist(list(readCount, readCountSR), fill = TRUE)
+samplesRC_combined[, `:=`(protocol_type = gsub("-SMRTcell","",protocol_type))]
+samplesRC_combined[, protocol_type_factor := factor(protocol_type, c('directRNA','directcDNA','cDNA',"PacBio","Illumina"),
+                                             protocolVec)]
+
+
+# mean total sequencing depth per cell line
+ntotalSum <- unique(samplesRC_combined[cellLine %in% cellLines&(protocol_type_factor != "Illumina")&(protocol_type_factor != "PacBio"),list(ntotal = sum(total_reads)),by = cellLine])
+
+mean(ntotalSum$ntotal)
+```
+
+
+## supplementary table 
+# ont samples
+```{r}
+old_supp_table1 <- data.table(as.data.frame(read_xlsx("Supplementary Table 1.xlsx")))
+
+new_supp_table1 <- unique(samplesRC_combined[!(protocol_type_factor %in% c("Illumina","PacBio"))&(!grepl("allSpikin",runname)), .(runname, total_reads)])
+setnames(new_supp_table1, c("runname","total_reads"), c("Sample","Sequencing depth"))
+
+rnames <- c(old_supp_table1$Sample, setdiff(new_supp_table1$Sample, old_supp_table1$Sample))
+new_supp_table1 <- new_supp_table1[data.table(Sample = rnames), on = "Sample"]
+new_supp_table1 <- old_supp_table1[new_supp_table1, on = "Sample"]
+write.table(new_supp_table1, file ="supp_table1_sheet1.csv", row.names = FALSE, col.names = TRUE)
+```
+
+# illumina samples
+```{r}
+new_supp_table1 <- unique(samplesRC_combined[(protocol_type_factor %in% c("Illumina"))&(!grepl("allSpikin",runname)), .(runname, total_reads)])
+setnames(new_supp_table1, c("runname","total_reads"), c("Sample","Sequencing depth"))
+
+
+write.table(new_supp_table1, file ="supp_table1_sheet2.csv", row.names = FALSE, col.names = TRUE)
+```
+
+# pacbio samples
+```{r}
+new_supp_table1 <- unique(samplesRC_combined[(protocol_type_factor %in% c("PacBio"))&(!grepl("allSpikin",runname)), .(runname, total_reads)])
+setnames(new_supp_table1, c("runname","total_reads"), c("Sample","Sequencing depth"))
+
+write.table(new_supp_table1, file ="supp_table1_sheet1.csv", row.names = FALSE, col.names = TRUE)
+```

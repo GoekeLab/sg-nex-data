@@ -33,7 +33,7 @@ https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 ## Data Release and Access
 
-**Latest Release (v0.5)**
+**Latest Release (v0.6)**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10795697.svg)](https://doi.org/10.5281/zenodo.10795697)
 
@@ -67,6 +67,14 @@ _**Citation**_: Please cite the pre-print describing the SG-NEx data resource wh
 Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
 
 **Release Note & Updates**
+
+Version Number: V0.6.0                
+Date: 2024-11-21               
+Replacement of fastq and bam files                              
+- fastq files basecalled from fast5 converted blow5 files using Guppy 6.4.2 
+- bam files using updated fastq files with Minimap2-2.22 
+
+Added in code for SG-NEx manuscript 
 
 Version Number: V0.5.1       
 Date: 2024-04-15
@@ -106,7 +114,7 @@ You can find previous releases here in the [release history](https://github.com/
 
 You can now browse the data using the UCSC genome browser:
 
-[View the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=grch38&hubUrl=https://sg-nex-data.s3.amazonaws.com/data/sequencing_data_ont/genome_browser_data/hub_track/hub-ONT-Grch38-complete-2024-01-19.txt)
+[View the SG-NEx data in the UCSC Genome Browser](http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&hubUrl=https://sg-nex-data.s3.amazonaws.com/data/sequencing_data_ont/genome_browser_data/hub_track/hub-ONT-Grch38-complete-2024-01-19.txt)
 
 By default only selected tracks are shown, but you can visualise all reads (bigbed tracks) and their coverage tracks (bigwig) from each individual sample.
 
