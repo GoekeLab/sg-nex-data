@@ -23,12 +23,7 @@ calculateFragmentData <- function(sePathList, geneLengths.max, widthThreshold=0.
         rcCountByRcWidth <- tapply(assay(seDist1)[setWidth,1], rowData(seDist1)$GENEID[setWidth], sum)
         countFragmentList[[sePathName]] <-left_join(geneLengthsTbl,tibble(id=names(rcCountByRcWidth),counts.shortFragment=rcCountByRcWidth))[,2]
         rcMeanCountByRcWidth <- tapply(relWidth*assay(seDist1)[,1], rowData(seDist1)$GENEID, sum)
-        
-        # if(short_read){
-        #     rcMeanCountByRcWidth <- tapply(relWidth*assay(seDist1)[,1], rowData(seDist1)$GENEID, sum) # how to normalize gene read coverage??
-        # }else{
-            rcMeanCountByRcWidth <- tapply(relWidth*assay(seDist1)[,1], rowData(seDist1)$GENEID, sum)
-        # }
+        rcMeanCountByRcWidth <- tapply(relWidth*assay(seDist1)[,1], rowData(seDist1)$GENEID, sum)
         meanCoverageList[[sePathName]] <-left_join(geneLengthsTbl,tibble(id=names(rcMeanCountByRcWidth),meanCoverage=rcMeanCountByRcWidth))[,2]
     }
     countMatrix <- do.call(cbind, countList)
@@ -49,27 +44,9 @@ process_heatmap_data <- function(dt, methodNames = c("bambu_lr"), allCellLine = 
     cellLines <- c("A549","K562","HepG2","Hct116","MCF7","H9","HEYA8")
     protocols <- c("cDNA","directcDNA","directRNA","Illumina")
     pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
-    
-    #&(gene_biotype %in% pro_types)],
-    
-    
-    # txvec <- fread(paste0("/mnt/projects/SGNExManuscript/output/txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
-    # txvec <- gsub("\\..*","",txvec$V1)
-    # ensemblAnnotations.transcripts <- copy(general_list$ensemblAnnotations.transcripts)
-    # setnames(ensemblAnnotations.transcripts, "ensembl_gene_id","gene_name")
-    # ensemblAnnotations.transcripts <- data.table(tx_name = txvec, status = TRUE)[ensemblAnnotations.transcripts, on = "tx_name"]
-    # ensemblAnnotations.transcripts[is.na(status), status := FALSE]
-    # ensemblAnnotations.transcripts[, all_in := all(status), by = gene_name]
-    # genevec <- unique(ensemblAnnotations.transcripts[which(all_in)]$gene_name)
-    #rl_data <- com_data[grepl("^ENSG",gene_name)&(gene_name %in% genevec)]
     rl_data <- dt[grepl("^ENSG",gene_name)&(gene_name %in% genevec)&(method %in% methodNames)]
     rl_data <- unique(ensemblAnnotations.transcripts[,.(gene_name, gene_biotype)])[rl_data, on = c("gene_name")]
     rl_data[, protocol_general := gsub("RandomPrimer", "", protocol_general)]
-    
-    
-    # rl_data_gene <- unique(rl_data[, list(tpm=sum(normEst)), by = list(cellLine, protocol_general, gene_name, runname, gene_biotype, method)])
-    # rl_data_gene_ave <- unique(rl_data_gene[, list(tpm = mean(tpm)), by = list(cellLine, protocol_general, gene_name, gene_biotype, method)])
-    
     if(allCellLine){
         filtered_rl_data <- rl_data[runname %in% runnamevec&(gene_biotype %in% pro_types)] 
     }else{
@@ -84,14 +61,7 @@ process_heatmap_data <- function(dt, methodNames = c("bambu_lr"), allCellLine = 
     tmp <- plotdata[,-1,with=FALSE]
     tmp <- log2(tmp+1)
     tmp[is.na(tmp)] <- 0
-    # #
-    # samples <- copy(unique(general_list$samples[,.(runname, publicName,cellLine, protocol_type, cancer_type, Platform)]))
-    # samples[protocol_type != "Illumina", runname := publicName]
-    # samples[, publicName := NULL]
     runInfo <- samples[match(colnames(tmp),runname)]
-    #runInfo <- unique(rl_data[,.(runname,cellLine, protocol_general)])[match(colnames(plotdata)[-1],runname)]
-    
-   
     return(list(runInfo, tmp))
 }
 
@@ -101,11 +71,7 @@ process_heatmap_data <- function(dt, methodNames = c("bambu_lr"), allCellLine = 
 
 complexHeatmap_plot <- function(countMatrix,runInfo, number_of_genes = 1000){
     sdvec <- apply(countMatrix,1,sd)
-    #sd0.25 <- quantile(sdvec, prob = 0.75)
-    # set.seed(2222)
     corMatrix <- cor(countMatrix[rank(-sdvec)<=number_of_genes,],method = 'spearman')
-    #corMatrix <- cor(countMatrix[which(sdvec>sd0.25),],method = 'spearman')
-    #corMatrix <- cor(countMatrix[sample(which(sdvec>sd0.25), 1000, replace = FALSE),],method = 'spearman')
     col_fun = colorRamp2(seq(0.7,1,length.out = 8), brewer.pal(8,"BuGn"))
     colCellLines <- c(brewer.pal(8,"Dark2"),adjustcolor(brewer.pal(8,"Dark2"),alpha = 0.5), rev(brewer.pal(9,"Paired")))[seq_along(unique(runInfo$cellLine))]
     colProtocol <-  adjustcolor(brewer.pal(8,"Dark2")[1:4],0.7)
@@ -121,22 +87,12 @@ complexHeatmap_plot <- function(countMatrix,runInfo, number_of_genes = 1000){
                    protocol = colProtocol,
                    cancer_type = colCancer),
         annotation_name_side = "left")
-    #plotMatrix <- as.matrix(tmp)
     colnames(corMatrix) <- NULL
     rownames(corMatrix) <- NULL
-    #plotMatrix[sample(seq_len(nrow(plotMatrix)),5000)]
     p <- Heatmap(corMatrix, name = "Cor", col = col_fun, 
                  cluster_rows = TRUE,
                  cluster_columns =  TRUE,
-                 # split = clusters$cluster,
-                 # clustering_method_rows = "centroid" ,
-                 # clustering_method_columns = "centroid",
-                 #column_km = 7,
-                 #clustering_distance_columns = "maximum",
-                 top_annotation = cellLine_anno)#,
-    #row_split = as.factor(rowInfo$cellLine),
-    #cluster_row_slices = FALSE,
-    #right_annotation = hgncTypes)
+                 top_annotation = cellLine_anno)
     return(p)
 }
 
@@ -152,8 +108,6 @@ plot_pca <- function(countMatrix, runInfo){
 
 plot_heatmap <- function(dt, methodNames,gene, data_type,genevec,ensemblAnnotations.transcripts , samples, number_of_genes, runnamevec, plot_type = "PCA"){
     dataList <- process_heatmap_data(dt, methodNames,allCellLine = TRUE, gene = gene, genevec,ensemblAnnotations.transcripts , samples, runnamevec)
-    # tmp2 <- limma::removeBatchEffect(tmp,batch = (runInfo$protocol_general=='Illumina'),batch2 = (runInfo$protocol_general=='cDNA')) # ,
-    
     runInfo <- dataList[[1]]
     data <- dataList[[2]]
     protocol_general <- runInfo$protocol_type
@@ -175,34 +129,20 @@ plot_heatmap <- function(dt, methodNames,gene, data_type,genevec,ensemblAnnotati
     }else{
          return(complexHeatmap_plot(final_data, runInfo, number_of_genes))
     }
-    
-    # print(p_heatmap)
 }
-
-
-
-
 
 process_replicate <- function(dt, methodNames, gene = TRUE, 
 samples, ensemblAnnotations.transcripts, genevec, runnamevec, 
 majorMinor = TRUE, scatterPlot = TRUE, complexity = TRUE, 
 expressionLevel = TRUE, metric_type_id = 1,bpParameters){ #reproducibility_check = TRUE, 
    
-    #rl_data <- com_data[grepl("^ENSG",gene_name)&(gene_name %in% genevec)]
     rl_data <- dt[grepl("^ENSG",gene_name)&(gene_name %in% genevec)&(method %in% methodNames)] # already filtered 
     rl_data <- unique(ensemblAnnotations.transcripts[,.(gene_name, gene_biotype)])[rl_data, on = c("gene_name")]
     rl_data[, protocol_general := gsub("RandomPrimer", "", protocol_general)]
-    
-    # rl_data_gene <- unique(rl_data[, list(tpm=sum(normEst)), by = list(cellLine, protocol_general, gene_name, runname, gene_biotype, method)])
-    # rl_data_gene_ave <- unique(rl_data_gene[, list(tpm = mean(tpm)), by = list(cellLine, protocol_general, gene_name, gene_biotype, method)])
     filtered_rl_data <- rl_data[runname %in% runnamevec] 
-    
-    #vv <- CJ(k = 1:5, p = "directcDNA", s = seq_len(20), t = "MCF7")
-    # kvar <- c("CPM", "uniqueCounts", "fullLengthCounts","uniqueCountsCPM", "fullLengthCountsCPM")
-   
     cellLines <- c('Hct116','HepG2','K562','A549','MCF7','H9','HEYA8')
     
-    source(paste0('/mnt/projects/SGNExManuscript/R/gene_cluster_code.R'))
+    source(paste0('gene_cluster_code.R'))
     filtered_rl_data[, gene_cluster:=ifelse(gene_biotype %in% tr_gene_list,'TR gene',
                                     ifelse(gene_biotype %in% long_noncoding_rna_list, 'lncRNA',
                                            ifelse(gene_biotype %in% noncoding_rna_list, 'ncRNA',
@@ -211,27 +151,15 @@ expressionLevel = TRUE, metric_type_id = 1,bpParameters){ #reproducibility_check
     
     filtered_rl_data[, agg_gene_cluster := ifelse(gene_cluster == "processed_transcript", "lncRNA",
                                                  ifelse(gene_cluster %in% c("ncRNA","Pseudogene"), "others", gene_cluster))]
-     # further group: IG gene, TR gene, IG gene, Mt gene, ribozyme together
-    # IG gene               lncRNA              Mt_rRNA 
-    # 213                14157                    2 
-    # Mt_tRNA                ncRNA processed_transcript 
-    # 22                 7557                  543 
-    # protein_coding           Pseudogene             ribozyme 
-    # 19847                14690                    8 
-    # TR gene 
-    # 197 
+
     protocolVec <- gsub("RandomPrimer","",unique(filtered_rl_data$protocol_general))
     cellLineList <- c(as.list(cellLines), list(cellLines))
     geneClusterList <- unique(filtered_rl_data$agg_gene_cluster)
     protein_coding_id <- grep("protein",geneClusterList)
     geneClusterList <- c(as.list(geneClusterList), list(geneClusterList))
-    # if(reproducibility_check){
-    #     combMat <- rbind(combn(1:4,1),
-    #                      combn(1:4,1))
-    # }else{
+   
         combMat <- combn(1:4,2)
-    # }
-    
+   
     vv <- CJ(p = seq_len(ncol(combMat)), t = seq_along(cellLineList), g = seq_along(geneClusterList))
     if(majorMinor|complexity){
         vvIds <-  which(vv$g %in% c(protein_coding_id,length(geneClusterList))) # when major minor is considered, use proteining coding genes only 
@@ -243,7 +171,7 @@ expressionLevel = TRUE, metric_type_id = 1,bpParameters){ #reproducibility_check
     # there might be a lot transcripts expression noise for lowly expressed transcripts,
     # and this will limit the finding of relationship
     if(scatterPlot){
-        source("/mnt/projects/SGNExManuscript/R/utility_function.R")
+        source("utility_function.R")
         np <- bplapply(vvIds[which(vv[vvIds]$t != 8)],pairwise_scatterplot_function , vv = vv, samples = samples,
                                             cellLineList = cellLineList, protocolVec = protocolVec, geneClusterList = geneClusterList, 
                                             combMat = combMat, filtered_rl_data = filtered_rl_data, gene = gene,
@@ -251,7 +179,7 @@ expressionLevel = TRUE, metric_type_id = 1,bpParameters){ #reproducibility_check
                        complexity = complexity, expressionLevel = expressionLevel,
                        BPPARAM=bpParameters)
     }else{
-        source("/mnt/projects/SGNExManuscript/R/utility_function.R")
+        source("utility_function.R")
         mat_cor <- do.call("rbind",bplapply(vvIds ,pairwise_function , vv = vv, samples = samples,
                                             cellLineList = cellLineList, protocolVec = protocolVec, geneClusterList = geneClusterList, 
                                             combMat = combMat, filtered_rl_data = filtered_rl_data, gene = gene,
@@ -280,14 +208,12 @@ pairwise_function <- function(v, vv, cellLineList, protocolVec, geneClusterList,
     geneCluster <- geneClusterList[[g]]
     print(paste(p,t,v))
     print(paste(cellLineV,protocolV,geneCluster))
-    #print(paste(paste(cellLineV, collapse = " "), paste(protocolV, collapse = " "), collapse = ","))
     tmp <- filtered_rl_data[(cellLine %in% cellLineV)&(protocol_general %in% protocolV)&(agg_gene_cluster %in% geneCluster)]
     if(gene){
         tmp_wide <- dcast(tmp, gene_name ~ runname, value.var = "normEst")
     }else{
         tmp_wide <- dcast(tmp, tx_name + gene_name + ntx ~ runname, value.var = "normEst")
         if(majorMinor){
-            #dominantTypeData <- majorMinor_generic(tmp)
             tmp_wide <- unique(dominant_typeData[cellLine %in% cellLineV,
                 .(tx_name, gene_name,majorBoth, majorEither, majorEitherOnly, majorSecBoth, majorLongRead, majorShortRead
                 )])[tmp_wide, on = "tx_name"]
@@ -295,21 +221,17 @@ pairwise_function <- function(v, vv, cellLineList, protocolVec, geneClusterList,
         
     }
     tmp_wide[is.na(tmp_wide)] <- 0
-    ## pairwise correlation is calculated for transcripts being expressed in 
-    ## either sample
-    #combMat <- combn(seq_len(ncol(tmp_wide))[-1], 2)
+
     nameMat <- CJ(v1 = colnames(tmp_wide)[grep(paste0("_",protocolV[1]),colnames(tmp_wide))],
                   v2 = colnames(tmp_wide)[grep(paste0("_",protocolV[2]),colnames(tmp_wide))])
     # remove the one with the same name
     nameMat <- nameMat[v1 != v2]
     # remove the duplciated pair
-    #nameMat[, v1v2 := paste(sort(c(v1,v2)), collapse = ""), by = list(v1,v2)]
-    #nameMat[, duplicated_status := duplicated(v1v2)]
-    #nameMat <- nameMat[which(!duplicated_status)]
+    
     nameMat[, rep_status := (samples[which(samples$runname == v1)]$bioRep ==  samples[which(samples$runname == v2)]$bioRep), by = list(v1,v2)]
     nameMat[, rep := samples[which(samples$runname == v1)]$bioRep, by = v1]
 
-    #nameMat <- nameMat[which(rep_status)]
+  
     if(gene|(t>7)){
         get_corValues <- get("get_corValues1")
     }else{
@@ -323,7 +245,7 @@ pairwise_function <- function(v, vv, cellLineList, protocolVec, geneClusterList,
     
      temp_gene_cluster <- geneCluster
     if(length(geneCluster)>1) temp_gene_cluster <- "all"
-    # print("debug 1")
+   
     if(metric_type == "cor"){
         corValues <- NULL
         corValues <- get_corValues(tmp_wide, corValues, nameMat, typeName = "all", cellLineV, temp_gene_cluster, protocolV, expression_t)
@@ -352,14 +274,8 @@ pairwise_function <- function(v, vv, cellLineList, protocolVec, geneClusterList,
                 corValues <- get_corValues(tmp_wide[ntx >15], corValues, nameMat, typeName = "(15,193]",cellLineV, temp_gene_cluster, protocolV, expression_t)
                 
             }
-           
-            # gene quantile based: 1, (1,4], (4,193]
-            
         }
-        
-       
         return(corValues)
-        
     }
     if(metric_type == "mae"){
         maeValues <- NULL
@@ -399,11 +315,6 @@ pairwise_function <- function(v, vv, cellLineList, protocolVec, geneClusterList,
             mardValues <-calc_mard(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >9 &(ntx<=15)],"(9,15]", mardValues, expressionLevel, expression_t)
             mardValues <-calc_mard(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >15],"(15,193]", mardValues, expressionLevel, expression_t)
             
-            
-            # maeValues <-calc_mae(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx <=1],"<=1", maeValues)
-            # maeValues <-calc_mae(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >1 &(ntx<=4)],"(1,4]", maeValues)
-            # maeValues <-calc_mae(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >4 &(ntx<=193)],"(4,193]", maeValues)
-            
         }
        mardValues <-calc_mard(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide,"all", mardValues, expressionLevel, expression_t)
         return(mardValues)
@@ -424,12 +335,7 @@ pairwise_function <- function(v, vv, cellLineList, protocolVec, geneClusterList,
             mardModValues <-calc_mard_mod(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >3 &(ntx<=9)],"(3,9]", mardModValues, expressionLevel, expression_t)
             mardModValues <-calc_mard_mod(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >9 &(ntx<=15)],"(9,15]", mardModValues, expressionLevel, expression_t)
             mardModValues <-calc_mard_mod(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >15],"(15,193]", mardModValues, expressionLevel, expression_t)
-            
-            
-            # maeValues <-calc_mae(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx <=1],"<=1", maeValues)
-            # maeValues <-calc_mae(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >1 &(ntx<=4)],"(1,4]", maeValues)
-            # maeValues <-calc_mae(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >4 &(ntx<=193)],"(4,193]", maeValues)
-            
+           
         }
         mardModValues <-calc_mard_mod(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide,"all", mardModValues, expressionLevel, expression_t)
         return(mardModValues)
@@ -452,11 +358,6 @@ pairwise_function <- function(v, vv, cellLineList, protocolVec, geneClusterList,
             rmseValues <-calc_rmse(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >9 &(ntx<=15)],"(9,15]", rmseValues, expressionLevel, expression_t)
             rmseValues <-calc_rmse(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >15],"(15,193]", rmseValues, expressionLevel, expression_t)
             
-            
-            # maeValues <-calc_mae(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx <=1],"<=1", maeValues)
-            # maeValues <-calc_mae(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >1 &(ntx<=4)],"(1,4]", maeValues)
-            # maeValues <-calc_mae(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >4 &(ntx<=193)],"(4,193]", maeValues)
-            
         }
         rmseValues <-calc_rmse(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide,"all", rmseValues, expressionLevel, expression_t)
         return(rmseValues)
@@ -473,24 +374,14 @@ get_corValues1 <- function(dd, corValues, nameMat, typeName = "majorBoth", cellL
     setnames(corData, c(1:2), c("V1","V2"))
     expressed <- which(apply(corData>expression_t,1,any)) # expressed in both
     log2CorData <- log2(corData+1)
-    # log2Diff <- apply(log2CorData,1,diff, na.rm = TRUE)
-    # dVec <- abs(log2Diff)
-    # rd <- dVec/apply(log2CorData,1,mean, na.rm = TRUE)
-    # dRankVec <- abs(rank(log2CorData$V1)-rank(log2CorData$V2))
-    # diagDist <- dVec/sqrt(2)
+    
     r2 <- summary(lm(V2~V1, data = log2CorData))$r.squared
-    # rmse <- sqrt(mean(log2Diff^2))
+    
     print(protocolV)
-    temp_corValues <- data.table(r_expressed = cor(log2CorData[expressed], method = "spearman")[1,2],#)[1,2]
-                                 r = cor(log2CorData, method = "spearman")[1,2], #)[1,2]
-                                 # d_mean = mean(dVec, na.rm = TRUE),
-                                 # d_sd = sd(dVec, na.rm = TRUE),
-                                 # d_zscore_mean = mean(dVec, na.rm = TRUE)/sd(dVec, na.rm = TRUE),
-                                 # d_coefvar = sd(dVec, na.rm = TRUE)/mean(dVec, na.rm = TRUE),
+    temp_corValues <- data.table(r_expressed = cor(log2CorData[expressed], method = "spearman")[1,2],
+                                 r = cor(log2CorData, method = "spearman")[1,2],
                                  r2 = r2,
-                                 # rmse = rmse,
                                  ne = length(expressed),
-                                 #bioRep = nameMat[x]$rep,
                                  match_status = nameMat[x]$rep_status,
                                  common_type = typeName,
                                  cellLine = paste(cellLineV, collapse = "_"),
@@ -517,33 +408,8 @@ get_corValues2 <- function(dd, corValues, nameMat, typeName = "majorBoth",cellLi
                                  cellLine = paste(cellLineV, collapse = "_"),
                                  agg_gene_cluster = geneCluster,
                                  protocol_comparison = paste(protocolV, collapse = " vs "))
-    # for( x in seq_len(nrow(nameMat))){
-    #     corData <- dd[,c(nameMat[x]$v1, nameMat[x]$v2),with = FALSE]
-    #     setnames(corData, c(1:2), c("V1","V2"))
-    #     expressed <- which(apply(corData>0,1,any)) # expressed in both
-    #     log2CorData <- log2(corData+1)
-    #     log2Diff <- apply(log2CorData,1,diff, na.rm = TRUE)
-    #     dVec <- abs(log2Diff)
-    #     # rd <- dVec/apply(log2CorData,1,mean, na.rm = TRUE)
-    #     # dRankVec <- abs(rank(log2CorData$V1)-rank(log2CorData$V2))
-    #     # diagDist <- dVec/sqrt(2)
-    #     r2 <- summary(lm(V2~V1, data = log2CorData))$r.squared
-    #     rmse <- sqrt(mean(log2Diff^2))
-    #     temp_corValues <- data.table(r_expressed = cor(log2CorData[expressed])[1,2],# method = "spearman")[1,2],
-    #                                  r = cor(log2CorData)[1,2],#, method = "spearman")[1,2],
-    #                                  d_mean = mean(dVec, na.rm = TRUE),
-    #                                  d_sd = sd(dVec, na.rm = TRUE),
-    #                                  d_zscore_mean = mean(dVec, na.rm = TRUE)/sd(dVec, na.rm = TRUE),
-    #                                  d_coefvar = sd(dVec, na.rm = TRUE)/mean(dVec, na.rm = TRUE),
-    #                                  r2 = r2,
-    #                                  rmse = rmse,
-    #                                  ne = length(expressed),
-    #                                  #bioRep = nameMat[x]$rep,
-    #                                  match_status = nameMat[x]$rep_status,
-    #                                  common_type = typeName,
-    #                                  n = nrow(dd))
+   
         corValues <- do.call("rbind", list(corValues, temp_corValues))
-    # }
     return(corValues)
 }
 
@@ -557,36 +423,30 @@ pairwise_scatterplot_function <- function(v, vv, cellLineList, protocolVec, gene
     protocolV <- protocolVec[combMat[,p]]
     geneCluster <- geneClusterList[[g]]
     print(paste(p,v))
-    #print(paste(paste(cellLineV, collapse = " "), paste(protocolV, collapse = " "), collapse = ","))
+    
     tmp <- filtered_rl_data[(cellLine %in% cellLineV)&(protocol_general %in% protocolV)&(gene_cluster %in% geneCluster)]
     if(gene){
         tmp_wide <- dcast(tmp, gene_name ~ runname, value.var = "normEst")
     }else{
         tmp_wide <- dcast(tmp, tx_name + ntx + gene_name ~ runname, value.var = "normEst")
         if(majorMinor){
-            #dominantTypeData <- majorMinor_generic(tmp)
+            
             tmp_wide <- unique(dominant_typeData[,.(tx_name, gene_name,majorBoth, majorEither, majorEitherOnly,
                                                    majorSecBoth,majorFirstSecBoth, majorLongRead, majorShortRead
             )])[tmp_wide, on = "tx_name"]
         }
     }
     tmp_wide[is.na(tmp_wide)] <- 0
-    ## pairwise correlation is calculated for transcripts being expressed in 
-    ## either sample
-    #combMat <- combn(seq_len(ncol(tmp_wide))[-1], 2)
+    
     nameMat <- CJ(v1 = colnames(tmp_wide)[grep(paste0("_",protocolV[1]),colnames(tmp_wide))],
                   v2 = colnames(tmp_wide)[grep(paste0("_",protocolV[2]),colnames(tmp_wide))])
     nameMat[, rep_status := (samples[runname == v1]$bioRep ==  samples[runname == v2]$bioRep), by = list(v1,v2)]
     nameMat[, rep := samples[runname == v1]$bioRep, by = v1]
     
-    #nameMat <- nameMat[which(rep_status)]
     if(t>7){ # remove exactly same pair
         nameMat[, cellline_status := (samples[runname == v1]$cellLine ==  samples[runname == v2]$cellLine), by = list(v1,v2)]
         nameMat <- nameMat[which(!cellline_status)]
     }
-    
-    
-    
     
     if(majorMinor){
         plot_scatter(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[majorBoth == TRUE],"majorBoth")
@@ -606,8 +466,6 @@ pairwise_scatterplot_function <- function(v, vv, cellLineList, protocolVec, gene
         plot_scatter(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide[ntx >15],"(15,193]")
     }
     plot_scatter(t,g,nameMat,cellLineList,protocolV, geneClusterList,tmp_wide,"")
-    # return(pList)
-    
 }
 
 
@@ -627,51 +485,29 @@ plot_scatter <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd,
         varnames <- colnames(corData)
         setnames(corData, c(1:2), c("V1","V2"))
         expressed <- which(apply(corData,1,sum)>0)
-        # if(majorMinor){
-        #     p_scatter <- ggplot(data = corData, aes(x = log2(V1+1), y = log2(V2+1)))+
-        #         # xlim(0,1)+
-        #         # ylim(0,1)+
-        #         # expand_limits(x = c(0,1), y = c(0,1))+
-        #         xlab(varnames[1])+
-        #         ylab(varnames[2])+
-        #         geom_hex(aes(fill = stat(count)),
-        #                  binwidth = 0.01) +
-        #         scale_fill_gradient(name = 'count', low = "grey", high = "black")+
-        #         #labels = c('0', '1', '2', '3','4+')
-        #         #)+
-        #         stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+
-        #         #facet_wrap(~common_type)+
-        #         ggtitle(pNames[x])+
-        #         theme_classic()
-        # }else{
+        
             p_scatter <- ggplot(data = corData, aes(x = log2(V1+1), y = log2(V2+1)))+
-                # xlim(0,1)+
-                # ylim(0,1)+
-                # expand_limits(x = c(0,1), y = c(0,1))+
+               
                 xlab(varnames[1])+
                 ylab(varnames[2])+
                 geom_hex(aes(fill = stat(count)),
                          binwidth = 0.25) +
                 scale_fill_gradient(name = 'count', low = "grey", high = "black")+
-                #labels = c('0', '1', '2', '3','4+')
-                #)+
+               
                 stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+
                 ggtitle(pNames[x])+
-                # facet_wrap(~common_type)+
+               
                 theme_classic()
-        # }
         pList[[x]] <- p_scatter
     }
     
     names(pList) <- pNames
-    saveplot.dir <- "/mnt/projects/SGNExManuscript/output/replicate_plot_complexity/" 
+    saveplot.dir <- "replicate_plot_complexity/" 
     if(!dir.exists(saveplot.dir)) dir.create(saveplot.dir)
     png(paste0(saveplot.dir,pNamesOverall,".png"), width = 10, height = ceiling(length(pList)/4)*2, units = "in", res = 300)
     do.call("grid.arrange", c(pList, ncol=4))
     dev.off()
 }
-
-
 
 # this is essentially the same as the one used in salmon: median(log2(estimated/truth))
 calc_mae <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, post_fix, maeValues, expressionLevel, expression_t){
@@ -696,8 +532,7 @@ calc_mae <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, pos
     temp_maeValues[, `:=`(
         cellLine = c(cellLineList[[8]],"all")[t],
         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-        # match_status = nameMat$rep_status,
-        common_type = post_fix,
+         common_type = post_fix,
         protocol_comparison = paste(protocolV, collapse = " vs "))
     ]
     
@@ -712,7 +547,6 @@ calc_rmse <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, po
         corData <- dd[,c(nameMat[x]$v1, nameMat[x]$v2),with = FALSE]
         varnames <- colnames(corData)
         setnames(corData, c(1:2), c("V1","V2"))
-        # expressed <- which(apply(corData,1,sum)>0)
         diffMat[(corData$V1+corData$V2)>0,x] = (log2(corData[(corData$V1+corData$V2)>0]$V1+1)-log2(corData[(corData$V1+corData$V2)>0]$V2+1))^2
         
     }
@@ -728,7 +562,6 @@ calc_rmse <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, po
     temp_maeValues[, `:=`(
         cellLine = c(cellLineList[[8]],"all")[t],
         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-        # match_status = nameMat$rep_status,
         common_type = post_fix,
         protocol_comparison = paste(protocolV, collapse = " vs "))
     ]
@@ -764,7 +597,6 @@ calc_mard <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, po
     temp_maeValues[, `:=`(
         cellLine = c(cellLineList[[8]],"all")[t],
         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-        # match_status = nameMat$rep_status,
         common_type = post_fix,
         protocol_comparison = paste(protocolV, collapse = " vs "))
     ]
@@ -800,13 +632,9 @@ calc_mard_mod <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd
     temp_maeValues[, `:=`(
         cellLine = c(cellLineList[[8]],"all")[t],
         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-        # match_status = nameMat$rep_status,
         common_type = post_fix,
         protocol_comparison = paste(protocolV, collapse = " vs "))
     ]
-    
-    
-    
     maeValues <- do.call("rbind", list(maeValues, temp_maeValues))
     return(maeValues)
 }
@@ -820,12 +648,8 @@ calc_mard_ave <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd
         corData <- dd[,c(nameMat[x]$v1, nameMat[x]$v2),with = FALSE]
         varnames <- colnames(corData)
         setnames(corData, c(1:2), c("V1","V2"))
-        # expressed <- which(apply(corData,1,sum)>0)
         diffMat[(corData$V1+corData$V2)>0,x] = abs(corData[(corData$V1+corData$V2)>0]$V1-corData[(corData$V1+corData$V2)>0]$V2)/(corData[(corData$V1+corData$V2)>0]$V1+corData[(corData$V1+corData$V2)>0]$V2)
-        
     }
-    
-    #
     if("tx_name" %in% colnames(dd)){
         temp_maeValues <- dd[,.(tx_name, gene_name, ntx)]
     }else{
@@ -848,7 +672,6 @@ calc_mard_ave <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd
     temp_maeValues[, `:=`(
         cellLine = c(cellLineList[[8]],"all")[t],
         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-        # match_status = nameMat$rep_status,
         common_type = post_fix,
         protocol_comparison = paste(protocolV, collapse = " vs "))
     ]
@@ -856,30 +679,6 @@ calc_mard_ave <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd
     maeValues <- do.call("rbind", list(maeValues, temp_maeValues))
     return(maeValues)
 }
-
-# rd_mean = mean(rd, na.rm = TRUE),
-# rd_sd = sd(rd, na.rm = TRUE),
-# rd_zscore_mean = mean(rd, na.rm = TRUE)/sd(rd, na.rm = TRUE),
-# rd_coefvar = sd(rd, na.rm = TRUE)/mean(rd, na.rm = TRUE),
-# diagDist_mean = mean(diagDist, na.rm = TRUE),
-# diagDist_sd = sd(diagDist, na.rm = TRUE),
-# diagDist_zscore_mean = mean(diagDist, na.rm = TRUE)/sd(diagDist, na.rm = TRUE),
-# diagDist_coefvar = sd(diagDist, na.rm = TRUE)/mean(diagDist, na.rm = TRUE),
-# dRank_mean = mean(dRankVec, na.rm = TRUE),
-# dRank_median = median(dRankVec, na.rm = TRUE),
-
-
-# rd_mean = corValues$rd_mean,
-# rd_sd = corValues$rd_sd,
-# rd_zscore_mean = corValues$rd_zscore_mean,
-# rd_coefvar = corValues$rd_coefvar,
-# diagDist_mean = corValues$diagDist_mean,
-# diagDist_sd = corValues$diagDist_sd,
-# diagDist_zscore_mean = corValues$diagDist_zscore_mean,
-# diagDist_coefvar = corValues$diagDist_coefvar,
-# dRank_mean = corValues$dRank_mean,
-# dRank_median = corValues$dRank_median,
-
 
 # add isoform rank for gene and transcript expression
 # it should be a combined dataset
@@ -905,10 +704,7 @@ identifyMajorMinorIsoforms <- function(rl_data){#com_data
     rl_data_tx_ave[, isoform_rank:=rank(-tpm, ties.method = "random"), 
         by = list(cellLine,short_read,gene_name)]
     rl_data_tx_ave[, geneExpressedInBoth := all(geneExpression>0), by = list(gene_name, cellLine)]
-    # dominant_typeData <- dcast(unique(rl_data_tx_ave[,
-    #     .(tx_name, gene_name, cellLine, isoform_rank, short_read, geneExpressedInBoth)]), 
-    #     tx_name + gene_name + cellLine + geneExpressedInBoth ~ short_read, value.var = "isoform_rank")
-    
+   
     rl_data_tx_ave[, majorBoth := all(isoform_rank==1)&(geneExpressedInBoth), by = list(tx_name, gene_name,cellLine)]
     rl_data_tx_ave[, majorEither := any(isoform_rank==1)&(geneExpressedInBoth), by = list(tx_name, gene_name,cellLine)]
     rl_data_tx_ave[, majorEitherOnly := (sum(isoform_rank==1)==1)&(geneExpressedInBoth), by = list(tx_name, gene_name,cellLine)]
@@ -918,8 +714,6 @@ identifyMajorMinorIsoforms <- function(rl_data){#com_data
     rl_data_tx_ave[, majorShortRead := any(short_read==TRUE&isoform_rank == 1)&(geneExpressedInBoth), by = list(tx_name, gene_name,cellLine)]
     return(rl_data_tx_ave)
 }
-
-#dominant_typeData <- identifyMajorMinorIsoforms(com_data, ensemblAnnotations.transcripts)
 
 majorMinor_generic <- function(rl_data){
     rl_data_tx_ave <- unique(rl_data[, list(tpm = mean(normEst)), by = list(protocol_general,gene_name, tx_name)])
@@ -935,10 +729,7 @@ majorMinor_generic <- function(rl_data){
     rl_data_tx_ave[, isoform_rank:=rank(-tpm, ties.method = "random"), 
                    by = list(protocol_general,gene_name)]
     rl_data_tx_ave[, geneExpressedInBoth := all(geneExpression>0), by = list(gene_name)]
-    # dominant_typeData <- dcast(unique(rl_data_tx_ave[,
-    #                                                  .(tx_name, gene_name, isoform_rank, protocol_general, geneExpressedInBoth)]), 
-    #                            tx_name + gene_name + geneExpressedInBoth ~ protocol_general, value.var = "isoform_rank")
-    # 
+   
     rl_data_tx_ave[, majorBoth := all(isoform_rank==1)&(geneExpressedInBoth), by = list(tx_name, gene_name)]
     rl_data_tx_ave[, majorEither := any(isoform_rank==1)&(geneExpressedInBoth), by = list(tx_name, gene_name)]
     rl_data_tx_ave[, majorEitherOnly := (sum(isoform_rank==1)==1)&(geneExpressedInBoth), by = list(tx_name, gene_name)]
@@ -949,74 +740,20 @@ majorMinor_generic <- function(rl_data){
 
 
 repeat_analysis_function <- function(seOutput, ervRanges, retrotransposonOnly = FALSE){
-    #seOutput <- readRDS("/mnt/data/spikeinSe/bambuOutput_LR_allSgNexSample.rds")
-   # take the alignment type out 
-    #com_data[, alignment_type := ifelse(grep("_uniAln",))]
+
     com_data <- process_seOutput(seOutput)
-    
-    # com_data_filter_fullLength <- com_data#[ntotal>400000]
     
     extendedAnnotationGRangesList <- rowRanges(seOutput)
     
     isoTEratio <- estimate_repeat_ratio(extendedAnnotationGRangesList,anno_exByTx,ervRanges, txLengths.tbldf, retrotransposonOnly = retrotransposonOnly)
     
-    # isoEst <- data.table(assays(seOutput)$counts, keep.rownames = TRUE)
-    # setnames(isoEst,"rn","tx_name")
-    # isoEst <- melt(isoEst, id.var = "tx_name", measure.vars = colnames(isoEst)[-1])
-    # isoEst[, runname:=gsub("HCT116","Hct116",gsub("(.genome_alignment.sorted)|(_R1.sorted)|(_sorted)","",
-    #                                               gsub("-pre|-Pre","",variable))), by = variable]
-    # isoEst[runname == "GIS_Hct116_cDNA_Rep2_Run4", runname:="GIS_Hct116_cDNA_Rep2_Run5"]
-    # 
-    # isoEst[,`:=`(estimates = sum(value)), by = list(tx_name,runname)]
-    # isoEst <- unique(isoEst[,.(tx_name, runname, estimates)])
-    # isoEst[, `:=`(ntotal = sum(estimates)), by = runname]
-    # 
-    # 
-    # cellLineVec <- c("A549","K562","MCF7","Hct116","HepG2","H9","HEYA8")
-    # all_samples <- gsub("_sorted|_R1.sorted","",colnames(seOutput))
-    # dt <- data.table(runname = all_samples)
-    # dt[, cellLine := ifelse(grepl("uniAln$",runname), "uni_aln_filter", 
-    #                         ifelse(grepl("priAln$",runname), "pri_uni_aln_filter", "no_filter")), by = runname]
-    # #dt[, cellLine:=gsub('k562','K562',strsplit(runname, '\\_')[[1]][2]),by = runname]
-    # dt[, protocol:=strsplit(runname, '\\_')[[1]][3], by = runname]
-    # dt[, cDNAstranded:=ifelse(protocol %in% c('cDNA','cDNAStranded'), protocol=='cDNAStranded',NA)]
-    # dt[, randomPrimer:=grepl('RandomPrimer',protocol)]
-    # dt[, protocol_type:=gsub('Stranded|RandomPrimer','',gsub('PromethionD','d', protocol))]
-    # dt[, repInfo:=strsplit(runname, '\\_')[[1]][4], by = runname]
-    # dt[grep("GIS_Hct116_directRNA_[1-9]|(GIS_Hct116_directcDNA_[1-9])|(GIS_Hct116_cDNA_[1-9])",runname), repInfo:=paste0("Rep1-Run",repInfo)]
-    # dt[, bioRep:=strsplit(repInfo, '\\-')[[1]][1], by = repInfo]
-    # 
-    # dt[, bioRep:=gsub('Rep','',bioRep)]
-    # dt[, techRep:=strsplit(repInfo, '\\-')[[1]][2], by = repInfo]
-    # dt[is.na(techRep), techRep:=1]
-    # dt[, techRep:=gsub('Run','',techRep)]
-    # dt[, patient_derived:=(!(cellLine %in% cellLineVec))]
-    # 
-    # cellLines <- unique(dt$cellLine)
-    # 
-    # isoEst_filter <- isoEst#[ntotal>400000]
-    # isoEst_filter[, normEstimates:=(estimates/ntotal*10^6), by = runname]
-    # 
-    # # tmp <- isoEst_filter[,.I[which(any(normEstimates>20))], by = tx_name]
-    # # plot_tmp <- unique(isoTEratio[!(grepl("tx.",tx_name)&(anno_status=="annotated"))][tx_name %in% tmp$tx_name][,.(tx_name, repRatio_corrected,anno_status, newTxClassAggregated)])
-    # # 
-    # isoEst_filter <- dt[isoEst_filter, on = "runname"]
-    # isoEst_filter_wide <-  dcast(isoEst_filter[cellLine %in% cellLines], tx_name ~ runname, value.var = "normEstimates")
-    # 
-    # isoTEratio[, repRatioByRepClass:=sum(averageRepRatio), by = list(tx_name, rep_class,strand)]
-    # 
-    # isoTEratio_agg <- unique(isoTEratio[!(grepl("tx.",tx_name)&(anno_status=="annotated"))][tx_name %in% tmp$tx_name,.(repRatioByRepClass, tx_name, rep_class, strand, anno_status, repRatioIso_all, gene_name)])
-    # 
-    #return(list(isoTEratio, isoTEratio_agg, isoEst_filter_wide))
     return(list(com_data, isoTEratio))
 }
 
 
 process_seOutput <- function(seOutput){
     tmp <- data.table(as.data.frame(rowData(seOutput)))
-    #tmp[!grepl("unspliced",txClassDescription)&(grepl("new",txClassDescription))]
-    
-    
+   
     fullLengthCounts <- as.data.table(assays(seOutput)$fullLengthCounts, keep.rownames = TRUE)
     totalCounts <- as.data.table(assays(seOutput)$counts, keep.rownames = TRUE)
     uniqueCounts <- as.data.table(assays(seOutput)$uniqueCounts, keep.rownames = TRUE)
@@ -1049,25 +786,14 @@ process_seOutput <- function(seOutput){
                        totalCounts = sum(totalCounts)), by = list(runname, tx_name)]
     genomeem_lr <- unique(genomeem_lr[,.(tx_name, fullLengthCounts,uniqueCounts, totalCounts, runname)])
     genomeem_lr[, ntotal:=sum(totalCounts), by = runname]
-    
-    # incompatibleDt[, runname:=gsub("HCT116","Hct116",gsub("(.genome_alignment.sorted)|(_R1.sorted)|(_sorted)","",gsub("-pre|-Pre","",runname))), by = runname]
-    # incompatibleDt[runname == "GIS_Hct116_cDNA_Rep2_Run4", runname:="GIS_Hct116_cDNA_Rep2_Run5"]
-    # incompatibleDt[, incompatibleCounts:=sum(incompatibleCounts), by = runname]
-    # incompatibleDt <- unique(incompatibleDt, by = NULL)
-    # totalDt <- unique(genomeem_lr[,.(runname, ntotal)], by = NULL)
-    # totalDt <- incompatibleDt[totalDt, on = "runname"]
-    # totalDt[, ntotal := ntotal+incompatibleCounts]
-    # genomeem_lr[, ntotal := NULL]
-    # genomeem_lr <- totalDt[genomeem_lr, on = "runname"]
-    
+  
     genomeem_lr <- geneTxTable[genomeem_lr, on = "tx_name"]
     genomeem_lr[, method := "genomeem_lr"]
     
-    #genomeem_lr <- genomeem_lr[runname %in% sampleNames]
     
     merge.colnames <- c('tx_name','gene_name','fullLengthCounts','uniqueCounts','totalCounts','runname','method','ntotal')
     com_data <- genomeem_lr[, merge.colnames, with =FALSE]
-    #salmon_sr[, merge.colnames, with =FALSE])
+ 
     
     com_data[, runname := as.character(runname)]
     com_data[, protocol:=unlist(strsplit(runname, 
@@ -1077,7 +803,6 @@ process_seOutput <- function(seOutput){
     com_data[, protocol_method:=paste0(protocol_general,'.',method)]
     com_data[, short_read:=as.numeric(protocol_general == 'Illumina')]
     com_data[, runname_method:=paste0(runname,'.',method)]
-    #com_data[, cellLine := gsub('k562','K562',unlist(strsplit(runname,'_'))[2]), by = runname]
     com_data[, cellLine := ifelse(grepl("uniAln$",runname), "uni_aln_filter", 
                                   ifelse(grepl("priAln$",runname), "pri_uni_aln_filter", "no_filter")), by = runname]
     return(com_data)
@@ -1093,8 +818,7 @@ estimate_repeat_ratio <- function(extendedAnnotationGRangesList,anno_exByTx, erv
     geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, nisoform)]
     setnames(geneTxTable, 'gene_id', 'gene_name')
     geneTxTable_extended <- geneTxTable[geneTxTable_extended, on = c("gene_name","tx_name")]
-    #if(grepl("newTxClass", colnames(geneTxTable_extended))){
-        if(any(grepl("txClassDescription", colnames(geneTxTable_extended)))){
+    if(any(grepl("txClassDescription", colnames(geneTxTable_extended)))){
         geneTxTable_extended[, newTxClassAggregated:=ifelse(grepl("newFirstExon",txClassDescription)&(grepl("newLastExon",txClassDescription)),"newFirstLastExon",
                                                             ifelse(grepl("newFirstExon",txClassDescription), "newFirstExon",
                                                                    ifelse(grepl("newLastExon",txClassDescription), "newLastExon",
@@ -1115,8 +839,6 @@ estimate_repeat_ratio <- function(extendedAnnotationGRangesList,anno_exByTx, erv
     }
     # 95.4 and 4.6 this will remove about 4.6% of new transcripts
     
-    
-    
     exons_granges <- unlist(extendedAnnotationGRangesList)
     anno_exons <- unlist(anno_exByTx)
     ov <- findOverlaps(exons_granges, anno_exons, type = "any")
@@ -1126,34 +848,24 @@ estimate_repeat_ratio <- function(extendedAnnotationGRangesList,anno_exByTx, erv
     seqlevelsStyle(ervRanges) <- 'NCBI'
     ## reduce granges by repeat class 
     grl <- split(ervRanges, ervRanges$repClass)
-    # all(names(grl) == sort(unique(gr$hgnc))
     
     # reduce each element (independently reduce ranges for each gene)
     grl_redux <- reduce(grl) # element-wise, like lapply(grl, reduce) 
-    # all(names(grl_redux) == names(grl)) & all(lengths(grl_redux) <= lengths(grl))
     
     # return single GRanges, with rownames derived from hgnc
     ervRangesReduceByRepClass <- unlist(grl_redux)
     ervRangesReduceByRepClass$repClass <- names(ervRangesReduceByRepClass)
     
-    #ov <- compute_overlap(exons_granges, ervRanges,ignore.strand, by_rep_type = TRUE)
     if(retrotransposonOnly){
         ervRangesReduceByRepClass <- ervRangesReduceByRepClass[grep("LINE|SINE|LTR",ervRangesReduceByRepClass$repClass)]
     }
     
     ovByRepClass <- compute_overlap(exons_granges, ervRangesReduceByRepClass,ignore.strand, by_rep_type = TRUE)
     
-    # isoTEratio_all <- unique(ov[, list(averageRepRatio_byisoform = sum(repRatio_all),
-    #                                                              #averageRepRatio = sum(repRatio)/nAnnotatedExon,
-    #                                                              # strand = strand,
-    #                                                              rep_class = rep_class), by = list(txId, rep_name)])
-    ## by rep class 
     isoTEratio_all_byrepclass <- unique(ovByRepClass[, list(repRatio_byisoform = sum(repRatio_all)), by = list(txId, rep_class)])
     isoTEratio_byrepclass <- unique(ovByRepClass[, list(repRatio = sum(repRatio)), by = list(txId, rep_class, anno_status)])
     isoTEratio_byrepclass <-isoTEratio_all_byrepclass[isoTEratio_byrepclass, on = c("txId","rep_class")]
-    # isoTEratio_anno[, repRatioIso_all := sum(averageRepRatio), by = txId] # sum by repeat name 
-    # isoTEratio_novel[, repRatioIso_all := sum(averageRepRatio), by = txId]# sum by repeat name
-    # 
+   
     ### by all repeat together 
     reducedErvRanges <- reduce(ervRanges)
     ovOverall <- compute_overlap(exons_granges, reducedErvRanges,ignore.strand, by_rep_type = FALSE)
@@ -1170,7 +882,7 @@ estimate_repeat_ratio <- function(extendedAnnotationGRangesList,anno_exByTx, erv
 }
 
 gffcompare_function <- function(ref.gtf,query.gtf){
-    system(paste0("/mnt/projects/gffcompare/gffcompare -TNRQS -e 15 -d 15 -o gffCompare ", 
+    system(paste0("gffcompare -TNRQS -e 15 -d 15 -o gffCompare ", 
                   query.gtf, " -r ", ref.gtf),ignore.stderr = TRUE)
     queryTx <- read.delim(paste0("./gffCompare.combined.gtf"),header=FALSE,comment.char='#')
     colnames(queryTx) <- c("seqname","source","type","start","end","score","strand","frame","attribute")
@@ -1195,7 +907,6 @@ compute_overlap <- function(exons_granges, tmpErvRanges,ignore.strand, by_rep_ty
     hitIntersect <- pintersect(p, ignore.strand = ignore.strand)
     rm(p)
     gc()
-    
     
     overlapWidth <- width(hitIntersect)
     rm(hitIntersect)
@@ -1223,15 +934,7 @@ compute_overlap <- function(exons_granges, tmpErvRanges,ignore.strand, by_rep_ty
     if(by_rep_type){
         ov <- data.table(txId = names(exons_granges)[qHits], ## overlapping with repeats at least
                          exon_rank = exons_granges[qHits]$exon_rank,
-                         # anno_status = exons_granges[qHits]$anno_status,
-                         # nNovelExon = exons_granges[qHits]$nnovel,
-                         # nAnnotatedExon = exons_granges[qHits]$nannotated,
-                         #rep_id = names(ervRanges)[sHits],
-                         # strand = as.character(strand(ervRanges[sHits])),
-                         #rep_name = ervRanges[sHits]$repName,
                          rep_class = tmpErvRanges[sHits]$repClass,
-                         #rep_family = ervRanges[sHits]$repFamily,
-                         # exon_width = width(exons_granges)[qHits],
                          rep_width = width(tmpErvRanges)[sHits],
                          ov_width = overlapWidth)
         
@@ -1243,10 +946,6 @@ compute_overlap <- function(exons_granges, tmpErvRanges,ignore.strand, by_rep_ty
     }else{
         ov <- data.table(txId = names(exons_granges)[qHits], ## overlapping with repeats at least
                          exon_rank = exons_granges[qHits]$exon_rank,
-                         # anno_status = exons_granges[qHits]$anno_status,
-                         # nNovelExon = exons_granges[qHits]$nnovel,
-                         # nAnnotatedExon = exons_granges[qHits]$nannotated,
-                         # exon_width = width(exons_granges)[qHits],
                          rep_width = width(tmpErvRanges)[sHits],
                          ov_width = overlapWidth)
         txDt <- txDt[txId %in% unique(ov$txId)]
@@ -1266,16 +965,6 @@ process_salmonOutput <- function(filePaths, txLengths){
     x <- 1
     
     salmon_sr <- do.call('rbind',lapply(filePaths,function(filePath){
-        # print(k)
-        # if(grepl("H9|HEYA8",k)){ #v what's the difference between old and new ones?
-        #     filePath <- sort(dir(paste0('/mnt/projects/SGNExManuscript/output/sr/02_Mapping/',k,'/transcripts_quant'),pattern = 'quant.sf', recursive = TRUE, full.names = TRUE),decreasing = TRUE)[1]
-        # }else{
-        #     filePath <- sort(dir(paste0('/mnt/projects/SGNExManuscript/output/sr_new/02_Mapping_matchedToGTF/',k,'/transcripts_quant_biasCorrected'),pattern = 'quant.sf', recursive = TRUE, full.names = TRUE),decreasing = TRUE)[1]
-        # }
-        # 
-        # if(length(filePath)==0){
-        #     return(NULL)
-        # }
         print(filePath)
         txi <- tximport(filePath, type = "salmon", tx2gene = tx2gene, ignoreTxVersion = TRUE, txOut = as.logical(x)) # requires 'rjson'
         names(txi)
@@ -1285,13 +974,12 @@ process_salmonOutput <- function(filePaths, txLengths){
                                  counts = txi$counts[,1],
                                  length = txi$length[,1],
                                  countsFromAbundance = txi$countsFromAbundance)
-        # short_read <- fread(filePath, header = TRUE)
         short_read[, runname:=basename(gsub("\\/transcripts_quant","",dirname(filePath)))]
         return(short_read)
     }))
     salmon_sr[, ntotal:=sum(counts), by = runname]
     setnames(salmon_sr, 'abundance','estimates')
-    salmon_sr[, `:=`(#counts = NULL,
+    salmon_sr[, `:=`(
         length = NULL,
         countsFromAbundance = NULL)]
     salmon_sr[, TPM:=estimates]
@@ -1300,476 +988,3 @@ process_salmonOutput <- function(filePaths, txLengths){
 }
 
 
-# trim_lr_150bp <- 
-#     corData <- lapply(cellLines, function(s){
-#         corData <- do.call("rbind",lapply(protocolVec[1:3], function(k){
-#             plotdata <- dcast(rl_data_tx_ave[cellLine == s &(protocol_general %in% c(k, "Illumina"))], tx_name + gene_biotype ~ protocol_general, value.var = "tpm_log")
-#             mat <- as.matrix(plotdata[gene_biotype %in% pro_types][,c(3,4), with = FALSE])
-#             mat[is.na(mat)] <- 0 
-#             return(data.table(cellLine = s,
-#                               protocol = k, 
-#                               r = cor(mat[,1], mat[,2],method = "spearman")))
-#         }))
-#         return(corData)
-#     })
-# corData <- do.call("rbind",corData)
-# 
-# # instead of by protocol, should be long read vs short read 
-# isoform_types <- c("major","either","major_complimentary","all")
-# txCor <- do.call("rbind",lapply(seq_len(ncol(protocol_combinations)), function(k){
-#     pv <- protocolVec[protocol_combinations[,k]]
-#     dominant_typeData <- dcast(unique(rl_data_tx_ave[protocol_general %in% pv,.(tx_name, gene_name, cellLine, isoform_rank, protocol_general)]), tx_name + gene_name + cellLine ~ protocol_general, value.var = "isoform_rank")
-#     
-#     rl_data_tx_ave_pv <- dominant_typeData[rl_data_tx_ave, on = c("tx_name","gene_name","cellLine")]
-#     
-#     txCor <- do.call("rbind",lapply(cellLines, function(s){
-#         print(k)
-#         print(s)
-#         
-#         tt <- copy(rl_data_tx_ave_pv[cellLine == s &(gene_biotype %in% pro_types)&(protocol_general %in% pv)&(geneExpression>0)])
-#         setnames(tt, pv, c("protocol1","protocol2"))
-#         
-#         txCor <- do.call("rbind",lapply(1:4, function(l){
-#             if(l==1){
-#                 plotdata <- dcast(tt[((protocol1 == 1)&(protocol2 == 1))], gene_name + tx_name + gene_biotype ~ protocol_general, value.var = "tpm")
-#                 
-#             }
-#             if(l == 3){
-#                 plotdata <- dcast(tt[!((protocol1 <= 1)&(protocol2 <= 1))], gene_name + tx_name + gene_biotype ~ protocol_general, value.var = "tpm")
-#             }
-#             if(l == 2){
-#                 plotdata <- dcast(tt[((protocol1 == 1)|(protocol2 == 1))], gene_name + tx_name + gene_biotype ~ protocol_general, value.var = "tpm")
-#             }
-#             if(l == 4){
-#                 plotdata <- dcast(tt, gene_name + tx_name + gene_biotype ~ protocol_general, value.var = "tpm")
-#             }
-#             setnames(plotdata, pv, c("protocol1","protocol2"))
-#             mat <- as.matrix(plotdata[,c("protocol1","protocol2"), with = FALSE])
-#             mat[is.na(mat)] <- 0 
-#             return(data.table(cellLine = s,
-#                               protocol_comparison = paste(gsub("Illumina","Illu",gsub("direct","d",pv)), collapse = " vs "),
-#                               n_isoform = nrow(mat),
-#                               isoform_type = isoform_types[l],
-#                               r = cor(mat[,1], mat[,2],method = "spearman")))
-#             
-#         }))
-#         return(txCor)
-#     }))
-#     return(txCor)
-# }))
-# 
-# noprint <- lapply(1:4, function(l){
-#     breaks_set <- list(c(0.85,0.9,0.95),
-#                        c(0.65,0.75,0.85,0.95),
-#                        c(0.4,0.6,0.8),
-#                        c(0.4,0.6,0.8))[[l]]
-#     breaks_limit <- list(c(0.85,0.95),
-#                          c(0.65,0.95),
-#                          c(0.4,0.8),
-#                          c(0.4,0.81))[[l]]
-#     iso_type <- isoform_types[l]
-#     p <- ggplot(txCor[isoform_type == iso_type], aes(x = protocol_comparison, y = r))+
-#         geom_boxplot(outlier.shape = NA)+
-#         geom_jitter(aes(col = cellLine), size = 2, pch = 1)+
-#         scale_y_continuous(breaks = breaks_set, limits = breaks_limit)+
-#         scale_x_discrete(limits =  unique(corDataGene$protocol_comparison)[c(1,2,4,3,5,6)])+
-#         xlab("")+
-#         coord_flip()+
-#         scale_color_brewer(type = "qual", palette = 3)+
-#         ylab("Spearman correlation of transcript expression estimates")+
-#         ggtitle(iso_type)+
-#         theme_classic()
-#     pdf(paste0("figures/tx_correlation_boxplot_celllineprotocol_comparison_",iso_type,".pdf"), width = 8, height = 6)
-#     print(p)
-#     dev.off()
-# })
-# 
-# 
-# 
-# 
-# saveRDS(corData, file = paste0("output/LRvsSR_correlationData_tx.rds"))
-# 
-# corData_gene <- readRDS(paste0("output/LRvsSR_correlationData_gene.rds"))
-# corData_tx <- readRDS(paste0("output/LRvsSR_correlationData_tx.rds"))
-# 
-# corData_gene[, feature := "gene"]
-# corData_tx[, feature := "tx"]
-# 
-# corData <- do.call("rbind", list(corData_gene, corData_tx))
-# 
-# protocolCol <- adjustcolor(brewer.pal(8,"Dark2")[1:4],0.7)
-# protocolVec <-  c("directRNA","directcDNA","cDNA","Illumina")
-# protocolLabel <- c("RNA","PCR-free cDNA","cDNA","Illumina")
-# 
-# p <- ggplot(corData, aes(x = feature, y = r))+
-#     geom_boxplot(aes(col = feature))+
-#     geom_jitter(aes(col = feature),position=position_jitter(0.2), size = 2)+
-#     ylab("Spearman correlation")+
-#     xlab("Feature type")+
-#     scale_color_brewer(type = "qual", guide = "none")+
-#     theme_classic()
-# 
-# pdf(paste0("figures/cor_plot.pdf"), width = 4, height = 3)
-# print(p)
-# dev.off()
-# 
-# pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
-# 
-# plotdata <- dcast(rl_data_tx_ave[cellLine == "A549"&(gene_biotype %in% pro_types) &(protocol_general %in% c("directcDNA", "Illumina"))], gene_name + tx_name + gene_biotype ~ protocol_general, value.var = "tpm")
-# 
-# p1 <- ggplot(plotdata, aes(x=log2(Illumina+1), y=log2(directcDNA+1)))+
-#     geom_hex(aes(fill = stat(cut(log(count), breaks = log(c(1, 10, 100, 1000,10000,Inf)), labels = F, right = T, include.lowest = T))), binwidth = 0.1) +
-#     scale_fill_gradient(name = 'count(log10)', low = "light blue", high = "steelblue", labels = c('0', '1', '2', '3','4+'))+
-#     xlab('Short read estimates (salmon)')+
-#     ylab('Long read estimates (Bambu)')+
-#     ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+
-#     theme_classic()
-# 
-# p1
-# pdf(paste0("figures/tx_level_1run_LRvsSR.pdf"), width = 8, height = 6)
-# print(p1)
-# dev.off()
-# 
-# 
-# protocol_types <- c("directcDNA", "Illumina")
-# dominant_typeData <- dcast(unique(rl_data_tx_ave[protocol_general %in% protocol_types,.(tx_name, gene_name, cellLine, isoform_rank, protocol_general)]), tx_name + gene_name + cellLine ~ protocol_general, value.var = "isoform_rank")
-# 
-# rl_data_tx_ave <- dominant_typeData[rl_data_tx_ave, on = c("tx_name","gene_name","cellLine")]
-# saveRDS(rl_data_tx_ave, file = "output/rl_data_tx_ave.rds")
-# pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
-# #[gene_biotype %in% c("protein_coding")]
-# #cellLineRepVec <- unique(rl_data$cellLineRep)
-# plotdata_major <- dcast(rl_data_tx_ave[cellLine == "A549" &(gene_biotype %in% pro_types)&(protocol_general %in% protocol_types)&((directcDNA == 1)&(Illumina == 1))&(geneExpression>0)], gene_name + tx_name + gene_biotype ~ protocol_general, value.var = "tpm")
-# plotdata_major[is.na(Illumina), Illumina := 0]
-# plotdata_major[is.na(directcDNA), directcDNA := 0]
-# 
-# plotdata_others <- dcast(rl_data_tx_ave[cellLine == "A549" &(gene_biotype %in% pro_types)&(protocol_general %in% protocol_types)&!((directcDNA <= 1)&(Illumina <= 1))&(geneExpression>0)], gene_name + tx_name + gene_biotype ~ protocol_general, value.var = "tpm")
-# plotdata_others[is.na(Illumina), Illumina := 0]
-# plotdata_others[is.na(directcDNA), directcDNA := 0]
-# 
-# plotdata_either <- dcast(rl_data_tx_ave[cellLine == "A549" &(gene_biotype %in% pro_types)&(protocol_general %in% protocol_types)&((directcDNA == 1)|(Illumina == 1))&(geneExpression>0)], gene_name + tx_name + gene_biotype ~ protocol_general, value.var = "tpm")
-# plotdata_either[is.na(Illumina), Illumina := 0]
-# plotdata_either[is.na(directcDNA), directcDNA := 0]
-# 
-# p1 <- ggplot(plotdata_major, aes(y=log2(directcDNA+1), x=log2(Illumina+1)))+
-#     geom_hex(
-#         aes(fill =
-#                 #stat(count)),
-#                 stat(cut(log(count), breaks = log(c(1, 10, 100, 1000,10000,Inf)), labels = F, right = T, include.lowest = T))),
-#         binwidth = 0.1) +
-#     scale_fill_gradient(name = 'count(log10)', low = "light blue", high = "steelblue",#)+
-#                         labels = c('0', '1', '2', '3','4+'))+#))+#,
-#     #labels = c('0', '1', '2', '3'))+
-#     xlab('Short read estimates (Salmon)')+
-#     ylab('Long read estimates (Bambu)')+
-#     ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+
-#     theme_classic()
-# p1
-# pdf(paste0("figures/tx_level_1run_LRvsSR_major.pdf"), width = 8, height = 6)
-# print(p1)
-# dev.off()
-# 
-# 
-# p1 <- ggplot(plotdata_others, aes(y=log2(directcDNA+1), x=log2(Illumina+1)))+
-#     geom_hex(
-#         aes(fill =
-#                 #stat(count)),
-#                 stat(cut(log(count), breaks = log(c(1, 10, 100, 1000,10000,Inf)), labels = F, right = T, include.lowest = T))),
-#         binwidth = 0.1) +
-#     scale_fill_gradient(name = 'count(log10)', low = "light blue", high = "steelblue",#)+
-#                         labels = c('0', '1', '2', '3','4+'))+#))+#,
-#     #labels = c('0', '1', '2', '3'))+
-#     xlab('Short read estimates (Salmon)')+
-#     ylab('Long read estimates (Bambu)')+
-#     ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+
-#     theme_classic()
-# p1
-# pdf(paste0("figures/tx_level_1run_LRvsSR_others.pdf"), width = 8, height = 6)
-# print(p1)
-# dev.off()
-
-
-## wrong calculattion:
-#metrics like mae, mard and rmse, should be per replicate pair instead of per transcript
-# this is essentially the same as the one used in salmon: median(log2(estimated/truth))
-# calc_mae <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, post_fix, maeValues, expressionLevel, expression_t){
-#     diffMat <- matrix(NA, nrow = nrow(dd), ncol = nrow(nameMat))
-#     for( x in seq_len(nrow(nameMat))){
-#         corData <- dd[,c(nameMat[x]$v1, nameMat[x]$v2),with = FALSE]
-#         varnames <- colnames(corData)
-#         setnames(corData, c(1:2), c("V1","V2"))
-#         # expressed <- which(apply(corData,1,sum)>0)
-#         diffMat[(corData$V1+corData$V2)>0,x] = abs(log2(corData[(corData$V1+corData$V2)>0]$V1+1)-log2(corData[(corData$V1+corData$V2)>0]$V2+1))
-#         
-#     }
-#     
-#     #
-#     if("tx_name" %in% colnames(dd)){
-#         temp_maeValues <- dd[,.(tx_name, gene_name, ntx)]
-#     }else{
-#         temp_maeValues <- dd[,.(gene_name)]
-#     }
-#     if(expressionLevel) temp_maeValues[, expressed := apply(corData>expression_t,1,sum)>0]
-#     temp_maeValues[,mae := apply(diffMat,1,mean,na.rm = TRUE)]
-#     temp_maeValues[,`:=`(match_mae = NA, non_match_mae = NA)]
-#     if(length(which(nameMat$rep_status))>1){
-#         temp_maeValues[,match_mae := apply(diffMat[, which(nameMat$rep_status)],1,mean,na.rm = TRUE)]
-#     }else if(length(which(nameMat$rep_status))==1){
-#         temp_maeValues[,match_mae := mean(diffMat[, which(nameMat$rep_status)],na.rm = TRUE)]
-#     }
-#     if(length(which(!nameMat$rep_status))>1){
-#         temp_maeValues[,non_match_mae := apply(diffMat[, which(!nameMat$rep_status)],1,mean,na.rm = TRUE)]
-#     }else if(length(which(!nameMat$rep_status))==1){
-#         temp_maeValues[,match_mae := mean(diffMat[, which(!nameMat$rep_status)],na.rm = TRUE)]
-#     }
-#     
-#     temp_maeValues[, `:=`(
-#         cellLine = c(cellLineList[[8]],"all")[t],
-#         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-#         # match_status = nameMat$rep_status,
-#         common_type = post_fix,
-#         protocol_comparison = paste(protocolV, collapse = " vs "))
-#     ]
-#     
-#     maeValues <- do.call("rbind", list(maeValues, temp_maeValues))
-#     return(maeValues)
-# }
-# 
-# calc_rmse <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, post_fix, maeValues, expressionLevel, expression_t){
-#     diffMat <- matrix(NA, nrow = nrow(dd), ncol = nrow(nameMat))
-#     for( x in seq_len(nrow(nameMat))){
-#         corData <- dd[,c(nameMat[x]$v1, nameMat[x]$v2),with = FALSE]
-#         varnames <- colnames(corData)
-#         setnames(corData, c(1:2), c("V1","V2"))
-#         # expressed <- which(apply(corData,1,sum)>0)
-#         diffMat[(corData$V1+corData$V2)>0,x] = (log2(corData[(corData$V1+corData$V2)>0]$V1+1)-log2(corData[(corData$V1+corData$V2)>0]$V2+1))^2
-#         
-#     }
-#     
-#     #
-#     if("tx_name" %in% colnames(dd)){
-#         temp_maeValues <- dd[,.(tx_name, gene_name, ntx)]
-#     }else{
-#         temp_maeValues <- dd[,.(gene_name)]
-#     }
-#     if(expressionLevel) temp_maeValues[, expressed := apply(corData>expression_t,1,sum)>0]
-#     temp_maeValues[,mae := apply(diffMat,1,mean,na.rm = TRUE)]
-#     temp_maeValues[,`:=`(match_mae = NA, non_match_mae = NA)]
-#     if(length(which(nameMat$rep_status))>1){
-#         temp_maeValues[,match_mae := apply(diffMat[, which(nameMat$rep_status)],1,function(x) sqrt(mean(x, na.rm = TRUE)))]
-#     }else if(length(which(nameMat$rep_status))==1){
-#         temp_maeValues[,match_mae := sqrt(mean(diffMat[, which(nameMat$rep_status)],na.rm = TRUE))]
-#     }
-#     if(length(which(!nameMat$rep_status))>1){
-#         temp_maeValues[,non_match_mae := apply(diffMat[, which(!nameMat$rep_status)],1,function(x) sqrt(mean(x, na.rm = TRUE)))]
-#     }else if(length(which(!nameMat$rep_status))==1){
-#         temp_maeValues[,match_mae := sqrt(mean(diffMat[, which(!nameMat$rep_status)],na.rm = TRUE))]
-#     }
-#     
-#     temp_maeValues[, `:=`(
-#         cellLine = c(cellLineList[[8]],"all")[t],
-#         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-#         # match_status = nameMat$rep_status,
-#         common_type = post_fix,
-#         protocol_comparison = paste(protocolV, collapse = " vs "))
-#     ]
-#     
-#     maeValues <- do.call("rbind", list(maeValues, temp_maeValues))
-#     return(maeValues)
-# }
-# # calc_mae2 <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, post_fix, maeValues, expressionLevel, expression_t){
-# #     diffMat <- matrix(NA, nrow = nrow(dd), ncol = nrow(nameMat))
-# #     for( x in seq_len(nrow(nameMat))){
-# #         corData <- dd[,c(nameMat[x]$v1, nameMat[x]$v2),with = FALSE]
-# #         varnames <- colnames(corData)
-# #         setnames(corData, c(1:2), c("V1","V2"))
-# #         # expressed <- which(apply(corData,1,sum)>0)
-# #         diffMat[(corData$V1+corData$V2)>0,x] = abs(log2(corData[(corData$V1+corData$V2)>0]$V1+1)-log2(corData[(corData$V1+corData$V2)>0]$V2+1))
-# #         
-# #     }
-# #     
-# #     #
-# #     if("tx_name" %in% colnames(dd)){
-# #         temp_maeValues <- dd[,.(tx_name, gene_name, ntx)]
-# #     }else{
-# #         temp_maeValues <- dd[,.(gene_name)]
-# #     }
-# #     if(expressionLevel) temp_maeValues[, expressed := apply(corData>expression_t,1,sum)>0]
-# #     temp_maeValues[,mae := apply(diffMat,1,mean,na.rm = TRUE)]
-# #     temp_maeValues[,`:=`(match_mae = NA, non_match_mae = NA)]
-# #     if(length(which(nameMat$rep_status))>1){
-# #         temp_maeValues[,match_mae := apply(diffMat[, which(nameMat$rep_status)],1,mean,na.rm = TRUE)]
-# #     }else if(length(which(nameMat$rep_status))==1){
-# #         temp_maeValues[,match_mae := mean(diffMat[, which(nameMat$rep_status)],na.rm = TRUE)]
-# #     }
-# #     if(length(which(!nameMat$rep_status))>1){
-# #         temp_maeValues[,non_match_mae := apply(diffMat[, which(!nameMat$rep_status)],1,mean,na.rm = TRUE)]
-# #     }else if(length(which(!nameMat$rep_status))==1){
-# #         temp_maeValues[,match_mae := mean(diffMat[, which(!nameMat$rep_status)],na.rm = TRUE)]
-# #     }
-# #     
-# #     temp_maeValues[, `:=`(
-# #         cellLine = c(cellLineList[[8]],"all")[t],
-# #         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-# #         # match_status = nameMat$rep_status,
-# #         common_type = post_fix,
-# #         protocol_comparison = paste(protocolV, collapse = " vs "))
-# #     ]
-# #     
-# #     maeValues <- do.call("rbind", list(maeValues, temp_maeValues))
-# #     return(maeValues)
-# # }
-# 
-# # mean absolute relative difference used by both salmon and kallisto: 2*abs(estimated-truth)/(estimated+truth)
-# calc_mard <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, post_fix, maeValues, expressionLevel, expression_t){
-#     diffMat <- matrix(NA, nrow = nrow(dd), ncol = nrow(nameMat))
-#     for( x in seq_len(nrow(nameMat))){
-#         corData <- dd[,c(nameMat[x]$v1, nameMat[x]$v2),with = FALSE]
-#         varnames <- colnames(corData)
-#         setnames(corData, c(1:2), c("V1","V2"))
-#         corData[, V1 := log2(V1+1)]
-#         corData[, V2 := log2(V2+1)]
-#         expressed <- which(apply(corData[,c("V1","V2"),with = TRUE],1,sum)>0)
-#         diffMat[expressed,x] = 2*abs(corData$V1-corData$V2)[expressed]/(corData$V1+corData$V2)[expressed]
-#         
-#     }
-#     
-#     #
-#     if("tx_name" %in% colnames(dd)){
-#         temp_maeValues <- dd[,.(tx_name, gene_name, ntx)]
-#     }else{
-#         temp_maeValues <- dd[,.(gene_name)]
-#     }
-#     if(!is.null(dim(diffMat))){
-#         if(expressionLevel) temp_maeValues[, expressed := apply(corData>expression_t,1,sum)>0]
-#         temp_maeValues[,mae := apply(diffMat,1,mean,na.rm = TRUE)]
-#     }else{
-#         if(expressionLevel) temp_maeValues[, expressed := sum(corData>expression_t)>0]
-#         temp_maeValues[,mae := mean(diffMat, na.rm = TRUE)]
-#     }
-#     
-#     temp_maeValues[,`:=`(match_mae = NA, non_match_mae = NA)]
-#     match_diffMat <- diffMat[, which(nameMat$rep_status)]
-#     if(!is.null(dim(match_diffMat))){
-#         temp_maeValues[,match_mae := apply(match_diffMat,1,mean,na.rm = TRUE)]
-#     }else if(is.null(dim(match_diffMat))&(!isEmpty(match_diffMat))){
-#         temp_maeValues[,match_mae := mean(match_diffMat,na.rm = TRUE)]
-#     }
-#     non_match_diffMat <- diffMat[, which(!nameMat$rep_status)]
-#     if(!is.null(dim(non_match_diffMat))){
-#         temp_maeValues[,non_match_mae := apply(non_match_diffMat,1,mean,na.rm = TRUE)]
-#     }else if(is.null(dim(non_match_diffMat))&(!isEmpty(non_match_diffMat))){
-#         temp_maeValues[,non_match_mae := mean(non_match_diffMat,na.rm = TRUE)]
-#     }
-#     
-#     temp_maeValues[, `:=`(
-#         cellLine = c(cellLineList[[8]],"all")[t],
-#         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-#         # match_status = nameMat$rep_status,
-#         common_type = post_fix,
-#         protocol_comparison = paste(protocolV, collapse = " vs "))
-#     ]
-#     
-#     maeValues <- do.call("rbind", list(maeValues, temp_maeValues))
-#     return(maeValues)
-# }
-# 
-# 
-# calc_mard_mod <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, post_fix, maeValues, expressionLevel, expression_t){
-#     diffMat <- matrix(NA, nrow = nrow(dd), ncol = nrow(nameMat))
-#     for( x in seq_len(nrow(nameMat))){
-#         corData <- dd[,c(nameMat[x]$v1, nameMat[x]$v2),with = FALSE]
-#         varnames <- colnames(corData)
-#         setnames(corData, c(1:2), c("V1","V2"))
-#         corData[, V1 := log2(V1+1)]
-#         corData[, V2 := log2(V2+1)]
-#         expressed <- which(apply(corData[,c("V1","V2"),with = TRUE],1,sum)>0)
-#         diffMat[expressed,x] = 2*(corData$V1-corData$V2)[expressed]/(corData$V1+corData$V2)[expressed]
-#         
-#     }
-#     
-#     #
-#     if("tx_name" %in% colnames(dd)){
-#         temp_maeValues <- dd[,.(tx_name, gene_name, ntx)]
-#     }else{
-#         temp_maeValues <- dd[,.(gene_name)]
-#     }
-#     if(!is.null(dim(diffMat))){
-#         if(expressionLevel) temp_maeValues[, expressed := apply(corData>expression_t,1,sum)>0]
-#         temp_maeValues[,mae := apply(diffMat,1,mean,na.rm = TRUE)]
-#     }else{
-#         if(expressionLevel) temp_maeValues[, expressed := sum(corData>expression_t)>0]
-#         temp_maeValues[,mae := mean(diffMat, na.rm = TRUE)]
-#     }
-#     
-#     temp_maeValues[,`:=`(match_mae = NA, non_match_mae = NA)]
-#     match_diffMat <- diffMat[, which(nameMat$rep_status)]
-#     if(!is.null(dim(match_diffMat))){
-#         temp_maeValues[,match_mae := apply(match_diffMat,1,mean,na.rm = TRUE)]
-#     }else if(is.null(dim(match_diffMat))&(!isEmpty(match_diffMat))){
-#         temp_maeValues[,match_mae := mean(match_diffMat,na.rm = TRUE)]
-#     }
-#     non_match_diffMat <- diffMat[, which(!nameMat$rep_status)]
-#     if(!is.null(dim(non_match_diffMat))){
-#         temp_maeValues[,non_match_mae := apply(non_match_diffMat,1,mean,na.rm = TRUE)]
-#     }else if(is.null(dim(non_match_diffMat))&(!isEmpty(non_match_diffMat))){
-#         temp_maeValues[,non_match_mae := mean(non_match_diffMat,na.rm = TRUE)]
-#     }
-#     
-#     temp_maeValues[, `:=`(
-#         cellLine = c(cellLineList[[8]],"all")[t],
-#         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-#         # match_status = nameMat$rep_status,
-#         common_type = post_fix,
-#         protocol_comparison = paste(protocolV, collapse = " vs "))
-#     ]
-#     
-#     maeValues <- do.call("rbind", list(maeValues, temp_maeValues))
-#     return(maeValues)
-# }
-# 
-# 
-# 
-# 
-# calc_mard_ave <- function(t,g,nameMat,cellLineList, protocolV,geneClusterList,dd, post_fix, maeValues, expressionLevel, expression_t){
-#     diffMat <- matrix(NA, nrow = nrow(dd), ncol = nrow(nameMat))
-#     for( x in seq_len(nrow(nameMat))){
-#         corData <- dd[,c(nameMat[x]$v1, nameMat[x]$v2),with = FALSE]
-#         varnames <- colnames(corData)
-#         setnames(corData, c(1:2), c("V1","V2"))
-#         # expressed <- which(apply(corData,1,sum)>0)
-#         diffMat[(corData$V1+corData$V2)>0,x] = abs(corData[(corData$V1+corData$V2)>0]$V1-corData[(corData$V1+corData$V2)>0]$V2)/(corData[(corData$V1+corData$V2)>0]$V1+corData[(corData$V1+corData$V2)>0]$V2)
-#         
-#     }
-#     
-#     #
-#     if("tx_name" %in% colnames(dd)){
-#         temp_maeValues <- dd[,.(tx_name, gene_name, ntx)]
-#     }else{
-#         temp_maeValues <- dd[,.(gene_name)]
-#     }
-#     if(expressionLevel) temp_maeValues[, expressed := apply(corData>expression_t,1,sum)>0]
-#     temp_maeValues[,mae := apply(diffMat,1,mean,na.rm = TRUE)]
-#     temp_maeValues[,`:=`(match_mae = NA, non_match_mae = NA)]
-#     if(length(which(nameMat$rep_status))>1){
-#         temp_maeValues[,match_mae := apply(diffMat[, which(nameMat$rep_status)],1,mean,na.rm = TRUE)]
-#     }else if(length(which(nameMat$rep_status))==1){
-#         temp_maeValues[,match_mae := mean(diffMat[, which(nameMat$rep_status)],na.rm = TRUE)]
-#     }
-#     if(length(which(!nameMat$rep_status))>1){
-#         temp_maeValues[,non_match_mae := apply(diffMat[, which(!nameMat$rep_status)],1,mean,na.rm = TRUE)]
-#     }else if(length(which(!nameMat$rep_status))==1){
-#         temp_maeValues[,match_mae := mean(diffMat[, which(!nameMat$rep_status)],na.rm = TRUE)]
-#     }
-#     
-#     temp_maeValues[, `:=`(
-#         cellLine = c(cellLineList[[8]],"all")[t],
-#         gene_cluster = c(geneClusterList[[length(geneClusterList)]],"all")[g],
-#         # match_status = nameMat$rep_status,
-#         common_type = post_fix,
-#         protocol_comparison = paste(protocolV, collapse = " vs "))
-#     ]
-#     
-#     maeValues <- do.call("rbind", list(maeValues, temp_maeValues))
-#     return(maeValues)
-# }

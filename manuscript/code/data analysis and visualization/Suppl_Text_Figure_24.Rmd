@@ -28,11 +28,6 @@ modkit find-motifs -i HEK293T_RNA004_dorado_pileup.bed  -r Homo_sapiens.GRCh38.c
 library(readxl)
 library(data.table)
 setwd(".")
-# m6ace-seq_miclip_labels.csv and data.readcount.xpore.labelled are the same content 
-#m6ace_seq_labels <- fread("labels/m6ace-seq_miclip_labels.csv")  # 160733 sites
-#m6ace_seq_labels[, fpath := NULL]
-# the problem with the file from Kristin is that it is a processed file that contains both modified and unmodified labels from m6ACE-seq 
-# but what I am looking for is modified labels from m6ACE-seq, which should be the following one 
 m6ace_seq_labels <- fread("m6ace_seq.csv") 
 m6ace_seq_labels[, chr := gsub("chr","",Chr)]
 setnames(m6ace_seq_labels, "Start","genomic_position") # 15073 
@@ -48,20 +43,16 @@ xpore_labels[, chr := gsub("chr","", chr)]
 combined_labels <- merge(glori_seq_labels, xpore_labels, by = c("chr","genomic_position"), all = TRUE)
 xpore_labels[, transcript_id_old := transcript_id]
 xpore_labels[, transcript_id := gsub("\\..*","",transcript_id_old)]
-# from kristin: 
+
 glori_seq_labels2 <-fread("labels/glori_labels.csv")
 setnames(glori_seq_labels2, "chromosome","chr")
 glori_seq_labels2[, glori_status := 1]
 
-# from glori_seq paper 
+
 glori_seq_labels <-as.data.table(read_xlsx("41587_2022_1487_MOESM3_ESM.xlsx"))
 glori_seq_labels[, chr := gsub("chr","",Chr)]
 setnames(glori_seq_labels, "Sites","genomic_position") 
-# 170240 sites 
-
-#m6ace_seq_labels <- fread("41587_2021_949_MOESM5_ESM.csv") # 62222 sites table s3 
-#m6ace_seq_labels <- fread("m6ace_seq.csv")# data from xpore: https://zenodo.org/records/5707193/files/m6ACE-Seq.csv?download=1 only have 15073 sites 
-# xpore table s1: all signfiicant sites 
+# 170240 sites
 ```
 
 
@@ -69,42 +60,23 @@ setnames(glori_seq_labels, "Sites","genomic_position")
 
 ### xpore label investigation 
 ```{r}
-# xpore_labels has multiple entries for the same transcript: one with version, one without version, different read number and hence different pval (potentially)
+
 xpore_labels[, V1 := .N, by = list(transcript_id, transcript_position, kmer)]
 xpore_labels[, did := 1, by = list(transcript_id, transcript_position, kmer)]
 xpore_labels[, tid := cumsum(did), by = list(transcript_id, transcript_position, kmer)]
-#tt <- dcast(xpore_labels[V1>1], transcript_id + transcript_position + kmer  ~ tid , value.var = "n_reads")
-# tt <- dcast(xpore_labels[V1>1], transcript_id + transcript_position + kmer  ~ tid , value.var = "pval_KO_vs_WT")
-# setnames(tt, c(4,5),c("version1","version2"))
-# pdf("temp.pdf")
-# ggplot(tt, aes(x = version1, y = version2))+geom_point()
-# dev.off()
 
-# after investigation, collapsed all reads for the same transcript, pval is kept as it's identical between two versions
 xpore_labels[, n_reads_corrected := sum(n_reads), by = list(transcript_id, transcript_position, kmer)]
 ```
 
 ```{r}
-# I also want to check if one position has multiple kmers 
 ttt <- unique(xpore_labels[, .(transcript_id, transcript_position, kmer, n_reads_corrected)], by = NULL)
 ttt[, V1 := .N, by = list(transcript_id, transcript_position)]
-# ok checked that each position is only of one type kmer 
 ```
 
 
 
 ```{r}
-# reduce xpore labels data set to the needed columns only
 xpore_labels_reduced <- unique(xpore_labels[,c(1:2,5:11,13,18), with = FALSE], by = NULL)
-#xpore_labels_reduced[, site_id := paste0(transcript_id, transcript_position)]
-```
-
-```{r}
-# convert transcript position to genomic position
-# library(GenomicRanges)
-# library(GenomicFeatures)
-# txdb <- makeTxDbFromEnsembl("Homo sapiens", release=91)
-# genomic_ranges <- exonsBy(txdb, by = "tx", use.names = TRUE)
 ```
 
 
@@ -114,11 +86,7 @@ m6anet_results_site2 <- fread("HEK293T_RNA002/data.site_proba.csv")
 m6anet_results_site2[, transcript_id_old := transcript_id]
 m6anet_results_site2[, transcript_id := gsub("\\..*","",transcript_id_old)]
 
-#m6anet_results_site[, V1 := .N, by = list(transcript_id, transcript_position)]
 m6anet_results_site2[, transcript_id_old := NULL]
-# m6aner_results_site[, site_id := paste0(transcript_id, transcript_position)]
-
-
 
 df <- m6anet_results_site2[,.(transcript_id, transcript_position)]
 setnames(df, c(1,2), c("seqname","start"))
@@ -133,16 +101,6 @@ m6anet_txranges <- makeGRangesFromDataFrame(df,
                          end.field=c("end", "stop"),
                          strand.field="strand",
                          starts.in.df.are.0based=FALSE)
-# m6anet_genomicranges <- transcriptToGenome(m6anet_txranges, txdb)
-
-
-# use pmap instead of map, pmap will give same length as x 
-# m6anet_genomicranges <- pmapFromTranscripts(m6anet_txranges,genomic_ranges[df$seqname])
-# names(m6anet_genomicranges) <- seq_len(nrow(df))
-# m6anet_genomicranges <- unlist(m6anet_genomicranges)
-#m6anet_genomicranges <- m6anet_genomicranges[m6anet_genomicranges$hit == TRUE,]
-
-
 
 m6anet_genomicranges <- pmapFromTranscripts(m6anet_txranges,genomic_ranges[df$seqname], ignore.strand = TRUE)
 names(m6anet_genomicranges) <- seq_len(nrow(df))
@@ -180,14 +138,7 @@ m6anet_results_site <- fread("m6anet_RNA004/data.site_proba.csv")
 m6anet_results_site[, transcript_id_old := transcript_id]
 m6anet_results_site[, transcript_id := gsub("\\..*","",transcript_id_old)]
 
-#m6anet_results_site[, V1 := .N, by = list(transcript_id, transcript_position)]
 m6anet_results_site[, transcript_id_old := NULL]
-
-# convert transcript position to genomic position
-# library(GenomicRanges)
-# library(GenomicFeatures)
-# txdb <- makeTxDbFromEnsembl("Homo sapiens", release=91)
-# genomic_ranges <- exonsBy(txdb, by = "tx", use.names = TRUE)
 
 
 df <- m6anet_results_site[,.(transcript_id, transcript_position)]
@@ -203,16 +154,6 @@ m6anet_txranges <- makeGRangesFromDataFrame(df,
                          end.field=c("end", "stop"),
                          strand.field="strand",
                          starts.in.df.are.0based=FALSE)
-# m6anet_genomicranges <- transcriptToGenome(m6anet_txranges, txdb)
-
-
-# use pmap instead of map, pmap will give same length as x 
-# m6anet_genomicranges <- pmapFromTranscripts(m6anet_txranges,genomic_ranges[df$seqname])
-# names(m6anet_genomicranges) <- seq_len(nrow(df))
-# m6anet_genomicranges <- unlist(m6anet_genomicranges)
-#m6anet_genomicranges <- m6anet_genomicranges[m6anet_genomicranges$hit == TRUE,]
-
-
 
 m6anet_genomicranges <- pmapFromTranscripts(m6anet_txranges,genomic_ranges[df$seqname], ignore.strand = TRUE)
 names(m6anet_genomicranges) <- seq_len(nrow(df))
@@ -254,15 +195,7 @@ m6anet_results_site3 <- fread("data.site_proba.csv")
 m6anet_results_site3[, transcript_id_old := transcript_id]
 m6anet_results_site3[, transcript_id := gsub("\\..*","",transcript_id_old)]
 
-#m6anet_results_site[, V1 := .N, by = list(transcript_id, transcript_position)]
 m6anet_results_site3[, transcript_id_old := NULL]
-
-# convert transcript position to genomic position
-# library(GenomicRanges)
-# library(GenomicFeatures)
-# txdb <- makeTxDbFromEnsembl("Homo sapiens", release=91)
-# genomic_ranges <- exonsBy(txdb, by = "tx", use.names = TRUE)
-
 
 df <- m6anet_results_site3[,.(transcript_id, transcript_position)]
 setnames(df, c(1,2), c("seqname","start"))
@@ -277,16 +210,6 @@ m6anet_txranges <- makeGRangesFromDataFrame(df,
                          end.field=c("end", "stop"),
                          strand.field="strand",
                          starts.in.df.are.0based=FALSE)
-# m6anet_genomicranges <- transcriptToGenome(m6anet_txranges, txdb)
-
-
-# use pmap instead of map, pmap will give same length as x 
-# m6anet_genomicranges <- pmapFromTranscripts(m6anet_txranges,genomic_ranges[df$seqname])
-# names(m6anet_genomicranges) <- seq_len(nrow(df))
-# m6anet_genomicranges <- unlist(m6anet_genomicranges)
-#m6anet_genomicranges <- m6anet_genomicranges[m6anet_genomicranges$hit == TRUE,]
-
-
 
 m6anet_genomicranges <- pmapFromTranscripts(m6anet_txranges,genomic_ranges[df$seqname], ignore.strand = TRUE)
 names(m6anet_genomicranges) <- seq_len(nrow(df))
@@ -344,12 +267,6 @@ dorado_results[, N_valid_cov := sum(N_valid_cov), by = list(transcript_id, start
 dorado_results[, N_mod := sum(N_mod), by = list(transcript_id, start, end)]
 dorado_results[V1>1, percMod := N_mod/N_valid_cov*100] # only modify those with multiple entries 
 
-#tt <- dcast(dorado_results[V1>1], transcript_id + start + end + mod_motif ~ strand , value.var = "percMod")
-# tt <- dcast(dorado_results[V1>1], transcript_id + start + end + mod_motif ~ strand , value.var = "N_valid_cov")
-# setnames(tt, c(5,6),c("pos","neg"))
-# pdf("temp.pdf")
-# ggplot(tt, aes(x = pos, y = neg))+geom_point()
-# dev.off()
 
 dorado_results_processed <- unique(dorado_results[,.(transcript_id,start,end,percMod,N_mod, N_valid_cov)]) 
 dorado_results_processed[, transcript_id_old := transcript_id]
@@ -361,29 +278,18 @@ dorado_results_processed[, transcript_id := gsub("\\..*","", transcript_id_old)]
 # after checking V1 == 1 for all, can remove transcript_id_old column
 dorado_results_processed[, transcript_id_old := NULL]
 setnames(dorado_results_processed, "start","transcript_position")
-
-
 ```
 
 
 
 ## processing data
-```{r}
-# ensemble_tx <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-transcripts.txt',header=TRUE)
-# ensemble_tx <- data.table(ensemble_tx, keep.rownames = TRUE)
-# setnames(ensemble_tx,'rn','transcript_id')
-# 
-# 
-# m6ace_seq_labels <- unique(ensemble_tx[,.(gene_id, chromosome_name)], by = NULL)[m6ace_seq_labels, on = "gene_id"]
-```
+
 
 
 ```{r}
 # convert transcript position to genomic position
 library(GenomicRanges)
 library(GenomicFeatures)
-# txdb <- makeTxDbFromEnsembl("Homo sapiens", release=91)
-# genomic_ranges <- exonsBy(txdb, by = "tx", use.names = TRUE)
 df <- dorado_results_processed[,.(transcript_id, transcript_position)]
 setnames(df, c(1,2), c("seqname","start"))
 df[, `:=`(end = start, strand = "+")]
@@ -457,9 +363,7 @@ glori_seq_labels[, mean_level := (AGCov_rep1*m6A_level_rep1+m6A_level_rep2*AGCov
 library(ggVennDiagram)
 library(ComplexHeatmap)
 siteList <- list(m6ace=m6ace_seq_labels$site_id,
-          #kristin=xpore_labels_reduced[m6ACE==1]$site_id, # contained by the first 1
           miCLIP = xpore_labels_reduced[miCLIP==1]$site_id,
-          #m6ace3=m6ace_seq_labels3[`m6ACE-Seq`==TRUE]$site_id,# contained by the first 1
           xpore = m6ace_seq_labels3[(`pval_HEK293T-KO_vs_HEK293T-WT`<0.05)|(`pval_HEK293T-KD_vs_HEK293T-WT`<0.05)]$site_id,
           glori = glori_seq_labels$site_id,
           glori50 = glori_seq_labels[mean_level>=0.5]$site_id,
@@ -469,17 +373,13 @@ siteList <- list(m6ace=m6ace_seq_labels$site_id,
           dorado = dorado_results_processed$site_id,
           m6anet3 = m6anet_results_site3$site_id)
 
-x <- list(#dorado = dataList[[1]]$site_id,
-          dorado2 = dataList[[2]]$site_id,
+x <- list(dorado2 = dataList[[2]]$site_id,
           dorado20 = dataList[[3]]$site_id,
           m6anet = dataList[[4]]$site_id,
           m6anet3 = dataList[[4]]$site_id,
           rna002 = dataList[[5]]$site_id)
 pdf("dorado_m6anet_rna002.pdf")
 ggVennDiagram(x) + scale_fill_gradient(low="grey90",high = "blue")
-#m = make_comb_mat(x)
-#UpSet(m)
-
 dev.off()
 
 x <- list(dorado = dataListAll[[1]]$site_id,
@@ -488,18 +388,10 @@ x <- list(dorado = dataListAll[[1]]$site_id,
           m6anet = dataListAll[[4]]$site_id,
           rna002 = dataListAll[[5]]$site_id,
           m6anet3 = dataListAll[[6]]$site_id)
-# pdf("/mnt/processMachine2/chenying/dorado_m6anet_rna002_final_updated.pdf")
-# ggVennDiagram(x[c(1,4,5)]) + scale_fill_gradient(low="grey90",high = "blue")
-# #m = make_comb_mat(x)
-# #UpSet(m)
-# 
-# dev.off()
+
 
 pdf("dorado_m6anet_rna002_final_newlytrainedm6anet.pdf")
 ggVennDiagram(x[c(1,4,6,5)]) + scale_fill_gradient(low="grey90",high = "blue")
-#m = make_comb_mat(x)
-#UpSet(m)
-
 dev.off()
 
 
@@ -509,9 +401,6 @@ y <- list(glori = siteList$glori,
           m6acemiclip = unique(unlist(siteList[c("m6ace","miCLIP")])))
 pdf("labels_venndiagram_final.pdf")
 ggVennDiagram(y) + scale_fill_gradient(low="grey90",high = "blue")
-#m = make_comb_mat(x)
-#UpSet(m)
-
 dev.off()
 
 
@@ -588,26 +477,24 @@ runType <- CJ(method = methodVec,
               label = c("m6ace","m6ace+miclip","xpore","glori","glori50","glori90","rna002"))
 runType <- runType[method != label]
 
-# dorado_filter <- dorado_results_processed[percMod>0&(N_valid_cov>=20)]
-# [(site_id %in% union_sites)]
-# [!site_id %in% non_drach_motif]
+
 dataListDrach <- list(dorado=dorado_results_processed[!site_id %in% non_drach_motif][(!is.na(chr))], 
                  dorado2 = dorado_results_processed[!site_id %in% non_drach_motif][(!is.na(chr))&(N_valid_cov>2)],
-                 dorado20 = dorado_results_processed[!site_id %in% non_drach_motif][(!is.na(chr))&(N_valid_cov>=20)], #[!site_id %in% non_drach_motif)]&
+                 dorado20 = dorado_results_processed[!site_id %in% non_drach_motif][(!is.na(chr))&(N_valid_cov>=20)], 
                  m6anet = m6anet_results_site[!site_id %in% non_drach_motif], 
                  rna002 = m6anet_results_site2[!site_id %in% non_drach_motif],
                  m6anet3 = m6anet_results_site3[!site_id %in% non_drach_motif])
 
 dataListAll <- list(dorado=dorado_results_processed[(!is.na(chr))], 
                  dorado2 = dorado_results_processed[(!is.na(chr))&(N_valid_cov>2)],
-                 dorado20 = dorado_results_processed[(!is.na(chr))&(N_valid_cov>=20)], #[!site_id %in% non_drach_motif)]&
+                 dorado20 = dorado_results_processed[(!is.na(chr))&(N_valid_cov>=20)], 
                  m6anet = m6anet_results_site, 
                  rna002 = m6anet_results_site2,
                  m6anet3 = m6anet_results_site3)
 
 dataListIntersect <- list(dorado=dorado_results_processed[(!is.na(chr))&(site_id %in% union_sites)], 
                  dorado2 = dorado_results_processed[(!is.na(chr))&(N_valid_cov>2)&(site_id %in% union_sites)],
-                 dorado20 = dorado_results_processed[(!is.na(chr))&(N_valid_cov>=20)&(site_id %in% union_sites)], #[!site_id %in% non_drach_motif)]&
+                 dorado20 = dorado_results_processed[(!is.na(chr))&(N_valid_cov>=20)&(site_id %in% union_sites)],
                  m6anet = m6anet_results_site[(site_id %in% union_sites)], 
                  rna002 = m6anet_results_site2[(site_id %in% union_sites)],
                  m6anet3 = m6anet_results_site3[(site_id %in% union_sites)])
@@ -656,7 +543,6 @@ label_data[, V2 :=  c(0.1,0.2,0.3,0.4,0.5,0.6)[match(method, methodVec)]]
 library(ggplot2)
 pdf("test_results_roc_prroc_glorifilter_alltogether_27June2024.pdf")
 ggplot(rocOut, aes(x = V1, y = V2, group = paste0(method, label_set), color = method))+geom_line(aes(linetype = label_set))+geom_text(data = label_data, aes(label = label))+labs(x="FPR",y="TPR")+facet_wrap(~label_name)+theme_classic()+theme(legend.position = "top") # roc
-#ggplot(tests_results, aes(x = tpr, y = prec, col = test))+geom_line()+theme_classic()
 dev.off()
 
 prOut <- do.call("rbind",lapply(1:3, function(yy){
@@ -699,14 +585,11 @@ return(prOut)
 label_data <- unique(prOut[,.(method, label_name, label, label_set)], by = NULL)
 label_data[, V1 := c(0.2,0.5,0.8)[match(label_set, labelSetVec)]]
 label_data[, V2 := c(0.1,0.2,0.3,0.4,0.5,0.6)[match(method,methodVec)]]
-# label_data <- unique(prOut[,.(method, label)], by = NULL)
-# label_data[, V1 := 0.8]
-# label_data[, V2 := c(0.1,0.2)]
+
 
 library(ggplot2)
 pdf("test_results_pr_prroc_glorifilter_alltogether_27June2024.pdf")
 ggplot(prOut, aes(x = V1, y = V2, group = paste0(method, label_set), color =method))+geom_line(aes(linetype = label_set))+geom_text(data = label_data, aes(label = label))+labs(x="Recall",y="Precision")+facet_wrap(~label_name)+theme_classic()+theme(legend.position = "top") # roc
-#ggplot(tests_results, aes(x = tpr, y = prec, col = test))+geom_line()+theme_classic()
 dev.off()
 ```
 

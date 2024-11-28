@@ -94,8 +94,8 @@ rm(list = c("bambu_lr","bambu_lr_gene","bambu_lr_pacbio","bambu_lr_gene_pacbio",
             "salmon_lr_pacbio","nanocount_lr_pacbio"))
 gc()
 
-saveRDS(com_data, file = paste0(wkdir, "output_guppy6.4.2/combinedExpressionDataTranscript_19June2023.rds"))
-saveRDS(com_data_gene, file = paste0(wkdir, "output_guppy6.4.2/combinedExpressionDataGene_19June2023.rds"))
+saveRDS(com_data, file = paste0(wkdir, "combinedExpressionDataTranscript_19June2023.rds"))
+saveRDS(com_data_gene, file = paste0(wkdir, "combinedExpressionDataGene_19June2023.rds"))
 
 ### trim reads ===========================
 trim_lr_150bp_1ts <- readRDS("trim_lr_150bpSingleEnd_1ts.rds")
@@ -250,9 +250,6 @@ type <- c("unique","best","seconBestAlignDiff10percent","onePrimary")
 bambuList <- lapply(type, function(k){
     bambu_lr <- readRDS(paste0("bambu_lr",k,".rds"))
     bambu_lr[, runname := gsub(paste0("_",k,"_"),"", runname), by = runname]
-    # bambu_lr <- samples[,.(runname, publicName)][bambu_lr , on = "runname"]
-    # bambu_lr[, runname := publicName]
-    # bambu_lr[, publicName := NULL]
     bambu_lr[, method := paste0("bambu_lr",k)]
     return(bambu_lr[, merge.colnames, with =FALSE])
 })
@@ -260,9 +257,6 @@ bambuList <- lapply(type, function(k){
 bambuGeneList <- lapply(type, function(k){
     bambu_lr_gene <- readRDS(paste0("bambu_lr",k,"_gene.rds"))
     bambu_lr_gene[, runname := gsub(paste0("_",k,"_"),"", runname), by = runname]
-    # bambu_lr_gene <- samples[,.(runname, publicName)][bambu_lr_gene , on = "runname"]
-    # bambu_lr[, runname := publicName]
-    # bambu_lr[, publicName := NULL]
     bambu_lr_gene[, method := paste0("bambu_lr",k)]
     bambu_lr <- bambu_lr_gene[, c("gene_name","estimates","runname","ntotal","method"), with =FALSE]
     bambu_lr[, runname := as.character(runname)]

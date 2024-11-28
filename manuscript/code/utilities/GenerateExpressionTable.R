@@ -15,13 +15,9 @@ general_list <- readRDS("general_list2023-04-27.rds")
 
 samples <- general_list$samples
 txLengths <- general_list$txLengths
-# txdbEnsembl91 <- loadDb('/mnt/projects/hg38_sequins_SIRV_ERCCs_longSIRVs-txdb.sqlite')
-# 
-# exonsByTx <- exonsBy(txdbEnsembl91, 'tx',use.names=T)
-# exonsByGene <- exonsBy(txdbEnsembl91, 'gene')
-# txLengths <- transcriptLengths(txdbEnsembl91)
 
-sampleData_sr <- data.table(as.data.frame(read_xlsx('ONT Master Table.xlsx', sheet = 3))) ## need to convert from tibble to data.frame
+
+sampleData_sr <- data.table(as.data.frame(read_xlsx('.', sheet = 3))) ## need to convert from tibble to data.frame
 sampleData_sr <- sampleData_sr[!grepl('#',`ELM library ID`) &(!is.na(runName))&(!grepl("HEYA8.*H9",runName))]
 sr_runNames <- sampleData_sr$runName
 
@@ -160,7 +156,7 @@ x <- 1
 
 salmon_sr <- do.call('rbind',lapply(sr_runNames,function(k){
     print(k)
-    filePath <- sort(dir(paste0('/sr/02_Mapping/',k,'/transcripts_quant'),pattern = 'quant.sf', recursive = TRUE, full.names = TRUE),decreasing = TRUE)[1]
+    filePath <- sort(dir(paste0('.',k,'/transcripts_quant'),pattern = 'quant.sf', recursive = TRUE, full.names = TRUE),decreasing = TRUE)[1]
     if(length(filePath)==0){
         return(NULL)
     }
@@ -173,7 +169,6 @@ salmon_sr <- do.call('rbind',lapply(sr_runNames,function(k){
                              counts = txi$counts[,1],
                              length = txi$length[,1],
                              countsFromAbundance = txi$countsFromAbundance)
-    # short_read <- fread(filePath, header = TRUE)
     short_read[, runname:=k]
     return(short_read)
 }))
@@ -181,8 +176,7 @@ salmon_sr <- do.call('rbind',lapply(sr_runNames,function(k){
 salmon_sr[, method:='salmon_sr']
 salmon_sr[, ntotal:=sum(counts), by = runname]
 setnames(salmon_sr, 'abundance','estimates')
-salmon_sr[, `:=`(#counts = NULL,
-                 length = NULL,
+salmon_sr[, `:=`(length = NULL,
                  countsFromAbundance = NULL)]
 
 salmon_sr <- geneTxTable[salmon_sr, on = 'tx_name']
@@ -195,7 +189,7 @@ saveRDS(salmon_sr,file = "salmon_sr.rds")
 # salmon-sr bambuAnnotation ==========================
 tx2gene <- txLengths[,c(2,3)]
 x <- 1
-sampleDir <- 'sr_bambufasta/02_Mapping/'
+sampleDir <- '.'
 sr_runNames <- dir(sampleDir)
 salmon_sr <- do.call('rbind',lapply(sr_runNames,function(k){
     print(k)
@@ -214,7 +208,6 @@ salmon_sr <- do.call('rbind',lapply(sr_runNames,function(k){
                              counts = txi$counts[,1],
                              length = txi$length[,1],
                              countsFromAbundance = txi$countsFromAbundance)
-    # short_read <- fread(filePath, header = TRUE)
     short_read[, runname:=k]
     return(short_read)
 }))
@@ -236,7 +229,7 @@ saveRDS(salmon_sr,file = "salmon_sr_bambuAnnotations.rds")
 
 
 # rsem-sr====================
-rsem.dir <- "sr_rsem/02_MapQuant/"
+rsem.dir <- "."
 rnames <- dir(rsem.dir)
 rsem_sr_tx <- do.call("rbind",lapply(rnames, function(r){
     rsem_sr_tx <- fread(dir(paste0(rsem.dir,r), full.names = TRUE, pattern = "isoforms.results"))
@@ -272,7 +265,7 @@ saveRDS(rsem_sr_gene,"rsem_sr_gene.rds")
 
 
 # rsem-sr bambuAnnotation ==========================
-rsem.dir <- "sr_rsem_bambufasta/02_MapQuant/"
+rsem.dir <- "."
 rnames <- dir(rsem.dir)
 rsem_sr_tx <- do.call("rbind",lapply(rnames, function(r){
     rsem_sr_tx <- fread(dir(paste0(rsem.dir,r), full.names = TRUE, pattern = "isoforms.results"))
@@ -343,12 +336,7 @@ np <- lapply(seq_along(dir_path)[5], function(path){
             return(NULL)
         }
         print(filePath)
-        # col.types <- readr::cols(
-        #     readr::col_character(),readr::col_integer(),readr::col_double(),readr::col_double(),readr::col_double()
-        # )
-        txi <- try(tximport(filePath, type = "salmon", tx2gene = tx2gene, ignoreTxVersion = TRUE, txOut = as.logical(x)), TRUE)#,
-                        # importer = function(x) readr::read_tsv(x, progress=FALSE, col_types=col.types,
-                        #                                 na = c("", "NA","NaN"))) # requires 'rjson'
+        txi <- try(tximport(filePath, type = "salmon", tx2gene = tx2gene, ignoreTxVersion = TRUE, txOut = as.logical(x)), TRUE)
         names(txi)
         if(class(txi)=="try-error") return(NULL)
         short_read <- data.table(tx_name = gsub('\\..*','',rownames(txi$abundance)),
@@ -356,7 +344,7 @@ np <- lapply(seq_along(dir_path)[5], function(path){
                                  counts = txi$counts[,1],
                                  length = txi$length[,1],
                                  countsFromAbundance = txi$countsFromAbundance)
-        # short_read <- fread(filePath, header = TRUE)
+       
         short_read[, runname:=k]
         return(short_read)
     }))
@@ -398,7 +386,6 @@ salmon_sr <- do.call('rbind',lapply(trim_names,function(k){+
                              counts = txi$counts[,1],
                              length = txi$length[,1],
                              countsFromAbundance = txi$countsFromAbundance)
-    # short_read <- fread(filePath, header = TRUE)
     short_read[, runname:=k]
     return(short_read)
 }))
@@ -442,7 +429,6 @@ np <- lapply(bp[2], function(b){
                                  counts = txi$counts[,1],
                                  length = txi$length[,1],
                                  countsFromAbundance = txi$countsFromAbundance)
-        # short_read <- fread(filePath, header = TRUE)
         short_read[, runname:=k]
         return(short_read)
     }))
@@ -509,12 +495,9 @@ tx2gene <- txLengths[,c(2,3)]
 x <- 1
 spikein_salmon.dir <- 'spikein_fastq_Apr17/map_salmon_lr/'
 spikein_samples <- dir(spikein_salmon.dir)
-# if(z == 1) sampleNames <- sampleNames[-48]
 salmon_lr <- do.call('rbind',lapply(spikein_samples,function(k){
     print(k)
     filePath <- sort(dir(paste0(spikein_salmon.dir,k),pattern = 'quant.sf', recursive = TRUE, full.names = TRUE),decreasing = TRUE)[1]
-    
-    
     if(length(filePath)==0){
         return(NULL)
     }
@@ -527,12 +510,9 @@ salmon_lr <- do.call('rbind',lapply(spikein_samples,function(k){
                               counts = txi$counts[,1],
                               length = txi$length[,1],
                               countsFromAbundance = txi$countsFromAbundance)
-    # short_read <- fread(filePath, header = TRUE)
     salmon_read[, runname:=k]
     return(salmon_read)
 }))
-# return(salmon_lr)
-# }))
 
 
 
@@ -588,7 +568,6 @@ salmon_sr <- do.call('rbind',lapply(spikein_samples,function(k){
                              counts = txi$counts[,1],
                              length = txi$length[,1],
                              countsFromAbundance = txi$countsFromAbundance)
-    # short_read <- fread(filePath, header = TRUE)
     short_read[, runname:=k]
     return(short_read)
 }))
@@ -755,7 +734,6 @@ salmon_lr <- do.call('rbind',lapply(sampleNames,function(k){
                               counts = txi$counts[,1],
                               length = txi$length[,1],
                               countsFromAbundance = txi$countsFromAbundance)
-    # short_read <- fread(filePath, header = TRUE)
     salmon_read[, runname:=k]
     return(salmon_read)
 }))
@@ -766,7 +744,7 @@ salmon_lr <- do.call('rbind',lapply(sampleNames,function(k){
 salmon_lr[, method:='salmon_lr']
 salmon_lr[, ntotal:=sum(counts), by = runname]
 setnames(salmon_lr, 'abundance','estimates')
-salmon_lr[, `:=`(#counts = NULL,
+salmon_lr[, `:=`(
     length = NULL,
     countsFromAbundance = NULL)]
 
@@ -794,8 +772,6 @@ nanoCountData[, ntotal := sum(est_count), by = list(runname)]
 nanoCountData[, estimates:=tpm/1000000*ntotal]
 saveRDS(nanoCountData, file = "nanocount_lr_pacbio.rds")
 
-
-
 # spikein bambu-lr-pacbio =================
 seSpikein <- readRDS("bambuOutput_spikein_bam_May22.rds")
 bambu_lr_spikein <- as.data.table(assays(seSpikein)$counts, keep.rownames = TRUE)
@@ -806,18 +782,13 @@ setnames(geneTxTable, c("GENEID","TXNAME"),c("gene_name","tx_name"))
 bambu_lr_spikein <- melt(bambu_lr_spikein, id.vars = "tx_name", measure.vars = colnames(bambu_lr_spikein)[-1])
 setnames(bambu_lr_spikein, c("variable","value"),c("runname","estimates"))
 
-
 seSpikeinGene <- transcriptToGeneExpression(seSpikein)
-
 
 sumCount <- apply(assays(seSpikeinGene)$counts, 2,sum)
 ntotalDt <- data.table(runname = names(sumCount),
                        ntotal = as.numeric(sumCount))
 bambu_lr_spikein <- ntotalDt[bambu_lr_spikein, on = "runname"]
 
-
-
-#bambu_lr_spikein[, ntotal:=sum(estimates), by = runname]
 bambu_lr_spikein <- geneTxTable[bambu_lr_spikein, on = "tx_name"]
 bambu_lr_spikein[, method := "bambu_lr"]
 saveRDS(bambu_lr_spikein,file = "bambu_lr_spikein_wtpacbio.rds")
@@ -842,7 +813,6 @@ saveRDS(bambu_lr_spikein,file = paste0("bambu_lr_spikein_gene_wtpacbio.rds"))
 #### processing in linux as local processing using links with fread fails very often but when process on server, very fast and smooth 
 library(readxl)
 library(data.table)
-#public_filepath <- "/mnt/projects/SGNExManuscript/revision3/public_read_download_links.xlsx"
 public_filepath <- "public_read_download_links.xlsx"
 public_dt <- data.table(as.data.frame(read_xlsx(public_filepath)))
 
@@ -886,8 +856,6 @@ saveRDS(kallisto_sr_tx,"kallisto_sr_tx_encode.rds")
 
 
 ## further processing locally 
-#encode_annotations <- prepareAnnotations("/mnt/projects/SGNExManuscript/revision3/gencode.v29.primary_assembly.annotation_UCSC_names.gtf")
-#tx_map <- fread("/mnt/projects/SGNExManuscript/revision3/ENCFF110VAV.tsv")
 
 rsem_sr_tx <- readRDS("rsem_sr_tx_encode.rds")
 rsem_sr_tx[, tx_name :=gsub("tSpikein_|\\..*","",tx_name), by = tx_name]
@@ -933,32 +901,26 @@ sampleNames <- dir(salmon_lr.dir)
 salmon_lr <- do.call('rbind',lapply(sampleNames,function(k){
     print(k)
     filePath <- sort(dir(paste0(salmon_lr.dir,k),pattern = 'quant.sf', recursive = TRUE, full.names = TRUE),decreasing = TRUE)[1]
-    
-    
     if(length(filePath)==0){
         return(NULL)
     }
     print(filePath)
     txi <- tximport(filePath, type = "salmon", tx2gene = tx2gene, ignoreTxVersion = TRUE, txOut = as.logical(x)) # requires 'rjson'
     names(txi)
-    
     salmon_read <- data.table(tx_name = gsub('\\..*','',rownames(txi$abundance)),
                               abundance = txi$abundance[,1],
                               counts = txi$counts[,1],
                               length = txi$length[,1],
                               countsFromAbundance = txi$countsFromAbundance)
-    # short_read <- fread(filePath, header = TRUE)
     salmon_read[, runname:=k]
     return(salmon_read)
 }))
 
 
-
-
 salmon_lr[, method:='salmon_lr_q7']
 salmon_lr[, ntotal:=sum(counts), by = runname]
 setnames(salmon_lr, 'abundance','estimates')
-salmon_lr[, `:=`(#counts = NULL,
+salmon_lr[, `:=`(
     length = NULL,
     countsFromAbundance = NULL)]
 

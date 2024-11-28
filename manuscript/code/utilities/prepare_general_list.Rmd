@@ -22,10 +22,10 @@ require(RColorBrewer)
 
 ```{r 1-load-sample-info}
 cat('Setting working directory')
-sampleData <- data.table(as.data.frame(read_xlsx('ONT Master Table.xlsx', sheet = 1))) ## need to convert from tibble to data.frame
+sampleData <- data.table(as.data.frame(read_xlsx('.', sheet = 1))) ## need to convert from tibble to data.frame
 sampleData <- sampleData[(grepl("H9|HEYA8",runName)&(grepl("ON00",name))&(!grepl("HEYA8.*H9",
                                                                                  runName)))|(SG_NextData_Release=="Yes"&(!is.na(SG_NextData_Release))&(!grepl("CRC",runName)))|(grepl("HCT116",runName))]
-#sampleData$runName_combined <- gsub('-pre|-Pre','',sampleData$runName) # there are runs with multiple datasets that should be combined together 
+
 sampleData[,runName_combined := ifelse(grepl("directRNA",runName)|(!grepl("H9|HEYA8",runName))|(grepl("WINSTON",name)),
                                        runName, 
                                        `GIS Library ID`)]
@@ -36,19 +36,17 @@ sampleData[runName_combined != runName, runName_combined := paste0(gsub("_Run.*"
 sampleData[, runName_combined := gsub('-pre|-Pre','',runName_combined)]
 sampleData$demultiplexed <- grepl("NB", sampleData$name)|(grepl("barcode",sampleData$name))|(!is.na(sampleData$barcoding.kit))|grepl("multiplexed",sampleData$kit)
 
-# sampleNames <- unique(sampleData$runName_combined)##
-
 sampleNames <- unique(sampleData$`publicName (SGNex_CellLine_protocol_replicate1_run1)`)[1:112]
 
 
 
-sampleData_sr <- data.table(as.data.frame(read_xlsx('ONT Master Table.xlsx', sheet = 3))) ## need to convert from tibble to data.frame
+sampleData_sr <- data.table(as.data.frame(read_xlsx('.', sheet = 3))) ## need to convert from tibble to data.frame
 sampleData_sr <- sampleData_sr[!grepl('#',`ELM library ID`) &(!is.na(runName))&(!grepl("HEYA8.*H9",runName))]
 sr_runNames <- sampleData_sr$runName
 chrm_names <- c(1:22,'X','Y')
 
 
-pacbio_data <-  data.table(as.data.frame(read_xlsx(paste0('ONT Master Table.xlsx'), sheet = 2)))
+pacbio_data <-  data.table(as.data.frame(read_xlsx(paste0('.'), sheet = 2)))
 
 ##
 samples <- unique(as.data.table(sampleData)[,.(runName_combined,`publicName (SGNex_CellLine_protocol_replicate1_run1)`,
@@ -73,8 +71,6 @@ samples[, cDNAstranded:=ifelse(protocol %in% c('cDNA','cDNAStranded'), protocol=
 samples[, randomPrimer:=grepl('RandomPrimer',protocol)]
 samples[, protocol_type:=gsub('Stranded|RandomPrimer','',gsub('PromethionD','d', protocol))]
 
-## add replicate ids for new cell lines
-# samples[cellLine %in% c("H9","HEYA8") &(is.na(replicate_id)), replicate_id := gsub("Rep", " rep ",gsub("GIS_|(_RHH.*)|(_Run.*)|(_cDNA_)|(_directcDNA_)|(_directRNA_)","",runname)), by = runname]
 
 samples[, bioRep:=strsplit(runname, '\\_')[[1]][4], by = runname]
 samples[, techRep:=strsplit(runname, '\\_')[[1]][5], by = runname]
@@ -92,7 +88,6 @@ samples[, cancer_type:=ifelse(grepl("HN1",cellLine),"Head&Neck",cancer_type)]
 samples[, cancer_type:=ifelse(grepl("HEYA8",cellLine),"Ovary",cancer_type)]
 
 
-# pacbio data are generated from different replicates 
 
 cellLines <- c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8")
 spike_in_info <- unique(sampleData[,.(runName_combined, RNAcontent)])
@@ -108,9 +103,6 @@ samples_wSpikein[, patient_derived:=(!(cellLine %in% cellLines))]
 samples_wSpikein[, cellLineRep:=paste0(cellLine,'_', bioRep)]
 
 saveDate <- as.character(as.Date(Sys.time()))
-
-
-
 ```
 ```{r}
 ensemblAnnotations.transcripts <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-transcripts.txt',header=TRUE)

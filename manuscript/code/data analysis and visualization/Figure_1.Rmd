@@ -52,8 +52,6 @@ saveDate <- general_list$saveDate
 # Fig. 1b-c
 ```{r}
 ## Figure 1 ========================
-#valueLabels <- c("Illumina","RNA","PCR-free cDNA","cDNA")
-#cellLines <- c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8","Hek293T","HN1NPC7")
 plotData_wide <- samples[,list(nrun=length(runname)), by = list(cancer_type,cellLine, protocol_type)]
 plotData_wide[, protocol_type := gsub("-SMRTcell","",protocol_type)]
 plotData_wide[, cellLine_general := ifelse(cellLine %in% cellLines, cellLine, cancer_type)]
@@ -70,7 +68,7 @@ plotData_wide <- plotData_wide[order(ttrun, cancer_type, nrun, decreasing = TRUE
 plotData_wide
 
 
-#cellLineVar <- plotData_wide$cellLine_general
+
 cancer_typeVar <- unique(plotData_wide$cancer_type)
 cancer_typeCol <- c(brewer.pal(9,"Paired"),brewer.pal(8,"Accent")[8:7])
 
@@ -78,7 +76,6 @@ p_core_cellLine <- ggplot(plotData_wide[cellLine_general %in% cellLines], aes(x 
     geom_bar(stat = "identity",alpha = 0.5)+
     ylab("Number of replicates")+
     xlab("Cell lines")+
-    #coord_flip()+
     scale_y_discrete(limits = c(0,5,10,15,20,25))+
     scale_fill_manual(values = protocolCol,
                       labels = protocolLabel,
@@ -90,9 +87,6 @@ p_core_cellLine
 pdf(paste0(wkdir,"figure1/Number_of_runsCellLines",saveDate,".pdf"), width = 6, height = 4)
 print(p_extended)
 dev.off()
-# protocolCol <- adjustcolor(brewer.pal(8,"Paired")[1:4],0.7)
-# protocolVec <-  c("directRNA","directcDNA","cDNA","Illumina")
-# protocolLabel <- c("RNA","PCR-free cDNA","cDNA","Illumina")
 ```
 
 
@@ -100,15 +94,6 @@ dev.off()
 
 ## main figure 1b
 ```{r}
-## core data set bar plot =====================
-
-
-# pdf(paste0("figures/Number_of_runsCellLinesCoreDataset",saveDate,".pdf"), width = 6, height = 4)
-# print(p)
-# dev.off()
-
-# ## extended data set bar plot =====================
-# ## include extended cell lines by setting al cell lines different from core cellLines
 plotData_wide_all <- samples[,list(nrun=length(runname)), by = list(cellLine)]
 plotData_wide_all[, cellLine_general := ifelse(!(cellLine %in% cellLines), "others", cellLine)]
 plotData_wide_all[, nrun := sum(nrun), by = cellLine_general]
@@ -119,16 +104,11 @@ p_extended <- ggplot(plotData_wide_all, aes(x = reorder(cellLine_general,-nrun),
     geom_bar(stat = "identity",alpha = 0.5, col = "white", fill = "lightblue")+
     ylab("Number of replicates")+
     xlab("Cell lines")+
-    #coord_flip()+
     scale_y_continuous(breaks = c(0,5,10,15,20,25))+
-    # scale_fill_manual(values = cancer_typeCol,
-    #                   limits = c(cellLines,"others"),
-    #                   name = "Tissues")+
     theme_classic()+
     theme(axis.text.x = element_text(angle = (90), hjust = 0))
 p_extended
-# # scale_x_discrete(breaks = setdiff(plotData_wide$cellLine, unique(plotData_wide$cancer_type)))+
-#
+
 pdf(paste0(wkdir,"figure1/Number_of_runsCellLinesExtendedDataset",saveDate,".pdf"), width = 6, height = 4)
 print(p_extended)
 dev.off()
@@ -136,7 +116,6 @@ dev.off()
 
 
 ```{r spike-in-samples}
-
 samples_wSpikein[grepl("PacBio", runname), RNAcontent := "sequin MixA V2 E2 SIRV-4"]
 samples_wSpikein[, `:=`(sequin_mixa_v1 = grepl("sequin",RNAcontent)&grepl("v1",RNAcontent),
                         sequin_mixa_v2 = grepl("sequin",RNAcontent)&grepl("V2",RNAcontent),
@@ -150,14 +129,12 @@ plotData_spikein <- unique(samples_wSpikein[, list(sequin_mixa_v1 = sum(sequin_m
                         by = NULL)
 plotData <- melt(plotData_spikein, id.vars = "protocol_type", measure.vars = colnames(plotData_spikein)[-1])
 setnames(plotData, c("variable","value"),c("cellLine_general","nrun"))
-
 ```
 
 
 ```{r}
 plotData_wide <- rbindlist(list(plotData_wide,plotData), fill = TRUE)
 plotData_wide[, ord := sprintf("%02i", frank(plotData_wide, nrun, ties.method = "first"))]
-
 ```
 
 
@@ -175,12 +152,6 @@ p_samples <- ggplot(plotData_wide[!grepl("sequin|sirv",cellLine_general)], aes(x
     ylab("Number of replicates")+
     xlab("Cell lines")+
     coord_flip()+
-    # facet_wrap(~protocol_type, scales = "free", nrow = 1)+
-    #scale_y_discrete(limits = c(0,5,10,15,20,25))+
-    # scale_fill_manual(values = protocolCol,
-    #                   labels = protocolLabel,
-    #                   limits = protocolVec,
-    #                   name = "Protocols")+
     theme_classic()+
     # rotate x-axis labels
   theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=.5))
@@ -204,12 +175,6 @@ p_spikein <- ggplot(plotData_wide[grepl("sequin|sirv",cellLine_general)], aes(x 
     ylab("Number of replicates")+
     xlab("Cell lines")+
     coord_flip()+
-    # facet_wrap(~protocol_type, scales = "free", nrow = 1)+
-    #scale_y_discrete(limits = c(0,5,10,15,20,25))+
-    # scale_fill_manual(values = protocolCol,
-    #                   labels = protocolLabel,
-    #                   limits = protocolVec,
-    #                   name = "Protocols")+
     theme_classic()+
     # rotate x-axis labels
   theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=.5))
@@ -223,46 +188,29 @@ dev.off()
 ```{r}
 p_samples <- ggplot(plotData_wide[!grepl("sequin|sirv",cellLine_general)], aes(x = cellLine_general, y = protocol_type))+
 geom_point(aes(size = nrun), alpha = 0.7, color = "lightblue")+
-    #scale_x_discrete(labels = plotData_wide[, setNames(as.character(cellLine_names), ord)]) + 
     scale_size_continuous(limits = c(1, 15), range = c(1,15), breaks = c(1,5,10,15)) + 
     geom_text(aes(label = nrun))+
     ylab("")+
     xlab("Cell lines")+
     coord_flip()+
-    # facet_wrap(~protocol_type, scales = "free", nrow = 1)+
-    #scale_y_discrete(limits = c(0,5,10,15,20,25))+
-    # scale_fill_manual(values = protocolCol,
-    #                   labels = protocolLabel,
-    #                   limits = protocolVec,
-    #                   name = "Protocols")+
     theme_minimal()+
-    
     # rotate x-axis labels
-  theme(#axis.text.x = element_text(angle = 90, hjust=1, vjust=.5), 
-        axis.text.x=element_blank(),
-      axis.ticks.x=element_blank())+ labs(x=NULL)#,plot.margin=unit(c(1,1,0,1),"cm")
+  theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank())+ labs(x=NULL)
+
 p_spikein <- ggplot(plotData_wide[grepl("sequin|sirv",cellLine_general)], aes(x = cellLine_names, y = protocol_type))+
 geom_point(aes(size = nrun), alpha = 0.7, color = "lightblue")+
-    #scale_x_discrete(labels = plotData_wide[, setNames(as.character(cellLine_names), ord)]) + 
     scale_size_continuous(limits = c(1, 15), range = c(1,15), breaks = c(1,5,10,15)) + 
     geom_text(aes(label = nrun))+
     ylab("Number of replicates")+
     xlab("Cell lines")+
     coord_flip()+
-    # facet_wrap(~protocol_type, scales = "free", nrow = 1)+
-    #scale_y_discrete(limits = c(0,5,10,15,20,25))+
-    # scale_fill_manual(values = protocolCol,
-    #                   labels = protocolLabel,
-    #                   limits = protocolVec,
-    #                   name = "Protocols")+
     theme_minimal()+
     # rotate x-axis labels
   theme(axis.text.x = element_text(angle = 90, hjust=1, vjust=.5))#,plot.margin=unit(c(0,1,1,1),"cm")
 ```
 ```{r, fig.width = 8, fig.height = 8}
 library(ggpubr)
-#grid.arrange(p_samples, p_spikein,heights=c(1.8,1))
-#ggarrange(p_samples, p_spikein, nrow = 2, common.legend = TRUE,legend = "bottom",heights = c(2,1),align = "hv")# + rremove("xlab")+rremove("x.axis")+rremove("x.text")+rremove("x.ticks")
 pdf(paste0(wkdir,"figure1/Number_of_runsCellLinesExtendedDataset",saveDate,"_dotplot.pdf"), width = 8, height = 8)
 grid.arrange(p_samples, p_spikein,heights=c(1.8,1))
 dev.off()
@@ -280,23 +228,6 @@ blank_theme <- theme_minimal()+
         axis.ticks = element_blank(),
         plot.title=element_text(size=14, face="bold")
     )
-
-## core data set pie chart ==============
-# df <- data.table(table(samples[cellLine %in% cellLines]$protocol_type)) #[cellLine %in% cellLines]
-# df[, V1 := gsub("-SMRTcell","", V1)]
-# df$pos <- c(108,82,45,10)
-# pie <- ggplot(df, aes(x="", y=N, fill=V1))+
-#     geom_bar(width = 1, stat = "identity")+coord_polar("y", start=0)
-# library(scales)
-# p <- pie + scale_fill_manual(values = protocolCol,
-#                              breaks = protocolVec,
-#                              labels = protocolLabel, name = "Protocol") +  blank_theme +
-#     theme(axis.text.x=element_blank()) +
-#     geom_text(aes(y = pos,
-#                   label = N), size=5)
-# pdf(paste0("figures/Number_of_runsProtocolCoreDataSet",saveDate,".pdf"), width = 6, height = 4)
-# print(p)
-# dev.off()
 
 ## extended data set pie chart ==================== 
  df <- data.table(table(samples$protocol_type)) #[cellLine %in% cellLines]
@@ -387,7 +318,6 @@ write.table(new_supp_table1, file ="supp_table1_sheet1.csv", row.names = FALSE, 
 
 # illumina samples
 ```{r}
-
 new_supp_table1 <- unique(samplesRC_combined[(protocol_type_factor %in% c("Illumina"))&(!grepl("allSpikin",runname)), .(runname, total_reads)])
 setnames(new_supp_table1, c("runname","total_reads"), c("Sample","Sequencing depth"))
 
@@ -397,7 +327,6 @@ write.table(new_supp_table1, file ="supp_table1_sheet2.csv", row.names = FALSE, 
 
 # pacbio samples
 ```{r}
-
 new_supp_table1 <- unique(samplesRC_combined[(protocol_type_factor %in% c("PacBio"))&(!grepl("allSpikin",runname)), .(runname, total_reads)])
 setnames(new_supp_table1, c("runname","total_reads"), c("Sample","Sequencing depth"))
 

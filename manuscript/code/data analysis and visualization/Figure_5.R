@@ -40,7 +40,7 @@ dt_long <- melt(dt, id.var = "candidate_id", measure.vars = c("sr_conc","lr_conc
 dt_long[, variable := gsub("_conc","", variable)]
 
 library(readxl)
-dtEst <- data.table(as.data.frame(read_xlsx("/mnt/projects/SGNExManuscript/revision3/YF_validation/digital_PCR/candidateTable_dPCR_updated_27Jun2024.xlsx", 
+dtEst <- data.table(as.data.frame(read_xlsx("digital_PCR/candidateTable_dPCR_updated_27Jun2024.xlsx", 
                                             col_names = TRUE)))
 dtEst <- dtEst[!is.na(`Candidate Id`)]
 dtEst[, candidate_id := as.integer(gsub("Candidate ","",`Candidate Id`))]
@@ -61,9 +61,7 @@ dt_longlong[common_status == TRUE&(major_isoform_type =="lr"), revised_estimates
 dt_longlong[, revised_isoform_type := ifelse(common_status == TRUE&(major_isoform_type=="sr"),"sr+lr",major_isoform_type)]
 p2 <- ggplot(dt_longlong, aes(x = log10(conc+1), y = log10(revised_estimates+1)))+
     geom_abline(intercept = 0, slope = 1)+
-    #geom_point(aes(col = major_isoform_type))+
     geom_text(aes(label = candidate_id, col = candidate_id %in% c(3,4,5,6)))+
-    #geom_line(aes(group = candidate_id))+
     facet_wrap(common_status~data_type, scales = "free")+
     stat_cor(method = "spearman",
              label.x = 0,
@@ -76,9 +74,7 @@ p2 <- ggplot(dt_longlong, aes(x = log10(conc+1), y = log10(revised_estimates+1))
 ## for correlation only combined a and b
 ggplot(dt_longlong, aes(x = log10(conc+1), y = log10(revised_estimates+1)))+
     geom_abline(intercept = 0, slope = 1)+
-    #geom_point(aes(col = major_isoform_type))+
     geom_text(aes(label = candidate_id, col = candidate_id %in% c(3,4,5,6)))+
-    #geom_line(aes(group = candidate_id))+
     facet_wrap(~data_type, scales = "free")+
     stat_cor(method = "pearson",
              label.x = 0,
@@ -88,13 +84,9 @@ ggplot(dt_longlong, aes(x = log10(conc+1), y = log10(revised_estimates+1)))+
     theme_classic()+
     theme(legend.position = "top")
 
-#dt[, common_status := (candidate_id %in% c(3,4,5,6))]
 p1 <- ggplot(dt, aes(x = log10(lr_conc+1), y = log10(sr_conc+1)))+
-    #geom_point(aes(col = common_status), shape = 1)+
     geom_abline(intercept = 0, slope = 1)+
     geom_text(aes(label = candidate_id, col = candidate_id %in% c(3,4,5,6)))+
-    # xlab("log10(Average concentration (cop/ul)+1) for long read assays")+
-    # ylab("log10(Average concentration (cop/ul)+1) for short read assays")+
     xlim(0,4)+
     ylim(0,4)+
     facet_wrap(~common_status,scales = "free", ncol = 1, nrow = 2)+
@@ -103,17 +95,7 @@ p1 <- ggplot(dt, aes(x = log10(lr_conc+1), y = log10(sr_conc+1)))+
              label.y = 4)+
     theme_classic()+
     theme(legend.position = "top")
-# p3 <- ggplot(dt_long, aes(x = log10(lrEst+1), y = log10(srEst+1)))+
-#     geom_point(aes(col = major_isoform_type), shape = 1)+
-#     geom_abline(intercept = 0, slope = 1)+
-#     #geom_text(aes(label = candidate_id, col = candidate_id %in% c(3,4,5,6)))+
-#     # xlab("log10(Average concentration (cop/ul)+1) for long read assays")+
-#     # ylab("log10(Average concentration (cop/ul)+1) for short read assays")+
-#     xlim(0,4)+
-#     ylim(0,4)+
-#     #facet_wrap(~common_status)+
-#     theme_classic()+
-#     theme(legend.position = "top")
+
 library(ggpubr)
 pdf("dPCR_results_2Aug2024_text_spcor.pdf")
 ggarrange(p1,p2, nrow=1, ncol =2, widths = c(1,2), align = "hv", common.legend = TRUE)
@@ -277,9 +259,6 @@ for(i in 1:13){
 dev.off()
 
 
-# qPCR_c1 <- fread("~/Downloads/20240719 Run 1 Cand1 -  Quantification Amplification Results_FAM.csv")
-# qPCR_c3 <- fread("~/Downloads/20240719 Run 1 Cand3-  Quantification Amplification Results_FAM.csv")
-# qPCR_c7 <- fread("~/Downloads/20240719 Run 2 Cand7 -  Quantification Amplification Results_FAM.csv")
 
 qPCR_c1to6 <- fread("20240719 Run 1 Cand1-6 Testing w RT-Tube 1 10xd -  Quantification Amplification Results_FAM.csv")
 qPCR_c1to6_label <- fread("20240719 Run 1 Cand1-6 Testing w RT-Tube 1 10xd -  End Point Results_FAM.csv")
@@ -315,13 +294,7 @@ qPCR_c7to13_long <- qPCR_c7to13_label[,.(candidate_id, short_read, Well,`Sample 
 
 qPCR_results <- do.call("rbind",list(qPCR_c1to6_long,qPCR_c7to13_long))
 qPCR_results[candidate_id == "C9S",`:=`(candidate_id = "C9", short_read = TRUE)]
-# qPCR_c7_long <- melt(qPCR_c7, id.vars = "Cycle", measure.vars = c("A1","A2","A11","A12"))
-# qPCR_c7_long[, short_read := variable %in% c("A1","A2")]
-# qPCR_c7_long[, candidate_id := 7]
-# qPCR_c3_long <- melt(qPCR_c3, id.vars = "Cycle", measure.vars = c("B5","B6","C5","C6"))
-# qPCR_c3_long[, short_read := variable %in% c("B5","C5")]
-# qPCR_c3_long[, candidate_id := 3]
-#qPCR_results <- do.call("rbind",list(qPCR_c7_long,qPCR_c3_long))
+
 pdf("qPCR_results_candidate_allcandidates.pdf", width = 10, height = 8)
 ggplot(qPCR_results[`Sample Type` != "NTC"], aes(x = Cycle, y = value, group=Well))+
     geom_abline(intercept = 50, slope = 0)+

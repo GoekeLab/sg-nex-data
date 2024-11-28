@@ -42,8 +42,6 @@ library(RColorBrewer)
 library(limma)
 library(ggpubr)
 
-# if heya8 still similar to h9, or can be distinguished
-# heatmap for samples
 library(ComplexHeatmap)
 library(circlize)
 library(viridis)
@@ -59,13 +57,13 @@ cat('Setting working directory')
 wkdir <- '.'
 general_list <- readRDS("general_list2023-04-27.rds")
 samples_wSpikein <- general_list$samples_wSpikein
-cellLines <- general_list$cellLines#c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8")
-protocolCol <-  general_list$protocolCol#adjustcolor(brewer.pal(8,"Dark2")[1:5],0.7)
-protocolVec <-  general_list$protocolVec#c("directRNA","directcDNA","cDNA","PacBio","Illumina")
-protocolLabel <- general_list$protocolLabel#c("RNA","PCR-free cDNA","cDNA","PacBio","Illumina")
+cellLines <- general_list$cellLines
+protocolCol <-  general_list$protocolCol
+protocolVec <-  general_list$protocolVec
+protocolLabel <- general_list$protocolLabel
 
 txvec <- fread(paste0(".txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
-#txvec <- fread(paste0(wkdir,"txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
+
 txvec <- gsub("\\..*","",txvec$V1)
 ensemblAnnotations.transcripts <- copy(general_list$ensemblAnnotations.transcripts)
 setnames(ensemblAnnotations.transcripts, "ensembl_gene_id","gene_name")
@@ -83,8 +81,6 @@ source("utility_function.R")
 methodNamesList <- CJ(lr = c("bambu_lr","salmon_lr"),
                       sr = c("rsem_sr","salmon_sr"),
                       gene = c(TRUE, FALSE))
-# methodNames <- c("bambu_lr","salmon_sr")
-# gene <- TRUE
 
 library(BiocParallel)
 bpParameters <- bpparam()
@@ -105,7 +101,7 @@ print(paste0(c(methodNames,gene)))
 temp <- samples_wSpikein[,.(old_runname, runname)]
 setnames(temp, "runname", "new_name")
 if(gene){
-    comDataGene <- readRDS(paste0(wkdir, "output_guppy6.4.2/combinedExpressionDataGene_19June2023.rds"))
+    comDataGene <- readRDS(paste0(wkdir, "combinedExpressionDataGene_19June2023.rds"))
     comDataGene[, old_runname := runname]
     comDataGene <- temp[comDataGene, on = "old_runname"]
     comDataGene[!is.na(new_name), runname := new_name]
@@ -115,7 +111,7 @@ if(gene){
                         scatterPlot = FALSE, complexity = FALSE, expressionLevel = FALSE, metric_type_id = metric_type_id, bpParameters) # focus on protein coding genes
     
 }else{
-    comDataTranscript <- readRDS(paste0(wkdir, "output_guppy6.4.2/combinedExpressionDataTranscript_19June2023.rds"))
+    comDataTranscript <- readRDS(paste0(wkdir, "combinedExpressionDataTranscript_19June2023.rds"))
     comDataTranscript[, old_runname := runname]
     comDataTranscript <- temp[comDataTranscript, on = "old_runname"]
     comDataTranscript[!is.na(new_name), runname := new_name]

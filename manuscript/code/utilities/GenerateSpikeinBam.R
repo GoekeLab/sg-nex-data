@@ -23,7 +23,6 @@ n_threads <- 48
 get_spikein_bam <- function(sampleNames, bam.file,sampleData,save.dir,n_threads, samtools_path){
     np <- lapply(sampleNames, function(r){
         r_path <- bam.file[[r]]
-       
         system(paste0("aws s3 cp --no-sign-request ",  r_path, " ", save.dir))
          
         in.bam <- paste0(save.dir, basename(r_path))
@@ -85,10 +84,9 @@ merge_bam_file <- function(bam.path, save.dir_all, protocol_spikein){
 ## sample information    ##
 ###########################
 
-sampleData <- data.table(as.data.frame(read_xlsx(paste0('ONT Master Table.xlsx'), sheet = 1))) ## need to convert from tibble to data.frame
+sampleData <- data.table(as.data.frame(read_xlsx(paste0('.'), sheet = 1))) ## need to convert from tibble to data.frame
 sampleData <- sampleData[(grepl("H9|HEYA8",runName)&(grepl("ON00",name))&(!grepl("HEYA8.*H9",
                                                                                  runName)))|(SG_NextData_Release=="Yes"&(!is.na(SG_NextData_Release))&(!grepl("CRC",runName)))|(grepl("HCT116",runName))]
-#sampleData$runName_combined <- gsub('-pre|-Pre','',sampleData$runName) # there are runs with multiple datasets that should be combined together 
 sampleData[,runName_combined := ifelse(grepl("directRNA",runName)|(!grepl("H9|HEYA8",runName))|(grepl("WINSTON",name)),
                                        runName, 
                                        `GIS Library ID`)]
@@ -102,13 +100,13 @@ sampleData$demultiplexed <- grepl("NB", sampleData$name)|(grepl("barcode",sample
 
 sampleNames <- unique(sampleData$`publicName (SGNex_CellLine_protocol_replicate1_run1)`)[1:111]
 
-sampleData_sr <- data.table(as.data.frame(read_xlsx("ONT Master Table.xlsx", sheet = 3))) ## need to convert from tibble to data.frame
+sampleData_sr <- data.table(as.data.frame(read_xlsx(".", sheet = 3))) ## need to convert from tibble to data.frame
 sampleData_sr <- sampleData_sr[!grepl('#',`ELM library ID`) &(!is.na(runName))&(!grepl("HEYA8.*H9",runName))]
 sr_runNames <- sampleData_sr$runName
 chrm_names <- c(1:22,'X','Y')
 
 
-pacbio_data <-  data.table(as.data.frame(read_xlsx(paste0('ONT Master Table.xlsx'), sheet = 2)))
+pacbio_data <-  data.table(as.data.frame(read_xlsx(paste0('.'), sheet = 2)))
 
 
 
@@ -156,16 +154,14 @@ samples_wSpikein[, RNAcontent := gsub("SIRV-1 \\(E2","SIRV-1 E2",gsub("A\\,","A"
 
 
 
-#sampleNames <- samples_wSpikein[grepl("sequin|SIRV",RNAcontent)&(!grepl("Illumina",runname))]$runname
 sampleNames <- samples_wSpikein[grepl("SIRV-4",RNAcontent)&(grepl("_cDNA",runname))]$runname
-#sampleNames <- samples_wSpikein[grepl("sequin|SIRV",RNAcontent)&(grepl("PacBio",runname))]$runname
 
 ##########################
 # genome bam file        #
 ##########################
 bam.file <- unlist(lapply(sampleNames, function(r){ # sampleNames for all
     if(grepl("PacBio",r)){
-        bam.file <- gsub('s3://ontdata.store.genome.sg','/mnt/ontdata',pacbio_data[public_name == r]$`bam-genome.path`)
+        bam.file <- pacbio_data[public_name == r]$`bam-genome.path`
     }else if(!grepl("Illumina",r)){
         bam.file <- paste0("s3://sg-nex-data/data/sequencing_data_ont/bam/genome/",r,"/",r,".bam")#
         
@@ -188,7 +184,6 @@ bam.path <- dir(save.dir, pattern = ".bam$", full.names = TRUE)
 save.dir_all <- paste0(wkdir,"/spikein_bam_Apr17/")
 protocolVec <- c("directcDNA","_cDNA","directRNA","Illumina","PacBio")[2]
 spikein_type <- c("sequin Mix A v1.0","sequin Mix A V2","SIRV-1","SIRV-4")[4]
-#spikein_type <- c("sequin Mix A v1.0","sequin Mix A V2","SIRV-1","SIRV-4")
 
 protocol_spikein <- CJ(protocol = protocolVec, spikein_type = spikein_type)
 merge_bam_file(bam.path, save.dir_all, protocol_spikein)
@@ -215,7 +210,7 @@ for(i in seq_along(chrnames)){
 
 bam.file <- unlist(lapply(sampleNames, function(r){ # sampleNames for all
     if(grepl("PacBio",r)){
-        bam.file <- gsub('s3://ontdata.store.genome.sg','/mnt/ontdata',pacbio_data[public_name == r]$`bam-tx.path`)
+        bam.file <- pacbio_data[public_name == r]$`bam-tx.path`
     }else if(!grepl("Illumina",r)){
         bam.file <- paste0("s3://sg-nex-data/data/sequencing_data_ont/bam/transcriptome/",r,"/",r,".bam")#
     }else{

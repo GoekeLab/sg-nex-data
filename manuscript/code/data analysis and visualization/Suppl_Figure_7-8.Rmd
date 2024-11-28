@@ -12,7 +12,6 @@ require(data.table)#fast large dataset manipulation
 require(readxl)
 require(dplyr)
 
-
 require(ggplot2)
 require(RColorBrewer)
 require(gridExtra)
@@ -22,8 +21,6 @@ library(RColorBrewer)
 library(limma)
 library(ggpubr)
 
-# if heya8 still similar to h9, or can be distinguished
-# heatmap for samples
 library(ComplexHeatmap)
 library(circlize)
 library(viridis)
@@ -92,9 +89,6 @@ seList <- dir(".",
 sqanti3List <- dir("sqanti3_qc_forall/", recursive = TRUE, pattern = "_classification.txt$", full.names = TRUE)
 
 # remove ORF_seq 
-
-
-
 novelTxCount <- do.call("rbind",lapply(seList, function(r){
     ndr_value <- (gsub(".*NDR|\\.rds","",r))
     print(ndr_value)
@@ -117,18 +111,6 @@ novelTxCount <- do.call("rbind",lapply(seList, function(r){
     txData[, sqanti3_filterN := filter_value]
     return(unique(txData[,list(n = .N), by = list(tx_type,ndr_value, sqanti3_filterN)]))
 }))
-
-# novelTxCount$ndr_value <- c(rep(as.numeric(gsub(".*NDR|\\.rds",
-#       "",seList))[1:9],each = 3),
-#       gsub(".*NDR|\\.rds","",seList)[10],
-#       rep(as.numeric(gsub(".*NDR|\\.rds","",
-#         seList))[11],each = 3))
-# 
-# se <-  readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_May25.rds")
-# txData <- data.table(as.data.frame(rowData(se)))
-# txData[, tx_type := novelGene+novelTranscript]
-# txData[, ndr_value := 0.316]
-# recommendedData <- unique(txData[,list(n = .N), by = list(tx_type,ndr_value)])
 saveRDS(novelTxCount, file = "novelTxCount_filtered.rds")
 ```
 
@@ -146,13 +128,6 @@ novelTxCount <- do.call("rbind",lapply(seList, function(r){
     return(unique(txData[,list(n = .N), by = list(tx_type,ndr_value)]))
 }))
 
-
-
-# se <-  readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_May25.rds")
-# txData <- data.table(as.data.frame(rowData(se)))
-# txData[, tx_type := novelGene+novelTranscript]
-# txData[, ndr_value := 0.316]
-# recommendedData <- unique(txData[,list(n = .N), by = list(tx_type,ndr_value)])
 saveRDS(novelTxCount, file = "novelTxCount_11Sep2023.rds")
 ```
 
@@ -171,13 +146,6 @@ novelTxCount <- do.call("rbind",lapply(seList, function(r){
     return(unique(txData[,list(n = .N), by = list(tx_type,ndr_value)]))
 }))
 
-
-
-# se <-  readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_May25.rds")
-# txData <- data.table(as.data.frame(rowData(se)))
-# txData[, tx_type := novelGene+novelTranscript]
-# txData[, ndr_value := 0.316]
-# recommendedData <- unique(txData[,list(n = .N), by = list(tx_type,ndr_value)])
 saveRDS(novelTxCount, file = "novelTxCount_uniquealignments_4Oct2023.rds")
 ```
 
@@ -210,13 +178,6 @@ novelTxCount <- do.call("rbind",lapply(seList, function(r){
     return(unique(txData[,list(n = .N), by = list(tx_type,ndr_value)]))
 }))
 
-
-
-# se <-  readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_May25.rds")
-# txData <- data.table(as.data.frame(rowData(se)))
-# txData[, tx_type := novelGene+novelTranscript]
-# txData[, ndr_value := 0.316]
-# recommendedData <- unique(txData[,list(n = .N), by = list(tx_type,ndr_value)])
 saveRDS(novelTxCount, file = "novelTxCount_bestalignments_4Oct2023.rds")
 ```
 
@@ -249,13 +210,6 @@ novelTxCount <- do.call("rbind",lapply(seList, function(r){
     return(unique(txData[,list(n = .N), by = list(tx_type,ndr_value)]))
 }))
 
-
-
-# se <-  readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_May25.rds")
-# txData <- data.table(as.data.frame(rowData(se)))
-# txData[, tx_type := novelGene+novelTranscript]
-# txData[, ndr_value := 0.316]
-# recommendedData <- unique(txData[,list(n = .N), by = list(tx_type,ndr_value)])
 saveRDS(novelTxCount, file = "novelTxCount_noClosealignments_4Oct2023.rds")
 ```
 
@@ -273,13 +227,6 @@ novelTxCount <- do.call("rbind",lapply(seList, function(r){
     return(unique(txData[,list(n = .N), by = list(tx_type,ndr_value)]))
 }))
 
-
-
-# se <-  readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_May25.rds")
-# txData <- data.table(as.data.frame(rowData(se)))
-# txData[, tx_type := novelGene+novelTranscript]
-# txData[, ndr_value := 0.316]
-# recommendedData <- unique(txData[,list(n = .N), by = list(tx_type,ndr_value)])
 saveRDS(novelTxCount, file = "novelTxCount_primaryalignments_4Oct2023.rds")
 ```
 
@@ -305,9 +252,6 @@ repResOnt <- repeat_analysis_function(se, ervRanges)
 repRatioOnt <- repResOnt[[2]]
 repRatioCountOnt <- repResOnt[[1]]
 
-# repRatioOnt <- copy(isoTEratio)
-# repRatioCountOnt <- copy(com_data)
-
 repRatioOnt[, tx_type := novelGene+novelTranscript]
 ```
 
@@ -317,7 +261,7 @@ repRatioOnt[, tx_type := novelGene+novelTranscript]
 ## a: novel transcripts identified 
 ```{r}
 novelTxCount <-readRDS("novelTxCount_filtered.rds")
-#novelTxCount <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/novelTxCount_11Sep2023.rds")
+
 lineData <- unique(novelTxCount[tx_type >0,list(n = sum(n)), 
                                 by = list(ndr_value)])
 lineData[, tx_type := "all"]
@@ -336,19 +280,16 @@ p_novelTx <- ggplot(novelTxCount[tx_type!=0&(ndr_value != 0.316)&(ndr_value <= 0
     position = position_stack())+
     geom_line( data =labelData[ndr_value <= 0.25], aes(group = tx_type),
                linetype = 2, col = "grey")+
-    #geom_vline(xintercept = 0.316, linetype = "dotted", col = "grey")+
     geom_point( data = labelData[ndr_value <= 0.25], 
                 aes(x = ndr_value, y = n), col = "grey", shape = 16)+
     geom_text( data = labelData[ndr_value <= 0.25], 
                aes(label = n))+
-    # scale_y_break(c(5005,10600), scales =0.2)+
     ylab("Number of novel transcripts")+
     xlab("NDR")+
     scale_fill_brewer(type = "qual", palette = 2, name = "")+
     theme_classic()+
     theme(legend.position = "top")
 
-#pdf("novelTx_fig6a_11Sep_2023.pdf")
 pdf("novelTx_fig6a_14Jun_2024.pdf")
 p_novelTx
 dev.off()
@@ -393,7 +334,6 @@ repRatioOnt_all[is.na(repRatio_byisoform_all), repRatio_byisoform_all := 0]
 
 
 plotdata_rep <- unique(repRatioOnt_all[,.(tx_name,gene_name, repRatio_byisoform_all, tx_type)])
-#plotdata_rep[, repRatio_byisform_all := pmin(repRatioIso_byisoform,1)]
 my_comparisons <- list(c("annotated isoforms \n >= 1 full length counts","novel isoform"),
                        c("novel isoform","novel gene isoform"),
                        c("annotated isoforms \n >= 1 full length counts","novel gene isoform"))
@@ -407,8 +347,7 @@ p_novelTx_repeatPercentage <- ggplot(plotdata_rep, aes(x = factor(tx_type, label
     xlab("Isoform type")+
     theme_classic()
 
-pdf(paste0("Figure6c_14Jun2024.pdf"), width = 4, height = 5)#
-# pdf(paste0("Figure6c_draft_21Feb2024.pdf"), width = 4, height = 5)#
+pdf(paste0("Figure6c_14Jun2024.pdf"), width = 4, height = 5)
 p_novelTx_repeatPercentage
 dev.off()
 ```
@@ -435,11 +374,6 @@ p_novelTx_repeatPercentage_byrepclass_0.8 <- ggplot(plotdata_rep[!is.na(rep_clas
     ylab("Percentage of bps \n overlapping with repeat elements")+
     xlab("Isoform type")+
     theme_classic()
-
-# repRatioOnt_all <- unique(repRatioOnt_repClassByIsoform[,.(tx_name, gene_name, repRatioByRepClass, rep_class)])[unique(plotdataONT[,.(tx_name, gene_name, tx_type, n_exon, tx_len)]), on = c("tx_name","gene_name")]
-# repRatioOnt_all[is.na(repRatioByRepClass), repRatioByRepClass := 0]
-# repRatioOnt_all[, repRatioByRepClass := pmin(repRatioByRepClass,1)]
-
 
 plotdata_rep <- unique(repRatioOnt_all[,.(tx_name,gene_name, repRatio_byisoform, tx_type,rep_class)])
 my_comparisons <- list(c("annotated isoforms \n >= 1 full length counts","novel isoform"),
@@ -478,22 +412,15 @@ repRatioOnt[, newTxClassAggregated:=ifelse(grepl("newFirstExon",txClassDescripti
                                                                   ifelse(grepl("Junction",txClassDescription),"newJunction",
                                                                          ifelse(grepl("Within",txClassDescription),"unspliced",
                                                                                 ifelse(grepl("newGene-",txClassDescription),"newGene",txClassDescription))))))]
-    # 
-# create tx and rep_class cartesian, so for each transcript, check overlap with every rep_class
-# tx_rep_cartesian <- optiRum::CJ.dt(unique(repRatioOnt[,c(1:11,13,14,18,22), with = FALSE]),  data.table(rep_class = na.omit(unique(repRatioOnt$rep_class))))
 
 repRatioOnt_all <- copy(repRatioOnt)
 
 isoTEratio_agg <- unique(repRatioOnt_all[!(novelTranscript&(anno_status=="annotated"))&(tx_name %in% isoEst_filter2$tx_name),.(repRatio, repRatio_byisoform_all, repRatio_all, tx_name, rep_class,  anno_status, gene_name,newTxClassAggregated)])
+
+
 library(ComplexHeatmap)
 library(circlize)
 library(RColorBrewer)
-# tmp_wide <- dcast(isoTEratio_agg[repRatio_byisoform_all>=0.8], tx_name+anno_status+newTxClassAggregated+gene_name+repRatio_byisoform_all~rep_class, value.var = "repRatio")
-# strandInfo <- data.table(txId = rownames(se),
-#            strand = as.character(unlist(unique(strand(rowRanges(se))))))
-# tmp_wide[, strand :=  strandInfo[match(tx_name, txId)]$strand]
-# tmp_wide[is.na(tmp_wide)] <- 0
-
 
 tmp_wide <- dcast(isoTEratio_agg[repRatio_all>=0.8], tx_name+anno_status+newTxClassAggregated+gene_name+repRatio_all~rep_class, value.var = "repRatio")
 strandInfo <- data.table(txId = rownames(se),
@@ -501,8 +428,6 @@ strandInfo <- data.table(txId = rownames(se),
 tmp_wide[, strand :=  strandInfo[match(tx_name, txId)]$strand]
 tmp_wide[is.na(tmp_wide)] <- 0
 
-## if dividing by total isoform length as cutoff for 0.8, only 30 transcripts left, 19 annotated, and 11 novel
-## if dividing by novel or annotated exon total length, as cutoff for 0.8, a total of 55 transcripts left, 19 annotated, 36 novel
 
 tmp_wide <- isoEst_filter_wide[tmp_wide, on = "tx_name"]
 
@@ -524,11 +449,9 @@ tmp_wide <- tmp_wide[order(LTR,LINE, SINE, DNA, sumExp, decreasing = FALSE)]
 tmp_wide[,others := (RNA+Simple_repeat+scRNA+snRNA+srpRNA+tRNA+`DNA?`+Satellite+Retroposon+rRNA+`SINE?`+`LTR?`+Low_complexity+RC+`RC?`+Unknown)] #Retroposon+Satellite+
 plotdata <- as.data.frame(tmp_wide[,c("LTR","LINE","SINE","DNA","others"),with=FALSE]) # DNA removed tmply
 
-# write.table(tmp_wide, file = "repeat_filtered_by_isoform_21Feb2024.txt",col.names = TRUE, row.names = FALSE, sep = ",", quote = FALSE)
 
-#write.table(tmp_wide, file = "repeat_filtered_by_anno_status_21Feb2024.txt",col.names = TRUE, row.names = FALSE, sep = ",", quote = FALSE)
 col_fun = colorRamp2(c(0,1), c("white", "red"))
-#colInfo <- unique(isoTEratio[,.(rep_name, rep_class)])[match(colnames(plotdata), runname)]
+
 rowInfo <- tmp_wide[,.(tx_name,strand, anno_status,newTxClassAggregated, gene_name)]
 rowInfo[, newGene:=grepl("Bambu",gene_name)]
 rowInfo[, anno_status := factor(anno_status, levels = rev(c("annotated","novel")))]
@@ -567,7 +490,7 @@ mat1 <- Heatmap(t(plotmat), name = "Overlap",
 mat1
 
 txvec <- rowInfo$tx_name
-tmp2 <- tmp_wide[,2:77, with = FALSE]#isoEst_filter_wide[tx_name %in% tmp$tx_name][match(txvec,tx_name)] tmp_wide[,2:19, with = FALSE]#
+tmp2 <- tmp_wide[,2:77, with = FALSE]
 colInfo <- unique(isoEst_filter[,.(runname, protocol_general, cellLine)])[match(colnames(tmp2),runname)]
 colCellline <- c(brewer.pal(8,"Dark2"),adjustcolor(brewer.pal(8,"Dark2"), alpha = 0.7),
                  adjustcolor(brewer.pal(8,"Dark2"), alpha = 0.3)[1:2])[1:length(unique(colInfo$cellLine))]
@@ -577,27 +500,19 @@ names(colProtocol) <- unique(colInfo$protocol_general)
 sample_anno <- rowAnnotation(
                                 cellLine = colInfo$cellLine,
                                 protocol = colInfo$protocol_type,
-                                #cDNAstranded = colInfo$cDNAstranded,
-                                col = list(#patient_sample = colPatientSample,
-                                           #cancer_type = colCancerType,
-                                           cellLine = colCellline,
-                                           protocol = colProtocol))#,
-                                           #cDNAstranded = colcDNAstranded) )
+                                col = list(cellLine = colCellline,
+                                           protocol = colProtocol))
 
 plotdata2 <- as.data.frame(tmp2)
 
 normEst_col_fun = colorRamp2(c(0,14), c("white", "royalblue3"))
 mat2 <- Heatmap(t(as.matrix(log2(plotdata2+1))), name = "normEst", col = normEst_col_fun,
-                #right_annotation = hgncTypes,
                 right_annotation = sample_anno,
                 cluster_columns = FALSE,
                 row_split = as.factor(colInfo$cellLine),
-                #row_column_slices = FALSE,
                 column_split = rowInfo$anno_status,
                 row_names_rot = 180,
                 column_title_gp = gpar(col = "white"),
-                #cluster_rows = FALSE,
-                #cluster_columns = FALSE,
                 cluster_column_slices = FALSE,
                 show_row_names = FALSE)
 
@@ -613,11 +528,9 @@ mat1 <- Heatmap(t(plotmat), name = "Overlap",
                 column_names_side = "top",
                 show_column_names = TRUE)#,
 
-#pdf(paste0("REHeatMap.pdf"), width = 20, height = 20)
+
 final_mat <- mat1 %v% mat2
-#dev.off()
-#pdf(paste0("REHeatMap_21Feb2023_filterbyisoform.pdf"), width = 15, height = 10)
-# pdf(paste0("REHeatMap_21Feb2023_filterbyannostatus.pdf"), width = 15, height = 10)
+
 pdf(paste0("REHeatMap_14Jun2024.pdf"), width = 15, height = 10)
 print(final_mat)
 dev.off()
@@ -629,7 +542,7 @@ dev.off()
 
 all repeat type
 ```{r}
-#[repRatioIso_byisoform>=0.8]
+
 tmp_wide <- dcast(isoTEratio_agg, tx_name+anno_status+newTxClassAggregated+gene_name+repRatio_byisoform_all~rep_class, value.var = "repRatio")
 strandInfo <- data.table(txId = rownames(se),
            strand = as.character(unlist(unique(strand(rowRanges(se))))))
@@ -644,8 +557,6 @@ strandInfo <- data.table(txId = rownames(se),
 tmp_wide[, strand :=  strandInfo[match(tx_name, txId)]$strand]
 
 tmp_wide[is.na(tmp_wide)] <- 0
-## if dividing by total isoform length as cutoff for 0.8, only 30 transcripts left, 19 annotated, and 11 novel
-## if dividing by novel or annotated exon total length, as cutoff for 0.8, a total of 55 transcripts left, 19 annotated, 36 novel
 
 tmp_wide <- isoEst_filter_wide[tmp_wide, on = "tx_name"]
 
@@ -664,11 +575,10 @@ tmp_wide[, sumExp := (A549_aveExp + Hct116_aveExp + K562_aveExp +
 
 tmp_wide <- tmp_wide[order(LTR,LINE, SINE, DNA, sumExp, decreasing = FALSE)]
 
-# tmp_wide[,others := (RNA+Simple_repeat+scRNA+snRNA+srpRNA+tRNA+`DNA?`+Satellite+Retroposon+rRNA+`SINE?`+`LTR?`+Low_complexity+RC+`RC?`+Unknown)] #Retroposon+Satellite+
 plotdata <- as.data.frame(tmp_wide[,82:101,with=FALSE]) # DNA removed tmply
 plotdata <- plotdata[,names(sort(-apply(plotdata,2,sum)))]
 col_fun = colorRamp2(c(0,1), c("white", "red"))
-#colInfo <- unique(isoTEratio[,.(rep_name, rep_class)])[match(colnames(plotdata), runname)]
+
 rowInfo <- tmp_wide[,.(tx_name,strand, anno_status,newTxClassAggregated, gene_name)]
 rowInfo[, newGene:=grepl("Bambu",gene_name)]
 rowInfo[, anno_status := factor(anno_status, levels = rev(c("annotated","novel")))]
@@ -710,8 +620,6 @@ mat1 <- Heatmap(t(plotmat), name = "Overlap",
 mat1
 
 pdf(paste0("repeat_type_heatmap_only_21Feb2024.pdf"), width = 15, height = 8)
-#pdf(paste0("repeat_type_heatmap_only_filterbyisoform_21Feb2024.pdf"), width = 15, height = 8)
-# pdf(paste0("repeat_type_heatmap_only_filterbyanno_status_21Feb2024.pdf"), width = 15, height = 8)
 print(mat1)
 dev.off()
 ```
@@ -745,7 +653,6 @@ p_novelTx_complexity<- ggplot(plotdata_nexon, aes(x = factor(tx_type, labels = c
                        paired = FALSE)+
     ylab("Number of exons")+
     scale_y_break(c(34,90), scales = 0.1)+
-    # scale_y_log10()+
     xlab("Isoform type")+
     theme_classic()
 ```
@@ -759,7 +666,6 @@ p_novelTx_length<- ggplot(plotdata_txlen, aes(x = factor(tx_type, labels = c("an
     geom_boxplot()+
     stat_compare_means(comparisons = my_comparisons,
                        paired = FALSE)+
-                       #label.y = c(4000,2000,8000))+
      scale_y_break(c(10000,200000), scales = 0.1)+
     ylab("Isoform length")+
     xlab("Isoform type")+
@@ -769,7 +675,7 @@ p_novelTx_length<- ggplot(plotdata_txlen, aes(x = factor(tx_type, labels = c("an
 ## a novel transcripts identified 
 ```{r}
 # novelTxCount unique alignments
-seList <- dir("/mnt/projects/SGNExManuscript/output_guppy6.4.2/",
+seList <- dir(".",
               pattern = "_31Jul2023_uniquealignments_NDR", full.names = TRUE)
 
 novelTxCount <- do.call("rbind",lapply(seList, function(r){
@@ -856,7 +762,6 @@ p_novelTx_unique <- ggplot(novelTxCountUnique[tx_type!=0&((round(ndr_value,1) ==
     position = position_stack())+
     geom_line( data =labelData[(round(ndr_value,1) == 0.6)|(ndr_value %in% seq(0.1,1, by = 0.1))], aes(group = tx_type),
                linetype = 2, col = "grey")+
-    #geom_vline(xintercept = 0.316, linetype = "dotted", col = "grey")+
     geom_point( data = labelData[(round(ndr_value,1) == 0.6)|(ndr_value %in% seq(0.1,1, by = 0.1))], 
                 aes(x = ndr_value, y = n), col = "grey", shape = 16)+
     geom_text( data = labelData[(round(ndr_value,1) == 0.6)|(ndr_value %in% seq(0.1,1, by = 0.1))], 
@@ -871,32 +776,14 @@ p_novelTx_unique <- ggplot(novelTxCountUnique[tx_type!=0&((round(ndr_value,1) ==
 
 ## b stringtie2 results using both all alignments and only unique alignments numbers 
 ```{r}
-lr.gtf <- "lr_stringtie2/stringtie2_merged.gtf" # corrupted as Rob found out that there are multiple entries for transcript features
+
 lr.gtf2 <- "lr_stringtie2/stringtie2_merged.gtf" # corrected 
 pbSe <- "bambuOutput_PacBioNDR0.1_Aug18.rds"
 # just show number of novel gene and novel isoform, number of annotated transcripts with >=2 cpm??
-stringtie2Anno <- prepareAnnotationsFromGTF_withRefGeneId(lr.gtf)
+
 stringtie2Anno2 <- prepareAnnotationsFromGTF_withRefGeneId(lr.gtf2)
 pacbioAnno <-rowRanges(readRDS(pbSe))
 
-
-# geneIds <- assignGeneIds(grl = stringtie2Anno,
-#                              annotations = rowRanges(se[!grepl("Bambu",rownames(se))]),
-#                              min.exonOverlap = 10,
-#                              fusionMode = FALSE)
-# 
-# txModelSTR <- data.table(as.data.frame(mcols(stringtie2Anno)))
-# 
-# txModelSTR[, exon_number := elementNROWS(stringtie2Anno)]
-# txModelSTR <- unique(data.table(geneIds))[txModelSTR, on = "GENEID"]
-# txModelSTR[, tx_type := ifelse(grepl("STR",TXNAME)&(!is.na(ref_gene_id)), 1, 
-#                                ifelse(grepl("STR",TXNAME),2,0))]
-# txModelSTR[, recovered_tx_type := ifelse(grepl("STR",TXNAME)&(!novelGene), 1, 
-#                                ifelse(grepl("STR",TXNAME),2,0))]
-# # try assignGeneIds from bambu: all novel genes reported are not able to be assigned an annotated gene  id 
-# txModelSTR_summary <- unique(txModelSTR[, list(count = .N,
-#                                                multi_exon_count = nrow(.SD[exon_number > 1])), by = list(tx_type)])
-# txModelSTR_summary[, method := "StringTie"]
 
 geneIds2 <- assignGeneIds(grl = stringtie2Anno2,
                              annotations = rowRanges(se[!grepl("Bambu",rownames(se))]),
@@ -922,7 +809,7 @@ txModelPacBio[, exon_number := elementNROWS(pacbioAnno)]
 txModelPacBio_summary <- unique(txModelPacBio[, list(count = .N,
                                                multi_exon_count = nrow(.SD[exon_number > 1])), by = list(tx_type)])
 txModelPacBio_summary[, method := "PacBio"]
-otherData <- do.call("rbind", list(#txModelSTR_summary,
+otherData <- do.call("rbind", list(
                                    txModelSTR_summary2,
                                    txModelPacBio_summary))
 
@@ -945,9 +832,6 @@ p_otherdata_novelTx <- ggplot(otherData_long[tx_type!=0], aes(x = method, y = va
                                labels = c("novel gene",
                                           "novel isoform"))),stat = "identity", 
     position = position_stack())+
-    # geom_line( data =lineDataOthers, aes(group = tx_type),
-    #            linetype = 2, col = "grey")+
-    #geom_vline(xintercept = 0.316, linetype = "dotted", col = "grey")+
     geom_point( data = lineDataOthers, 
                 aes(x = method, y = value), col = "grey", shape = 16)+
     geom_text( data = lineDataOthers, 
@@ -1100,11 +984,6 @@ p_novelTx_repeatPercentage_byrepclass_0.8 <- ggplot(plotdata_rep[!is.na(rep_clas
     xlab("Isoform type")+
     theme_classic()
 
-# repRatioOnt_all <- unique(repRatioOnt_repClassByIsoform[,.(tx_name, gene_name, repRatioByRepClass, rep_class)])[unique(plotdataONT[,.(tx_name, gene_name, tx_type, n_exon, tx_len)]), on = c("tx_name","gene_name")]
-# repRatioOnt_all[is.na(repRatioByRepClass), repRatioByRepClass := 0]
-# repRatioOnt_all[, repRatioByRepClass := pmin(repRatioByRepClass,1)]
-
-
 plotdata_rep <- unique(repRatioOnt_all_unique[,.(tx_name,gene_name, repRatio_byisoform, tx_type,rep_class)])
 my_comparisons <- list(c("annotated isoforms \n >= 1 full length counts","novel isoform"),
                        c("novel isoform","novel gene isoform"),
@@ -1130,14 +1009,12 @@ dev.off()
 library(ggbreak) ## scale_y_break
 plotdata_nexon_unique <- unique(plotdata_unique[,.(tx_name, gene_name, tx_type, n_exon)])
 
-
 p_novelTx_complexity_unique<- ggplot(plotdata_nexon_unique, aes(x = factor(tx_type, labels = c("annotated isoforms \n >= 1 full length counts","novel isoform","novel gene isoform")), y = n_exon))+
     geom_boxplot()+
      stat_compare_means(comparisons = my_comparisons,
                        paired = FALSE)+
     ylab("Number of exons")+
     scale_y_break(c(34,90), scales = 0.1)+
-    # scale_y_log10()+
     xlab("Isoform type")+
     theme_classic()
 ```
@@ -1150,9 +1027,7 @@ p_novelTx_length_unique<- ggplot(plotdata_txlen_unique, aes(x = factor(tx_type, 
     geom_boxplot()+
     stat_compare_means(comparisons = my_comparisons,
                        paired = FALSE)+
-                       #label.y = c(4000,2000,8000))+
      scale_y_break(c(10000,200000), scales = 0.1)+
-   # scale_y_log10()+
     ylab("Isoform length")+
     xlab("Isoform type")+
     theme_classic()
@@ -1206,12 +1081,10 @@ p_novelTx_to1 <- ggplot(novelTxCount[tx_type!=0&(ndr_value != 0.316)&(ndr_value 
     position = position_stack())+
     geom_line( data =labelData[(ndr_value %in% seq(0.1,1,by = 0.1))], aes(group = tx_type),
                linetype = 2, col = "grey")+
-    #geom_vline(xintercept = 0.316, linetype = "dotted", col = "grey")+
     geom_point( data = labelData[(ndr_value %in% seq(0.1,1,by = 0.1))], 
                 aes(x = ndr_value, y = n), col = "grey", shape = 16)+
     geom_text( data = labelData[(ndr_value %in% seq(0.1,1,by = 0.1))], 
                aes(label = n))+
-    # scale_y_break(c(5005,10600), scales =0.2)+
     ylab("Number of novel transcripts")+
     xlab("NDR")+
     scale_fill_brewer(type = "qual", palette = 2, name = "")+
@@ -1237,7 +1110,6 @@ p_novelTx_unique <- ggplot(novelTxCountUnique[tx_type!=0&(ndr_value %in% seq(0.1
     position = position_stack())+
     geom_line( data =labelData, aes(group = tx_type),
                linetype = 2, col = "grey")+
-    #geom_vline(xintercept = 0.316, linetype = "dotted", col = "grey")+
     geom_point( data = labelData, 
                 aes(x = ndr_value, y = n), col = "grey", shape = 16)+
     geom_text( data = labelData, 
@@ -1255,31 +1127,20 @@ p_novelTx_unique <- ggplot(novelTxCountUnique[tx_type!=0&(ndr_value %in% seq(0.1
 library(ggbreak)
 novelTxCount[, aln_type := "all alignments"]
 novelTxCountUnique[, aln_type := "unique alignments"]
-#novelTxCountBest[, aln_type := "best alignments"]
-novelTxCount_combined <- do.call("rbind", list(novelTxCount[ndr_value %in% seq(0.1,1, by = 0.1) ], 
-                                               # novelTxCountBest[(round(ndr_value,1) == 0.6)|(ndr_value %in% seq(0.1,1, by = 0.1))],
-                                               novelTxCountUnique[(round(ndr_value,1) == 0.6)|(ndr_value %in% seq(0.1,1, by = 0.1))]))
+novelTxCount_combined <- do.call("rbind", list(novelTxCount[ndr_value %in% seq(0.1,1, by = 0.1) ], novelTxCountUnique[(round(ndr_value,1) == 0.6)|(ndr_value %in% seq(0.1,1, by = 0.1))]))
 lineData <- unique(novelTxCount_combined[tx_type >0,list(n = sum(n)), 
                                 by = list(ndr_value, aln_type)])
 lineData[, tx_type := "all"]
-#labelData <-  lineData[tx_type == "all"]
+
 p_novelTx_reviewer_v2 <- ggplot(novelTxCount_combined[tx_type != 0 ], aes(x = ndr_value, y = n))+
    
     geom_bar(aes(fill = factor(aln_type, 
                                levels = c("all alignments",
-                                          #"best alignments", 
                                           "unique alignments"),
                                labels =  c("primary alignments",
                                             #"reads with unique or unique high quality alignments",
                                             "reads with unique alignments"))),stat = "identity", 
     position = position_identity())+
-    # geom_line( data =labelData, aes(group = tx_type),
-    #            linetype = 2, col = "grey")+
-    #geom_vline(xintercept = 0.316, linetype = "dotted", col = "grey")+
-    # geom_point( data = labelData, 
-    #             aes(x = ndr_value, y = n), col = "grey", shape = 16)+
-    # geom_text( data = labelData, 
-    #            aes(label = n))+
     ylab("Number of novel transcripts")+
     xlab("NDR")+
     scale_fill_brewer(type = "seq", palette = 2, name = "")+
@@ -1302,7 +1163,6 @@ p_novelTx_reviewer_v1 <- ggplot(novelTxCount_combined[tx_type != 0 ], aes(x = nd
     position = position_stack())+
     geom_line( data =lineData, aes(group = tx_type),
                linetype = 2, col = "grey")+
-    # geom_vline(xintercept = 0.316, linetype = "dotted", col = "grey")+
     geom_point( data = lineData,
                 aes(x = ndr_value, y = n), col = "grey", shape = 16)+
     geom_text( data = lineData,
@@ -1324,7 +1184,6 @@ p_novelTx_reviewer_v1 <- ggplot(novelTxCount_combined[tx_type != 0 ], aes(x = nd
 
 ```{r}
 pdf("r2.3_overlay_alignments_10Oct2023.pdf", width = 7, height = 3.5)
-# ggarrange(p_novelTx_to1, p_novelTx_best, p_novelTx_unique, nrow = 1, ncol = 3, align = "hv", common.legend = TRUE)
 p_novelTx_reviewer_v2
 dev.off()
 
@@ -1348,14 +1207,7 @@ dev.off()
 
 ### original novel transcript supported by unique at different NDR
 ```{r}
-# seList <- dir("/mnt/projects/SGNExManuscript/output_guppy6.4.2/",
-#               pattern = "_31Jul2023_uniquealignments_NDR", full.names = TRUE)
-# seUnique <- readRDS(seList[11])
-#seUnique <- seUni1
 unique_annotations <- seUni1[mcols(seUni1)$novelTranscript == TRUE]
-
-
-# se <-  readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_20Jul2023_NDR0.1.rds")
 
 all_annotations <- se[rowData(se)$novelTranscript == TRUE,]
 
@@ -1375,7 +1227,6 @@ identified <- data.table(tx_ref = rowData(all_annotations)$TXNAME[queryHits(hits
 
 out <- identified[out, on = "tx_ref"]
 
-
 report <- data.table(value = c(length(which(is.na(out$readCount))),
                      length(which(out$NDR<0.1)),
                     length(which(out$NDR>=0.1&(out$NDR<0.2))),
@@ -1384,20 +1235,11 @@ report <- data.table(value = c(length(which(is.na(out$readCount))),
                     type_level = c(4,1,2,3))
 report[, perc := round(value/sum(value)*100,1)]
 
-
-# ggplot(report, aes(1, value, fill=type)) + geom_bar(stat="identity")+scale_fill_brewer(type = "qual", palette = 3)+ geom_text(
-#      aes(label=paste0(value, "(",perc,"%)")),
-#      nudge_x=0,
-#      nudge_y=-20)+theme_classic()
-
-
 report[order(-type_level), labelY := cumsum(value)]
-# pdf("novelTxinOriginalfoundinUniqueTx_10Oct2023.pdf", width = 3.5, height = 3.5)
 p_novelTxSupportByUnique <- ggplot(report, aes(x = 1, y = value, fill=type)) + geom_bar(stat="identity")+scale_fill_brewer(type = "qual", palette = 3)+ geom_text(
      aes(y = labelY, label=paste0(value, "(",perc,"%)")),
      nudge_x=0,
      nudge_y=-50)+theme_classic()
-# dev.off()
 ```
 
 
@@ -1409,29 +1251,24 @@ setnames(out, c("tx_ref","NDR"),c("TXNAME","NDR_uniquealignments"))
 novelTxReport <- out[,.(TXNAME,NDR_uniquealignments)][novelTxReport, on = "TXNAME"]
 write.table(novelTxReport, file = "suppl_table_6.txt",
              col.names = TRUE, row.names = FALSE, sep = ",", quote = FALSE)
-
-
-
 ```
 
 # Supplementary Text Fig. 16 
 ```{r}
 pdf("r2.4_12Oct2023.pdf", width = 7, height = 8)
-# ggarrange(p_novelTx_to1, p_novelTx_best, p_novelTx_unique, nrow = 1, ncol = 3, align = "hv", common.legend = TRUE)
  ggdraw()+
     draw_plot(p_novelTx_reviewer_v1+theme(legend.position = "none"), 0,1/2,1,1/2)+
          draw_plot(p_novelTxSupportByUnique+theme(legend.position = "none"),0,1/6,1/5,1/3)+
      draw_plot(ggarrange(p_novelTx_repeatPercentage, p_novelTx_repeatPercentage_unique, nrow = 1, ncol =2 , align = "hv"),1/5,1/6,4/5,1/3)+
       draw_plot(as_ggplot(get_legend(p_novelTx_reviewer_v1)),0,0,1/2,1/6)+
      draw_plot(as_ggplot(get_legend(p_novelTxSupportByUnique)),1/2,0,1/2,1/6)
-     
 dev.off()
 ```
 
 # Supplementary Text Fig. 15
 r3.19 pseudogene results 
 ```{r}
-seOutputPacBio <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_PacBio_May22.rds")
+seOutputPacBio <- readRDS("bambuOutput_PacBio_May22.rds")
 geneTxAll <- data.table(as.data.frame(rowData(se)))
 geneTxUni <- data.table(as.data.frame(rowData(seUniqueAlignments)))
 geneTxPacBio <- data.table(as.data.frame(rowData(seOutputPacBio)))
@@ -1439,7 +1276,7 @@ ensembltx <- copy(general_list$ensemblAnnotations.transcripts)
 setnames(ensembltx, "ensembl_gene_id","GENEID")
     
     
-source(paste0('/mnt/projects/SGNExManuscript/R/gene_cluster_code.R'))
+source(paste0('gene_cluster_code.R'))
 ensembltx[, gene_cluster:=ifelse(gene_biotype %in% tr_gene_list,'TR gene',
                                     ifelse(gene_biotype %in% long_noncoding_rna_list, 'lncRNA',
                                            ifelse(gene_biotype %in% noncoding_rna_list, 'ncRNA',
@@ -1483,7 +1320,6 @@ pdf("r3.19_12Oct2023.pdf", width = 5, height = 4)
 pd <- position_dodge(0.4)
 ggplot(pseudocount, aes(x = type, y = perc))+
     geom_boxplot(outlier.shape = NA)+
-    # geom_line(aes(group = rname), position = pd, col = "grey", linewidth = 0.4)+
     geom_jitter(aes(col = factor(cellLine, levels = c("Hct116","HepG2","K562","MCF7","A549","HN1NPC7","H9","Hek293T","HEYA8","NCC24","IM95","Myeloma-N104","Myeloma-N122","Myeloma-N082")),size = total, shape = protocol_type),position = pd)+
       scale_size_continuous(breaks = c(400000,1000000,2500000,10000000,90000000))+
     scale_color_manual(values = c(brewer.pal(12,"Paired"), brewer.pal(9,"Set1")[c(9,8)]), name = "")+
@@ -1499,8 +1335,6 @@ pseudocount[type == "uni"]
  
 ### check unique read percentage reduction
 ```{r}
-# seUnique0.1 <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_10Oct2023_alignments_NDR0.1.rds")
-# seBest0.1 <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_10Oct2023_bestalignments_NDR0.1.rds")
 uniData <- data.table(rname = names(apply(assays(seUniqueAlignments)$counts,2,sum)),
            uni = as.numeric(apply(assays(seUniqueAlignments)$counts,2,sum)))
 allData <- data.table(rname = names(apply(assays(se)$counts,2,sum)),
@@ -1513,21 +1347,14 @@ reduced[, cellLine:=gsub("-EV","",gsub('k562','K562',strsplit(rname, '\\_')[[1]]
 reduced[, protocol:=strsplit(rname, '\\_')[[1]][3], by = rname]
 reduced[, protocol_type:=gsub('Stranded|RandomPrimer','',gsub('PromethionD','d', protocol))]
 
-# pdf("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/novelTxinOriginalfoundinUniqueTx.pdf", width = 3.5, height = 3.5)
 ggplot(reduced, aes(x = all, y = perc))+
     geom_point(aes(shape = protocol_type, col = cellLine))+
     scale_x_log10()+
-    #geom_text(data=reduced[perc>0.7], aes(label=cellLine), nudge_x=-0.5,
-     #nudge_y=0.01)+
     scale_fill_brewer(type = "qual", palette = 3)+
 theme_classic()
 
-
 ggplot(reduced, aes(x = 1, y = perc))+
     geom_boxplot()
-
-
-
 ```
 
 
@@ -1988,12 +1815,9 @@ sePre <- bambu(reads = full_bam,
 raw_reads_se_path <- dir("raw_reads/", pattern = ".rds", full.names = TRUE)
 raw_reads_se <- readRDS(raw_reads_se_path[2])
 set.seed(1234)
-#downsampled_id <- sample(seq_len(length(raw_reads_se)), 11825431)
 downsampled_id <- sample(seq_len(length(raw_reads_se)), 13142432)
 raw_reads_se_subsample <- raw_reads_se[downsampled_id]
 saveRDS(raw_reads_se_subsample, file = gsub(".rds","_manual_downsample2.rds", raw_reads_se_path[2]))
-
-
 downsample_path <- dir(rcdir, pattern = ".rds", full.names = TRUE)
 ```
 
@@ -2007,29 +1831,6 @@ bambuAnnotations <- readRDS("bambuAnnotations.rds")
 genome.file <- "hg38_sequins_SIRV_ERCCs_longSIRVs.fa"
 
 np <- lapply(c(0,1,2:10), function(k){
-    # seUnique <- bambu(reads = uni_path,
-    #         annotations = bambuAnnotations,
-    #         genome = genome.file,
-    #         ncore = 1,
-    #         returnDistTable = TRUE,
-    #         NDR = k/10,
-    #         quant = FALSE,
-    #         opt.em = list(degradationBias = FALSE),
-    #         verbose=TRUE)
-    # saveRDS(seUnique, file = paste0("seUnique_NDR",k/10,"_22Feb2024.rds"))
-    
-    # seFull <- bambu(reads = all_path,
-    #         annotations = bambuAnnotations,
-    #         genome = genome.file,
-    #         ncore = 1,
-    #         returnDistTable = TRUE,
-    #         NDR = k/10,
-    #         quant = FALSE,
-    #         opt.em = list(degradationBias = FALSE),
-    #         verbose=TRUE)
-# saveRDS(seFull, file = paste0("seFull_NDR",k/10,"_22Feb2024.rds"))
-
-
 seDownsample <- bambu(reads = downsample_path[2],
             annotations = bambuAnnotations,
             #rcOutDir = rcdir, 
@@ -2041,9 +1842,6 @@ seDownsample <- bambu(reads = downsample_path[2],
             opt.em = list(degradationBias = FALSE),
             verbose=TRUE)
 saveRDS(seDownsample, file = paste0("seDownsample_NDR",k/10,"_22Feb2024_11m_manual.rds"))
-
-
-
 })
 
 
@@ -2104,17 +1902,14 @@ p_novelTx_Downsample <- ggplot(novelTxCount[tx_type!=0&(ndr_value %in% seq(0.1,1
     position = position_stack())+
     geom_line( data =labelData[(ndr_value %in% seq(0.1,1,by = 0.1))], aes(group = tx_type),
                linetype = 2, col = "grey")+
-    #geom_vline(xintercept = 0.316, linetype = "dotted", col = "grey")+
     geom_point( data = labelData[(ndr_value %in% seq(0.1,1,by = 0.1))], 
                 aes(x = ndr_value, y = n), col = "grey", shape = 16)+
     geom_text( data = labelData[(ndr_value %in% seq(0.1,1,by = 0.1))], 
                aes(label = n))+
-    # scale_y_break(c(5005,10600), scales =0.2)+
     ylab("Number of novel transcripts")+
     xlab("NDR")+
     facet_wrap(~factor(align_type,
                        levels = c("Full","Unique","Downsample")),
-                       # levels = c("Full","Unique","11m"), labels = c("Full","unique","Downsample")), 
                nrow = 1)+
     scale_fill_brewer(type = "qual", palette = 2, name = "")+
     theme_classic()+
@@ -2130,23 +1925,15 @@ dev.off()
 # Supplementary Text Fig. 25
 sqanti3 processing results on novel transcripts only
 ```{r}
-#se <-  readRDS(paste0("bambuOutput_21May2024.rds"))
-# 
-# ndrValue <- 0.318
-#se <-  readRDS(paste0("bambuOutput_May25.rds"))
 se <-  readRDS(paste0("bambuOutput_20Jul2023_NDR0.1.rds"))
 txData <- data.table(as.data.frame(rowData(se)))
 txData[, tx_type := novelGene+novelTranscript]
-#txData[, ndr_value := ndrValue]
 txData$n_exon <- as.integer(elementNROWS(rowRanges(se)))
 txData$tx_len <- as.integer(sum(width(rowRanges(se))))
 setnames(txData, c("TXNAME","GENEID"),c("tx_name","gene_name"))
 repResOnt <- repeat_analysis_function(se, ervRanges)
 repRatioOnt <- repResOnt[[2]]
 repRatioCountOnt <- repResOnt[[1]]
-
-# repRatioOnt <- copy(isoTEratio)
-# repRatioCountOnt <- copy(com_data)
 
 repRatioOnt[, tx_type := novelGene+novelTranscript]
 ```
@@ -2162,7 +1949,6 @@ sqanti3_novel <- do.call("rbind",lapply(1:2, function(x){
     se <-  readRDS(seFileVec[x])
     txData <- data.table(as.data.frame(rowData(se)))
     txData[, tx_type := novelGene+novelTranscript]
-    #txData[, ndr_value := ndrValue]
     txData$n_exon <- as.integer(elementNROWS(rowRanges(se)))
     txData$tx_len <- as.integer(sum(width(rowRanges(se))))
     setnames(txData, c("TXNAME","GENEID"),c("tx_name","gene_name"))
@@ -2170,8 +1956,6 @@ sqanti3_novel <- do.call("rbind",lapply(1:2, function(x){
     repRatioOnt <- repResOnt[[2]]
     repRatioCountOnt <- repResOnt[[1]]
 
-# repRatioOnt <- copy(isoTEratio)
-# repRatioCountOnt <- copy(com_data)
 
 repRatioOnt[, tx_type := novelGene+novelTranscript]
 
@@ -2186,18 +1970,14 @@ sqanti3_novel[, filtered := c("before","after")[x]]
 return(sqanti3_novel)
 }))
 
-# sqanti3_novel <- fread("sqanti3_qc_ndr0.318/sgnex_sqanti3_ndr0.318_classification.txt")
 sqanti3_novel[, txid := paste0(tx_name,"_", filtered)]
-
 ```
 
 
 
 
 ```{r}
-#bambuTx <- readRDS("ndr0.318_originalvsfiltered.rds")
 bambuTx <- readRDS("ndr0.1_originalvsfiltered.rds")
-#setnames(bambuTx, "TXNAME","tx_name")
 bambuTx[, TXNAME_mod := paste0(TXNAME,"_before")]
 bambuTx[, REFTXNAME_mod := paste0(REFTXNAME, "_after")]
 sqanti3_novel_combined <- bambuTx[,.(tx_name, REFTXNAME, class_code)][sqanti3_novel, on = "tx_name"]
@@ -2278,10 +2058,6 @@ p_results <- ggplot(sqanti3_novel, aes(x = RTS_stage, y = perc_A_downstream_TTS)
     theme_classic()
 print(p_results)
 dev.off()
-
-
-
-
 ```
 
 
@@ -2293,7 +2069,6 @@ p_rts_results
 dev.off()
 ```
 ```{r}
-# p_intrapriming_results1 <- ggplot(sqanti3_novel, aes(x = as.factor(perc_A_downstream_TTS), y = repRatio_byisoform_all))+geom_point(shape = 16, size = 2, alpha = 0.5)+theme_classic()
 p_intrapriming_results <- ggplot(sqanti3_novel, aes(x = as.factor(perc_A_downstream_TTS), y = repRatio_byisoform_all))+geom_boxplot(outlier.shape = NA)+geom_jitter(shape = 16, size = 2, alpha = 0.4)+ylab("% overlapping repeats")+theme_classic()
 p_intrapriming_count <- ggplot(sqanti3_novel, aes(x = as.factor(perc_A_downstream_TTS)))+geom_bar(aes(fill = (repRatio_byisoform_all>=0.8)),stat = "count")+scale_y_log10()+ylab("Number of novel transcripts")+theme_classic()+theme(legend.position = "top")
 print(p_intrapriming_results)
@@ -2339,18 +2114,18 @@ write.table(novel_table, file = "suppl_table_6.txt",
 # BambuTx1             1
 # BambuTx1             1
 
-seList <- dir("/mnt/projects/SGNExManuscript/output_guppy6.4.2/",
+seList <- dir(".",
               pattern = "_20Jul2023_NDR", full.names = TRUE)
 np <- lapply(seList[19], function(ss) {
     temp_se <- readRDS(ss)
     temp_anno <- rowRanges(temp_se)[rowData(temp_se)$novelTranscript == TRUE,]
-    writeToGTF(temp_anno, file = paste0("/mnt/projects/SGNExManuscript/revision3/",gsub(".rds",".gtf",basename(ss))))
+    writeToGTF(temp_anno, file = paste0(".",gsub(".rds",".gtf",basename(ss))))
 })
 ```
 
 #### strand correction
 ```{bash}
-cd /mnt/projects/SGNExManuscript/revision3
+cd wkdir
 ls . | grep novel_annotationsFiltered_NDR0.1  | while read line
 do 
         awk '$7 != "." || NR < 3' $line > "${line}_strandCorrected.gtf"
@@ -2361,13 +2136,13 @@ done
 
 ```{r}
 library(data.table)
-sqanti3_corrected_gtf <- dir("/mnt/projects/SGNExManuscript/revision3", pattern = "gtf_strandCorrected", full.names = TRUE)
-write.table(sqanti3_corrected_gtf, file = "/mnt/projects/SGNExManuscript/revision3/sqanti3_annotation.txt", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+sqanti3_corrected_gtf <- dir(".", pattern = "gtf_strandCorrected", full.names = TRUE)
+write.table(sqanti3_corrected_gtf, file = "sqanti3_annotation.txt", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
 ```
 
 #### set-up sqanti3
 ```{bash}
-cd /mnt/data/SQANTI3-5.2
+cd SQANTI3-5.2
 mamba activate SQANTI3.env
 cd cDNA_Cupcake
 sed -i 's/cythonize(ext_modules)/cythonize(ext_modules, language_level = "2")/' setup.py
@@ -2380,15 +2155,15 @@ cd ..
 
 
 ```{bash}
-cat /mnt/projects/SGNExManuscript/revision3/sqanti3_annotation.txt | | while read line
+cat sqanti3_annotation.txt | | while read line
 do  
      
       echo "$line"
       dirname=$(echo $line | cut -d"_" -f3 | sed -e 's/.gtf//g')
       echo "$dirname"
-     ./sqanti3_qc.py  $line   /mnt/projects/hg38_sequins_SIRV_ERCCs_longSIRVs_v5_reformatted.gtf /mnt/projects/hg38_sequins_SIRV_ERCCs_longSIRVs.fa    \
---CAGE_peak /mnt/data/SQANTI3-5.2/data/ref_TSS_annotation/human.refTSS_v3.1.hg38.bed    \
---polyA_motif_list /mnt/data/SQANTI3-5.2/data/polyA_motifs/mouse_and_human.polyA_motif.txt    \
+     ./sqanti3_qc.py  $line   hg38_sequins_SIRV_ERCCs_longSIRVs_v5_reformatted.gtf hg38_sequins_SIRV_ERCCs_longSIRVs.fa    \
+--CAGE_peak SQANTI3-5.2/data/ref_TSS_annotation/human.refTSS_v3.1.hg38.bed    \
+--polyA_motif_list SQANTI3-5.2/data/polyA_motifs/mouse_and_human.polyA_motif.txt    \
 -o sqanti3_filter -d  $dirname \
  -t 2 --report both --force_id_ignore  --isoAnnotLite
       echo "$line"
@@ -2503,9 +2278,7 @@ general_list <- readRDS("general_list2023-04-27.rds")
 cellLines <- general_list$cellLines
 ndrValue <- 0.15
 se <-  readRDS(paste0("bambuOutput_20Jul2023_NDR",ndrValue,".rds"))
-# 
-# ndrValue <- 0.318
-# se <-  readRDS(paste0("bambuOutput_May25.rds"))
+
 txData <- data.table(as.data.frame(rowData(se)))
 txData[, tx_type := novelGene+novelTranscript]
 txData[, ndr_value := ndrValue]
@@ -2515,9 +2288,6 @@ setnames(txData, c("TXNAME","GENEID"),c("tx_name","gene_name"))
 repResOnt <- repeat_analysis_function(se, ervRanges)
 repRatioOnt <- repResOnt[[2]]
 repRatioCountOnt <- repResOnt[[1]]
-
-# repRatioOnt <- copy(isoTEratio)
-# repRatioCountOnt <- copy(com_data)
 
 repRatioOnt[, tx_type := novelGene+novelTranscript]
 ```
@@ -2547,10 +2317,7 @@ p_novelTx_expressionSupport <- ggplot(plotdataONT[cellLine %in% cellLines], aes(
 repRatioOnt_all <- unique(repRatioOnt[,.(tx_name, gene_name, repRatio_byisoform_all)])[unique(plotdataONT[,.(tx_name, gene_name, tx_type, n_exon, tx_len)]), on = c("tx_name","gene_name")]
 repRatioOnt_all[is.na(repRatio_byisoform_all), repRatio_byisoform_all := 0]
 
-
-
 plotdata_rep <- unique(repRatioOnt_all[,.(tx_name,gene_name, repRatio_byisoform_all, tx_type)])
-#plotdata_rep[, repRatio_byisform_all := pmin(repRatioIso_byisoform,1)]
 my_comparisons <- list(c("annotated isoforms \n >= 1 full length counts","novel isoform"),
                        c("novel isoform","novel gene isoform"),
                        c("annotated isoforms \n >= 1 full length counts","novel gene isoform"))
@@ -2578,7 +2345,6 @@ repRatioOnt_all[is.na(repRatio_byisoform), repRatio_byisoform:= 0]
 repRatioOnt_all[is.na(repRatio_all), repRatio_all:= 0]
 repRatioOnt_all[is.na(repRatio_byisoform_all), repRatio_byisform_all:= 0]
 
-
 plotdata_rep <- unique(repRatioOnt_all[repRatio_byisoform_all>=0.8,.(tx_name,gene_name, repRatio_byisoform, tx_type,rep_class)])
 my_comparisons <- list(c("annotated isoforms \n >= 1 full length counts","novel isoform"),
                        c("novel isoform","novel gene isoform"),
@@ -2592,11 +2358,6 @@ p_novelTx_repeatPercentage_byrepclass_0.8 <- ggplot(plotdata_rep[!is.na(rep_clas
     ylab("Percentage of bps \n overlapping with repeat elements")+
     xlab("Isoform type")+
     theme_classic()
-
-# repRatioOnt_all <- unique(repRatioOnt_repClassByIsoform[,.(tx_name, gene_name, repRatioByRepClass, rep_class)])[unique(plotdataONT[,.(tx_name, gene_name, tx_type, n_exon, tx_len)]), on = c("tx_name","gene_name")]
-# repRatioOnt_all[is.na(repRatioByRepClass), repRatioByRepClass := 0]
-# repRatioOnt_all[, repRatioByRepClass := pmin(repRatioByRepClass,1)]
-
 
 plotdata_rep <- unique(repRatioOnt_all[,.(tx_name,gene_name, repRatio_byisoform, tx_type,rep_class)])
 my_comparisons <- list(c("annotated isoforms \n >= 1 full length counts","novel isoform"),
@@ -2640,9 +2401,6 @@ repResOnt <- repeat_analysis_function(se, ervRanges, retrotransposonOnly = TRUE)
 repRatioOnt <- repResOnt[[2]]
 repRatioCountOnt <- repResOnt[[1]]
 
-# repRatioOnt <- copy(isoTEratio)
-# repRatioCountOnt <- copy(com_data)
-
 repRatioOnt[, tx_type := novelGene+novelTranscript]
 repRatioCountOnt_txTypeAdded <- txData[repRatioCountOnt, on = c("tx_name","gene_name")]
 repRatioCountOnt_txTypeAdded[, cellLine :=  gsub("-EV","",unlist(strsplit(runname,'_'))[2]), by = runname]
@@ -2657,7 +2415,7 @@ repRatioOnt_all[is.na(repRatio_byisoform_all), repRatio_byisoform_all := 0]
 
 
 plotdata_rep <- unique(repRatioOnt_all[,.(tx_name,gene_name, repRatio_byisoform_all, tx_type)])
-#plotdata_rep[, repRatio_byisform_all := pmin(repRatioIso_byisoform,1)]
+
 my_comparisons <- list(c("annotated isoforms \n >= 1 full length counts","novel isoform"),
                        c("novel isoform","novel gene isoform"),
                        c("annotated isoforms \n >= 1 full length counts","novel gene isoform"))
@@ -2694,9 +2452,6 @@ repRatioOnt[, newTxClassAggregated:=ifelse(grepl("newFirstExon",txClassDescripti
                                                                   ifelse(grepl("Junction",txClassDescription),"newJunction",
                                                                          ifelse(grepl("Within",txClassDescription),"unspliced",
                                                                                 ifelse(grepl("newGene-",txClassDescription),"newGene",txClassDescription))))))]
-    # 
-# create tx and rep_class cartesian, so for each transcript, check overlap with every rep_class
-# tx_rep_cartesian <- optiRum::CJ.dt(unique(repRatioOnt[,c(1:11,13,14,18,22), with = FALSE]),  data.table(rep_class = na.omit(unique(repRatioOnt$rep_class))))
 
 repRatioOnt_all <- copy(repRatioOnt)
 
@@ -2704,11 +2459,6 @@ isoTEratio_agg <- unique(repRatioOnt_all[!(novelTranscript&(anno_status=="annota
 library(ComplexHeatmap)
 library(circlize)
 library(RColorBrewer)
-# tmp_wide <- dcast(isoTEratio_agg[repRatio_byisoform_all>=0.8], tx_name+anno_status+newTxClassAggregated+gene_name+repRatio_byisoform_all~rep_class, value.var = "repRatio")
-# strandInfo <- data.table(txId = rownames(se),
-#            strand = as.character(unlist(unique(strand(rowRanges(se))))))
-# tmp_wide[, strand :=  strandInfo[match(tx_name, txId)]$strand]
-# tmp_wide[is.na(tmp_wide)] <- 0
 
 
 tmp_wide <- dcast(isoTEratio_agg[repRatio_all>=0.8], tx_name+anno_status+newTxClassAggregated+gene_name+repRatio_all~rep_class, value.var = "repRatio")
@@ -2716,9 +2466,6 @@ strandInfo <- data.table(txId = rownames(se),
            strand = as.character(unlist(unique(strand(rowRanges(se))))))
 tmp_wide[, strand :=  strandInfo[match(tx_name, txId)]$strand]
 tmp_wide[is.na(tmp_wide)] <- 0
-
-## if dividing by total isoform length as cutoff for 0.8, only 30 transcripts left, 19 annotated, and 11 novel
-## if dividing by novel or annotated exon total length, as cutoff for 0.8, a total of 55 transcripts left, 19 annotated, 36 novel
 
 tmp_wide <- isoEst_filter_wide[tmp_wide, on = "tx_name"]
 
@@ -2740,11 +2487,8 @@ tmp_wide <- tmp_wide[order(LTR,LINE, SINE, DNA, sumExp, decreasing = FALSE)]
 tmp_wide[,others := (RNA+Simple_repeat+scRNA+snRNA+srpRNA+tRNA+`DNA?`+Satellite+Retroposon+rRNA+`SINE?`+`LTR?`+Low_complexity+RC+`RC?`+Unknown)] #Retroposon+Satellite+
 plotdata <- as.data.frame(tmp_wide[,c("LTR","LINE","SINE","DNA","others"),with=FALSE]) # DNA removed tmply
 
-# write.table(tmp_wide, file = "repeat_filtered_by_isoform_21Feb2024.txt",col.names = TRUE, row.names = FALSE, sep = ",", quote = FALSE)
-
-#write.table(tmp_wide, file = "repeat_filtered_by_anno_status_21Feb2024.txt",col.names = TRUE, row.names = FALSE, sep = ",", quote = FALSE)
 col_fun = colorRamp2(c(0,1), c("white", "red"))
-#colInfo <- unique(isoTEratio[,.(rep_name, rep_class)])[match(colnames(plotdata), runname)]
+
 rowInfo <- tmp_wide[,.(tx_name,strand, anno_status,newTxClassAggregated, gene_name)]
 rowInfo[, newGene:=grepl("Bambu",gene_name)]
 rowInfo[, anno_status := factor(anno_status, levels = rev(c("annotated","novel")))]
@@ -2783,7 +2527,7 @@ mat1 <- Heatmap(t(plotmat), name = "Overlap",
 mat1
 
 txvec <- rowInfo$tx_name
-tmp2 <- tmp_wide[,2:77, with = FALSE]#isoEst_filter_wide[tx_name %in% tmp$tx_name][match(txvec,tx_name)] tmp_wide[,2:19, with = FALSE]#
+tmp2 <- tmp_wide[,2:77, with = FALSE]
 colInfo <- unique(isoEst_filter[,.(runname, protocol_general, cellLine)])[match(colnames(tmp2),runname)]
 colCellline <- c(brewer.pal(8,"Dark2"),adjustcolor(brewer.pal(8,"Dark2"), alpha = 0.7),
                  adjustcolor(brewer.pal(8,"Dark2"), alpha = 0.3)[1:2])[1:length(unique(colInfo$cellLine))]
@@ -2793,27 +2537,19 @@ names(colProtocol) <- unique(colInfo$protocol_general)
 sample_anno <- rowAnnotation(
                                 cellLine = colInfo$cellLine,
                                 protocol = colInfo$protocol_type,
-                                #cDNAstranded = colInfo$cDNAstranded,
-                                col = list(#patient_sample = colPatientSample,
-                                           #cancer_type = colCancerType,
-                                           cellLine = colCellline,
-                                           protocol = colProtocol))#,
-                                           #cDNAstranded = colcDNAstranded) )
+                                col = list(cellLine = colCellline,
+                                           protocol = colProtocol))
 
 plotdata2 <- as.data.frame(tmp2)
 
 normEst_col_fun = colorRamp2(c(0,14), c("white", "royalblue3"))
 mat2 <- Heatmap(t(as.matrix(log2(plotdata2+1))), name = "normEst", col = normEst_col_fun,
-                #right_annotation = hgncTypes,
                 right_annotation = sample_anno,
                 cluster_columns = FALSE,
                 row_split = as.factor(colInfo$cellLine),
-                #row_column_slices = FALSE,
                 column_split = rowInfo$anno_status,
                 row_names_rot = 180,
                 column_title_gp = gpar(col = "white"),
-                #cluster_rows = FALSE,
-                #cluster_columns = FALSE,
                 cluster_column_slices = FALSE,
                 show_row_names = FALSE)
 
@@ -2828,16 +2564,11 @@ mat1 <- Heatmap(t(plotmat), name = "Overlap",
                 row_names_side = "left",
                 show_column_names = TRUE)#,
 
-#pdf(paste0("REHeatMap.pdf"), width = 20, height = 20)
 final_mat <- mat1 %v% mat2
-#dev.off()
-#pdf(paste0("REHeatMap_21Feb2023_filterbyisoform.pdf"), width = 15, height = 10)
+
 pdf(paste0("REHeatMap_21Feb2023_filterbyannostatus.pdf"), width = 15, height = 10)
 print(final_mat)
 dev.off()
-
-
-
 ```
 
 

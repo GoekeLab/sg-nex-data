@@ -5,7 +5,7 @@ setwd(wkdir)
 library(readxl)
 library(data.table)
 
-sampleDataSR <- as.data.frame(read_xlsx(paste0('ONT Master Table.xlsx'), sheet = 3))## need to convert from tibble to data.frame
+sampleDataSR <- as.data.frame(read_xlsx(paste0('.'), sheet = 3))## need to convert from tibble to data.frame
 sampleDataSR <- sampleDataSR[!grepl('#',sampleDataSR[,1]) &(!is.na(sampleDataSR$public_name)),]
 
 sampleNamesSR <- sampleDataSR$public_name

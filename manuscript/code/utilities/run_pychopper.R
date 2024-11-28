@@ -29,7 +29,7 @@ read_vec <- unique(alnHits$V1)
 alnHits[, read_id := match(V1, read_vec)]
 alnHits[, V1 := NULL]
 alnHit[, V6_mod := ifelse(V6=="+",1,ifelse(V6=="-",-1,NA))]
-alnHits[, `:=`(count = .N), by = list(read_id, V4)]#, primer_combination := paste(paste0(V6,V4), collapse = ",")
+alnHits[, `:=`(count = .N), by = list(read_id, V4)]
 alnHits_summary <- unique(alnHits[,list(total_count = .N,
                                         count_diff = max(diff(count)),
                                         strand_prod = prod(V6_mod)), by = list(read_id)])
@@ -41,14 +41,7 @@ alnHits[, read_id := match(V1, read_vec)]
 alnHits[, V1 := NULL]
 alnHits[, V6_mod := ifelse(V6=="+",1,ifelse(V6=="-",-1,NA))]
 alnHits <- unique(alnHits)
-# alnHits[, `:=`(count = .N,
-#                pri_prod = prod(V6_mod)), by = list(read_id, V4)]#, primer_combination := paste(paste0(V6,V4), collapse = ",")
-# 
-# 
-# alnHitsUnique <- unique(alnHits[,.(read_id, count, V4, pri_prod)])
-# alnHitsUnique[, `:=`(total_count = sum(count),
-#                      primer_count = length(unique(V4)),
-#                      strand_prod = prod(pri_prod)), by = read_id]
+
 alnHits[V4=="VNP"&(V6_mod == 1), status := 3] 
 alnHits[V4=="VNP"&(V6_mod == -1), status := -3] 
 alnHits[V4=="SSP"&(V6_mod == -1), status := -5] 
@@ -65,18 +58,6 @@ length(unique(alnHits[primer_combination %in% c("+VNP","+SSP,-VNP","-VNP,+SSP")]
 
 
 ## installation =========================
-conda create -n pychopper
-conda activate pychopper
-conda install -c nanoporetech -c anaconda -c bioconda "nanoporetech::pychopper"
-
-## keep stuck at solving environment 
-# so tried this
-https://stackoverflow.com/questions/63734508/stuck-at-solving-environment-on-anaconda/68019710#68019710
-conda create -n pychopper
-conda activate pychopper
-# install mamba
-conda install -n base conda-forge::mamba
-
 # use mamba
 mamba install -c nanoporetech -c anaconda -c bioconda "nanoporetech::pychopper" 
 # this would cause error: what() could not unlink 

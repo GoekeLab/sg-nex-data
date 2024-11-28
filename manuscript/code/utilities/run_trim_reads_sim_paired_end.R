@@ -38,16 +38,13 @@ setwd(wkdir)
 library(readxl)
 
 
-sampleData <- data.table(as.data.frame(read_xlsx(paste0(annoDir,"ONT Master Table.xlsx"), sheet = 1))) ## need to convert from tibble to data.frame
+sampleData <- data.table(as.data.frame(read_xlsx(paste0(annoDir,"."), sheet = 1))) ## need to convert from tibble to data.frame
 sampleData <- sampleData[(grepl("H9|HEYA8",runName)&(grepl("ON00",name))&(!grepl("HEYA8.*H9",
                                                                                  runName)))|(SG_NextData_Release=="Yes"&(!is.na(SG_NextData_Release))&(!grepl("CRC",runName)))|(grepl("HCT116",runName))]
-#sampleData$runName_combined <- gsub('-pre|-Pre','',sampleData$runName) # there are runs with multiple datasets that should be combined together 
 sampleData[,runName_combined := ifelse(grepl("directRNA",runName)|(!grepl("H9|HEYA8",runName))|(SG_NextData_Release=="Yes"),
                                        runName, 
                                        `GIS Library ID`)]
 sampleData[runName_combined != runName, runName_combined := paste0(gsub("_Run.*","",runName),"_",runName_combined)]
-
-#sampleNames <- unique(sampleData$runName_combined)#
 sampleNames <- unique(sampleData$`publicName (SGNex_CellLine_protocol_replicate1_run1)`)[1:112]
 
 library(BiocParallel)
@@ -61,11 +58,7 @@ sim_LR_from_SR <- function(runnames,wkdir,txSeqDt,seq_size, insert_size,paired){
         print("finish downloading bam file")
         bam_ranges <- read_in_bam_file(bam_path)
         print("finish reading bam file")
-        
-        # noprint <- lapply(1:10, function(t){
-        #     sim_pos_data <- 
-        #     generate_fastq(sim_pos_data,txSeq, t, fqFile)
-        # })
+       
         start_end_data <- process_data(bam_ranges, insert_size, seq_size)
         print("finish processing data")
         rm(bam_ranges)
@@ -81,10 +74,7 @@ sim_LR_from_SR <- function(runnames,wkdir,txSeqDt,seq_size, insert_size,paired){
         np <- bplapply(seq_len(max(start_end_data$seq_times)), function(t){
             sim_data <- sim_pos(start_end_data[seq_times>=t], t, txSeqDt,seq_size,paired)
             print(paste0("finish simulating sequence positions for ",t))
-            #!#$"%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
-            # quality_string <- paste(sample(c(letters, LETTERS, 0:9,
-            # "*","&","^","[","]","%","$","#","!","+","~",":","j","{","}",">","<","|","?","="),
-            # trim_bp+1,replace = TRUE), collapse = "")
+           
             quality_string <- paste(rep("~",seq_size),collapse = "")
             sim_data[, quality := quality_string]
             final_data <- sim_data[,c("qname","seqChar","quality"),with = FALSE]
@@ -129,9 +119,6 @@ sim_LR_from_SR <- function(runnames,wkdir,txSeqDt,seq_size, insert_size,paired){
                           fqFile_final,
                           " -2 ", fqFile_final2,
                           " --validateMappings ",
-                          # " --fldMean  ", trim_bp+1," ", # 
-                          # " --fldSD 1 ",
-                          #" --seqBias ", " --gcBias ", " --posBias ",
                           " -o ", mapDir,"/transcripts_quant_biasCorrected"))
         }else{
             system(paste0(salmonPath," quant -p 24 -i ",annotationDir,
@@ -140,7 +127,6 @@ sim_LR_from_SR <- function(runnames,wkdir,txSeqDt,seq_size, insert_size,paired){
                           " --validateMappings ",
                           " --fldMean  ", seq_size, # 
                           " --fldSD 1 ",
-                          #" --seqBias ", " --gcBias ", " --posBias ",
                           " -o ", mapDir,"/transcripts_quant_biasCorrected"))
         }
         
@@ -200,7 +186,6 @@ read_in_bam_file <- function(bam_path){
 process_data <- function(start_end_data,insert_size, seq_size,isVec){
     
     start_end_data <- start_end_data[(end-start)>(seq_size-1)]
-    #start_end_data[, last_possible_start_position := pmax(start,end-(insert_size-1))]
     start_end_data[, seq_times := ceiling((end-start+1)/(seq_size-1))] # maximum number of reads can be sequenced 
     # only use primary alignments
     start_end_data <- start_end_data[flag %in% c(0,16)]

@@ -137,7 +137,6 @@ noprint <- lapply(long_read_samples[12], function(k){
     fastqFileFinal <- dir(fastq.dir_k, full.names = TRUE)
     print(fastqFileFinal)
     bam.file <- paste0(mapDir,"/",k,".bam")
-    #sbam.file <- paste0(save.dir,"bam/",r,".sorted.bam")
     output.file <- paste0(mapDir,"/","count/",k)
     
     system(paste0(minimap2Path," -t ",nthreads," -ax map-ont -p 1.0 -N 100 ",
@@ -146,7 +145,6 @@ noprint <- lapply(long_read_samples[12], function(k){
     system(paste0(salmonPath," quant --ont -p ",nthreads," -t ",
                   tx_ref," -q -l U -a ",bam.file," -o ", output.file))
     system(paste0("rm -v ",bam.file))
-    #system(paste0("rm ",sbam.file,".bai"))
 })
 
 

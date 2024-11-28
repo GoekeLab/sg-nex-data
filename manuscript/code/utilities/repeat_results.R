@@ -16,8 +16,6 @@ library(RColorBrewer)
 library(limma)
 library(ggpubr)
 
-# if heya8 still similar to h9, or can be distinguished
-# heatmap for samples
 library(ComplexHeatmap)
 library(circlize)
 library(viridis)
@@ -50,8 +48,6 @@ txData[, ndr_value := 0.316]
 recommendedData <- unique(txData[,list(n = .N), by = list(tx_type,ndr_value)])
 saveRDS(novelTxCount, file = "novelTxCount.rds")
 
-
-
 # novelTxCount unique alignments
 seList <- dir(".",
               pattern = "_20Jul2023_NDR", full.names = TRUE)
@@ -76,7 +72,6 @@ txData[, tx_type := novelGene+novelTranscript]
 txData[, ndr_value := 0.316]
 recommendedData <- unique(txData[,list(n = .N), by = list(tx_type,ndr_value)])
 saveRDS(novelTxCount, file = "novelTxCount.rds")
-#novelTxCount <- do.call("rbind", list(novelTxCount, recommendedData))
 
 lineData <- unique(novelTxCount[tx_type >0,list(n = sum(n)), 
                                 by = list(ndr_value)])
@@ -91,7 +86,6 @@ p_novelTx <- ggplot(novelTxCount[tx_type!=0], aes(x = ndr_value, y = n))+
     position = position_stack())+
     geom_line( data = lineData[tx_type == "all"], aes(group = tx_type),
                linetype = 2, col = "grey")+
-    #geom_vline(xintercept = 0.316, linetype = "dotted", col = "grey")+
     geom_point( data = lineData[tx_type == "all"], 
                 aes(x = ndr_value, y = n), col = "grey", shape = 16)+
     geom_text( data = lineData[tx_type == "all"], 
@@ -102,16 +96,9 @@ p_novelTx <- ggplot(novelTxCount[tx_type!=0], aes(x = ndr_value, y = n))+
     theme_classic()+
     theme(legend.position = "top")
 
-pdf(paste0("figure4/novelTxCount_varyNDR.pdf"),
+pdf(paste0("novelTxCount_varyNDR.pdf"),
     width = 6, height = 4)
 p_novelTx
 dev.off()
 
 
-## rerun bambu for unique alignments based rc only
-## first need to check which are the samples missing
-rm(list = ls())
-fileList <- dir("/mnt/dataSSD/chenying/unique_rc", pattern = ".rds", full.names = TRUE)
-
-
-rnames <- unlist(lapply(fileList, function(r) colnames(readRDS(r))))

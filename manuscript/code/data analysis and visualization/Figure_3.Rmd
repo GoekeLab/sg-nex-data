@@ -30,8 +30,6 @@ library(RColorBrewer)
 library(limma)
 library(ggpubr)
 
-# if heya8 still similar to h9, or can be distinguished
-# heatmap for samples
 library(ComplexHeatmap)
 library(circlize)
 library(viridis)
@@ -49,13 +47,13 @@ cat('Setting working directory')
 wkdir <- 'wkdir'
 general_list <- readRDS("general_list2023-04-27.rds")
 samples_wSpikein <- general_list$samples_wSpikein
-cellLines <- general_list$cellLines#c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8")
-protocolCol <-  general_list$protocolCol#adjustcolor(brewer.pal(8,"Dark2")[1:5],0.7)
-protocolVec <-  general_list$protocolVec#c("directRNA","directcDNA","cDNA","PacBio","Illumina")
-protocolLabel <- general_list$protocolLabel#c("RNA","PCR-free cDNA","cDNA","PacBio","Illumina")
+cellLines <- general_list$cellLines
+protocolCol <-  general_list$protocolCol
+protocolVec <-  general_list$protocolVec
+protocolLabel <- general_list$protocolLabel
 
  txvec <- fread(paste0("txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
-#txvec <- fread(paste0(wkdir,"txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
+
     txvec <- gsub("\\..*","",txvec$V1)
     ensemblAnnotations.transcripts <- copy(general_list$ensemblAnnotations.transcripts)
     setnames(ensemblAnnotations.transcripts, "ensembl_gene_id","gene_name")
@@ -104,8 +102,6 @@ runnamevec <- unique(comDataTranscript[method %in%  c("bambu_lr","salmon_sr")&(n
 com_dataList <- readRDS("combinedExpressionDataList_spikein_25May.rds")
 com_data <- com_dataList[[1]]
 com_data_gene <- com_dataList[[2]]
-# com_data <- do.call("rbind", c(list(com_data), lapply(countList, "[[",1)))
-# com_data_gene <-do.call("rbind", c(list(com_data_gene), lapply(countList, "[[",2))) 
 ```
 
 # normalize concentration
@@ -143,7 +139,7 @@ ntotalCount <- unlist(lapply(seq_len(nrow(spike_in_samples)), function(t){
 spike_in_samples[, ntotal := ntotalCount]
 spike_in <- spike_in_samples[spike_in, on = "spike_in_type", allow.cartesian = TRUE]
 spike_in[, sum_conc := sum(conc,na.rm = TRUE), by = list(spike_in_type, protocol, spike_in_name)]
-spike_in <- spike_in[, norm_conc := conc/sum_conc*spike_in_perc*0.01*ntotal, by = list(spike_in_type, protocol)]#/sum(conc, na.rm = TRUE)
+spike_in <- spike_in[, norm_conc := conc/sum_conc*spike_in_perc*0.01*ntotal, by = list(spike_in_type, protocol)]
 
 spike_in_gene <- unique(spike_in[,list(conc = sum(conc,na.rm = TRUE),
                                        norm_conc = sum(norm_conc,na.rm = TRUE)), by = list(spike_in_name, spike_in_type,gene_name, protocol)])
@@ -220,7 +216,6 @@ p_gene_spikein_scatter <- ggplot(plotdata_gene, aes(x=log2(cpm_norm_conc+1), y=l
                 ggpubr::stat_cor(aes(col = spike_in_version,
                                      label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
                 facet_grid(spike_in_general_name_revised~protocol)+
-                # geom_smooth(method = "lm")+
                 theme_classic()
 ```
 
@@ -230,7 +225,6 @@ p_gene_spikein_scatter <- ggplot(plotdata_gene, aes(x=log2(cpm_norm_conc+1), y=l
 ```{r}
 mat_cor <- readRDS(paste0("replicate_gene_expression_comparison_salmon_lr_salmon_sr_25May2023.rds"))
 mat_cor[, within_cellLine := !grepl("_",cellLine)]
-# mat_cor <- mat_cor[(within_cellLine &(match_status == TRUE))|(!within_cellLine)]
 
 mat_cor[, pc_factor := factor(protocol_comparison, rev(unique(mat_cor$protocol_comparison)[c(1,4,2,5,3,6)]))]
 mat_cor[, ct_factor := factor(common_type, unique(mat_cor$common_type))]
@@ -239,24 +233,20 @@ mat_cor[, gc_factor := factor(agg_gene_cluster, unique(mat_cor$agg_gene_cluster)
 mat_cor[, short_read := factor(!grepl("Illumina",pc_factor), labels = c("short read vs long read","long read vs long read"))]
 p_replicate_gene_final_protein <-
     ggplot(mat_cor[gc_factor %in% c("protein_coding","lncRNA")[1]], aes(pc_factor , r, fill = within_cellLine))+
-    #  geom_hline(yintercept = c(0.8,0.9), linetype = "dashed", col = "grey")+
     geom_hline(yintercept = c(0.6,0.8), col = "grey", linetype = "dashed")+
     geom_boxplot()+
     scale_fill_brewer(type = "qual", palette = 4)+
     scale_color_brewer(type = "qual", palette = 4)+
-    #facet_wrap(~factor(within_cellLine, labels = c("Across cell line","Within cell line(matched rep)")), ncol = 2)+
     facet_wrap(~short_read, ncol = 2, scales = "free")+
     ylab("Spearman correlation")+
     xlab("Protocol pairs")+
     theme_classic()
 p_replicate_gene_final_lncRNA <-
     ggplot(mat_cor[gc_factor %in% c("protein_coding","lncRNA")[2]], aes(pc_factor , r, fill = within_cellLine))+
-    #  geom_hline(yintercept = c(0.8,0.9), linetype = "dashed", col = "grey")+
     geom_hline(yintercept = c(0.6,0.8), col = "grey", linetype = "dashed")+
     geom_boxplot()+
     scale_fill_brewer(type = "qual", palette = 4)+
     scale_color_brewer(type = "qual", palette = 4)+
-    #facet_wrap(~factor(within_cellLine, labels = c("Across cell line","Within cell line(matched rep)")), ncol = 2)+
     facet_wrap(~short_read, ncol = 2, scales = "free")+
     ylab("Spearman correlation")+
     xlab("Protocol pairs")+
@@ -287,22 +277,18 @@ source(paste0('gene_cluster_code.R'))
     plotdata1 <- dcast(ave_data[grepl("ENSG", gene_name)], gene_name + agg_gene_cluster + gene_cluster + gene_biotype ~ protocol_general, value.var = "log2NormEst")
     p_protein_coding <- ggplot(plotdata1[agg_gene_cluster == "protein_coding"], aes(x = directcDNA, y = Illumina))+
         geom_abline(intercept = 0, slope = 1)+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(breaks = c(10,100,1000),low = "steelblue1", high = "steelblue4",trans = "log10")+
-        # scale_fill_gradient2(limits = c(0, 50), oob = scales::squish)+
-         geom_density_2d()+
+        geom_density_2d()+
          xlim(c(0,14))+
          ylim(c(0,14))+
          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
         ggtitle("protein coding")+theme_classic()
      p_lncRNA <- ggplot(plotdata1[agg_gene_cluster == "lncRNA"], aes(x = directcDNA, y = Illumina))+
           geom_abline(intercept = 0, slope = 1)+
-         geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+         geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(breaks = c(10,100,1000),low = "steelblue1", high = "steelblue4",trans = "log10")+
-        # scale_fill_gradient2(limits = c(0, 50), oob = scales::squish)+
-         #geom_density_2d()+
-        # geom_hex(binwidth = c(0.05, 0.05), col = "steelblue",size = 0.5, alpha = 0.1)+
-         ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
+        ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
          xlim(c(0,14))+
          ylim(c(0,14))+
          ggtitle("lncRNA")+theme_classic()
@@ -318,7 +304,7 @@ methodNamesList <- CJ(lr = c("bambu_lr","salmon_lr"),
                       data_type = c("all","protocol_batch_removal","cellline_batch_removal"))
 comDataGeneFiltered <- comDataGene[method %in% c("bambu_lr","salmon_lr","rsem_sr","salmon_sr")&(!grepl("PacBio",protocol_general))]
 
-# comDataTranscriptFiltered <- comDataTranscript[method %in% c("bambu_lr","salmon_lr","rsem_sr","salmon_sr")&(!grepl("PacBio",protocol_general))]
+
 lr <- "salmon_lr"
 sr <- "salmon_sr"
 gene <- TRUE
@@ -335,10 +321,7 @@ arrange main figure
 # as.ggplot to change non ggplot types to ggplot so that plots can be integrated 
 ## 
 hm = draw(p_heatmap)
-# hm_legend = color_mapping_legend(hm_legend@ht_list[[1]]@matrix_color_mapping, legend_direction = "horizontal",plot = FALSE)
-# 
-# hm_grob <-grid.grabExpr(draw(p_heatmap[[1]])) 
-# four values: x, y, width, height 
+
 pdf("figure3_draft_4Sep2023.pdf", width = 18, height = 7)
 ggdraw() +
      draw_plot(p_gene_spikein_scatter+ theme(legend.position="none"),0,1/5, 1/3, 4/5) +
@@ -375,24 +358,17 @@ p_gene_spikein_scatter_suppl <- ggplot(plotdata_gene_suppl, aes(x=log2(cpm_norm_
                 ggpubr::stat_cor(aes(col = method,
                                      label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
                 facet_grid(paste0(spike_in_general_name_revised,spike_in_version)~protocol)+
-                # geom_smooth(method = "lm")+
                 theme_classic()
 ```
 
 ## b spike-in mean absolute errors
 ```{r}
 
-p_gene_spikein_abe_suppl <- ggplot(si_data_gene, aes(x=ae, fill = method)) + #"PacBio",
-                # geom_histogram(aes(fill = protocol),position = "identity", alpha = 0.2, binwidth = 0.25) +
-    geom_histogram(aes(y=..density..), alpha = 0.5, position = "identity",binwidth = 0.25) +  # scale histogram y
-  #geom_density()+
-                #geom_freqpoly(binwidth = 0.1)+
-    #geom_density()+
+p_gene_spikein_abe_suppl <- ggplot(si_data_gene, aes(x=ae, fill = method)) + 
+    geom_histogram(aes(y=..density..), alpha = 0.5, position = "identity",binwidth = 0.25) +  
       scale_fill_brewer(type = "qual", palette = 3)+
                 xlab('Absolute error')+
-                #ylab('Frequency')+
                 facet_grid(paste0(spike_in_general_name_revised,spike_in_version)~protocol)+
-                # geom_smooth(method = "lm")+
                 theme_classic()
 ```
 
@@ -410,19 +386,13 @@ pList_gene_no_legend <- lapply(unique(gene_metrics$variable), function(x){
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "blue", high = "white") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+    geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
              ggtitle(x)+
     xlab("")+
              ylab("")+
-    #facet_wrap(~variable, scales = "free")+
-    theme_minimal()+
-           theme( 
-        #        axis.text.x=element_blank(),  #remove y axis labels
-        # axis.ticks.x=element_blank() ,
+   theme_minimal()+
+           theme(
                axis.text.y=element_blank(),  #remove y axis labels
         axis.ticks.y=element_blank() , #remove y axis ticks
                   legend.position = "none")
@@ -431,10 +401,7 @@ pList_gene_no_legend <- lapply(unique(gene_metrics$variable), function(x){
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+    geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
             ggtitle(x)+
    xlab("")+
@@ -442,17 +409,14 @@ pList_gene_no_legend <- lapply(unique(gene_metrics$variable), function(x){
     #facet_wrap(~variable, scales = "free")+
     theme_minimal()+
            theme( 
-        #        axis.text.x=element_blank(),  #remove y axis labels
-        # axis.ticks.x=element_blank() ,
-               axis.text.y=element_blank(),  #remove y axis labels
+       axis.text.y=element_blank(),  #remove y axis labels
         axis.ticks.y=element_blank() , #remove y axis ticks
                   legend.position = "none")
     }else{
          px <- ggplot( plotdata_final_metrics, aes(spike_in_name_factor,paste0(protocol,method), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
-  # scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    scale_fill_gradient2(low = "white",
+  scale_fill_gradient2(low = "white",
                        mid = "blue",
                        high = "white") +
      geom_text(aes(label = round(value,2)), color = "black", size = 4) +
@@ -460,12 +424,9 @@ pList_gene_no_legend <- lapply(unique(gene_metrics$variable), function(x){
             ggtitle(x)+
              xlab("")+
              ylab("")+
-    #facet_wrap(~variable, scales = "free")+
-    theme_minimal()+
+   theme_minimal()+
            theme(
-        #        axis.text.x=element_blank(),  #remove y axis labels
-        # axis.ticks.x=element_blank() ,
-               axis.text.y=element_blank(),  #remove y axis labels
+       axis.text.y=element_blank(),  #remove y axis labels
         axis.ticks.y=element_blank() , #remove y axis ticks
                   legend.position = "none")
     }
@@ -484,40 +445,30 @@ pList_gene_only_legend <- lapply(unique(gene_metrics$variable), function(x){
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "blue", high = "white") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+   geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
              ggtitle(x)+
-    #facet_wrap(~variable, scales = "free")+
-    theme_minimal()
+   theme_minimal()
     }else if(x %in% c("corM","r2")){
         px <- ggplot( plotdata_final_metrics, aes(spike_in_name_factor,paste0(protocol,method), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+    geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
             ggtitle(x)+
-    #facet_wrap(~variable, scales = "free")+
     theme_minimal()
     }else{
          px <- ggplot( plotdata_final_metrics, aes(spike_in_name_factor,paste0(protocol,method), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
-  # scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    scale_fill_gradient2(low = "white",
+ scale_fill_gradient2(low = "white",
                        mid = "blue",
                        high = "white") +
      geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
             ggtitle(x)+
-    #facet_wrap(~variable, scales = "free")+
-    theme_minimal()
+   theme_minimal()
     }
     return(as_ggplot(get_legend(px)))
 })
@@ -547,12 +498,11 @@ metric_annotation <- ggplot(gene_metrics[(variable == "corM")&(protocol == "cDNA
         axis.ticks.y = element_blank(),
         axis.text.y = element_blank())
 
-# pList_gene_combined <- do.call("c",list(pList_gene, list(protocol_annotation, method_annotation)))
+
 library(gridExtra)
 
-# pdf("tx_metrics_heatmap_wtPacBio_18Jul.pdf", width = 18, height = 18)
+
 p_gene_spikein_metrics_summarised <- ggarrange( plotlist = pList_gene_no_legend,nrow = 1, ncol =6, align = "hv")
-# dev.off()
 ```
 
 
@@ -604,7 +554,7 @@ corMetricsAll <- do.call("rbind", list(geneMetric[,merge.names, with = FALSE],
 
 
 plotdata <- corMetricsAll[grepl("Illumina",protocol_comparison)&(!grepl("PacBio",protocol_comparison))]
-# plotdata[, gene := factor(gene, levels = c(TRUE,FALSE), labels = c("Gene","Transcript"))]
+
 plotdata[, spike_in := factor(spike_in, levels = c(TRUE,FALSE), labels = c("Spike-in","Cell lines"))]
 p_correlation_lr_sr_spike_in <- ggplot(plotdata[spike_in == "Spike-in"], aes(x = variable, y = spr, fill = variable))+
     geom_boxplot()+
@@ -612,39 +562,30 @@ p_correlation_lr_sr_spike_in <- ggplot(plotdata[spike_in == "Spike-in"], aes(x =
     xlab("")+
     ylab("Spr")+
     ggtitle("Spike-in")+
-    #coord_flip()+
-    theme_classic()+
+   theme_classic()+
     theme( 
-        # axis.ticks.y = element_blank(),
-        # axis.text.y = element_blank(),
-        legend.position = "top")
+    legend.position = "top")
 p_correlation_lr_sr_cellline <- ggplot(plotdata[spike_in == "Cell lines"], aes(x = variable, y = spr, fill = variable))+
     geom_boxplot()+
     scale_fill_brewer(type = "qual", palette = 2)+
     xlab("")+
     ylab("Spr")+
     ggtitle("Cell lines")+
-    # coord_flip()+
     theme_classic()+
     theme( 
-        # axis.ticks.y = element_blank(),
-        # axis.text.y = element_blank(),
-        legend.position = "top")
+    legend.position = "top")
 p_gene_spikein_correlation_lr_sr_arranged <- ggarrange(p_correlation_lr_sr_spike_in + theme(legend.position = "none"), p_correlation_lr_sr_cellline + theme(legend.position = "none"),
           nrow = 1, align = "hv")
 
 p_gene_spikein_correlation_lr_sr_arranged_legend <- ggarrange(as_ggplot(get_legend(p_correlation_lr_sr_spike_in)), as_ggplot(get_legend(p_correlation_lr_sr_cellline)),
           nrow = 1, align = "hv")
-# pdf("summarised_correlation_between_lr_sr_by_spike_in_celllines.pdf", width = 8, height = 4)
-# p_correlation_lr_sr_arranged
-# dev.off()
 ```
 
 ## e replicate gene scatter --remaining ones
 ```{r}
 library(GGally)
 cellLines <- c("A549","K562","HepG2","Hct116","MCF7","H9","HEYA8")
-source(paste0('/mnt/projects/SGNExManuscript/R/gene_cluster_code.R'))
+source(paste0('gene_cluster_code.R'))
 
 temp_data <- comDataGene[cellLine %in% cellLines&(method %in% c("salmon_lr","salmon_sr"))] 
 ave_data <- unique(temp_data[, list(meanNormEst = mean(normEst)), by = list(gene_name, protocol_general, cellLine)])
@@ -667,13 +608,10 @@ plotdata2[, cellLine := factor(cellLine, levels = c("A549","Hct116","HepG2","K56
 plotdata2[, variable := factor(variable, levels = c("cDNA","directcDNA","directRNA","PacBio-SMRTcell")
                                )]
 p_gene_cellLine_scatter_suppl1 <- ggplot(plotdata2[agg_gene_cluster=="protein_coding"], aes(x = value, y = Illumina))+
-        # geom_abline(intercept = 0, slope = 1)+
-        # geom_hex(binwidth = c(0.05, 0.05), col = "steelblue", alpha = 0.1)+
-    geom_abline(intercept = 0, slope = 1)+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_abline(intercept = 0, slope = 1)+
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(breaks = c(10,100,1000),low = "steelblue1", high = "steelblue4",trans = "log10")+
-        # scale_fill_gradient2(limits = c(0, 50), oob = scales::squish)+
-         geom_density_2d()+
+        geom_density_2d()+
          xlim(c(0,14))+
          ylim(c(0,14))+
          ggpubr::stat_cor(aes(label = after_stat(r.label)),method = "spearman", cor.coef.name = "Sp.R")+
@@ -682,12 +620,9 @@ p_gene_cellLine_scatter_suppl1 <- ggplot(plotdata2[agg_gene_cluster=="protein_co
     theme_classic()
 
 p_gene_cellLine_scatter_suppl2 <- ggplot(plotdata2[agg_gene_cluster=="lncRNA"], aes(x = value, y = Illumina))+
-        # geom_abline(intercept = 0, slope = 1)+
-        # geom_hex(binwidth = c(0.05, 0.05), col = "steelblue", alpha = 0.1)+
-    geom_abline(intercept = 0, slope = 1)+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_abline(intercept = 0, slope = 1)+
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(breaks = c(10,100,1000),low = "steelblue1", high = "steelblue4",trans = "log10")+
-        # scale_fill_gradient2(limits = c(0, 50), oob = scales::squish)+
          geom_density_2d()+
          xlim(c(0,14))+
          ylim(c(0,14))+
@@ -712,7 +647,7 @@ matCorData <- do.call("rbind",lapply(seq_len(nrow(geneCellLineMetrics)), functio
     saved_date <- ifelse(metric == "", "25May2023","1Aug2023")
     lr <- geneCellLineMetrics[k]$lr
     sr <- geneCellLineMetrics[k]$sr
-    mat_cor <- readRDS(paste0("/mnt/projects/SGNExManuscript/output_guppy6.4.2/replicateResults/replicate_gene_expression_comparison_",lr,"_",sr,"_",metric,saved_date,".rds"))
+    mat_cor <- readRDS(paste0("replicateResults/replicate_gene_expression_comparison_",lr,"_",sr,"_",metric,saved_date,".rds"))
 mat_cor[, within_cellLine := !grepl("_|all",cellLine)]
 
 mat_cor[, pc_factor := factor(protocol_comparison, rev(unique(mat_cor$protocol_comparison)[c(1,4,2,5,3,6)]))]
@@ -731,9 +666,9 @@ outData[, method_pair := paste0(lr,sr)]
 outData[, metric_type := ifelse(metric == "", "cor",metric)]
 return(outData)
 }))
-saveRDS(matCorData, file = "/mnt/projects/SGNExManuscript/output_guppy6.4.2/replicateResults/matCorData_7Aug2023.rds")
+saveRDS(matCorData, file = "replicateResults/matCorData_7Aug2023.rds")
 
-matCorData <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/replicateResults/matCorData_7Aug2023.rds")
+matCorData <- readRDS("replicateResults/matCorData_7Aug2023.rds")
 methodPairVec <- unique(matCorData$method_pair)
 metricVec <- unique(matCorData$metric_type)
 matCorData[, short_read := grepl("Illumina", pc_factor)]
@@ -757,12 +692,10 @@ hlineVec <- list(c(0.6,0.8),
 pList <- lapply(1:5, function(kk){
     p_replicate_gene_metric <-
     ggplot(matCorData[!(method_pair=="salmon_lrsalmon_sr"&(metric_type == "cor"))&(metric_type == metricVec[kk])], aes(new_pc_factor , metricValue, fill = within_cellLine))+
-    #  geom_hline(yintercept = c(0.8,0.9), linetype = "dashed", col = "grey")+
-    geom_hline(yintercept = hlineVec[[kk]], col = "grey", linetype = "dashed")+
+   geom_hline(yintercept = hlineVec[[kk]], col = "grey", linetype = "dashed")+
     geom_boxplot()+
     scale_fill_brewer(type = "qual", palette = 4)+
     scale_color_brewer(type = "qual", palette = 4)+
-    #facet_wrap(~factor(within_cellLine, labels = c("Across cell line","Within cell line(matched rep)")), ncol = 2)+
     facet_grid(method_pair~gc_factor, scales = "free")+
     ylab(c("Spearman correlation",
            "MAE",
@@ -781,25 +714,6 @@ p_metrics_suppl <- ggarrange(plotlist = pList, nrow = 5, ncol = 1, align = "hv")
 
 
 
-<!-- ## f gene heatmap with dendrograms using other methods  -->
-<!-- ```{r} -->
-<!-- source("/mnt/projects/SGNExManuscript/R/utility_function.R") -->
-<!-- runnamevec <- unique(comDataTranscript[method %in%  c("bambu_lr","salmon_sr")&(ntotal>=400000)]$runname) -->
-<!-- methodNamesList <- CJ(lr = c("bambu_lr","salmon_lr"), -->
-<!--                       sr = c("rsem_sr","salmon_sr"), -->
-<!--                       gene = c(TRUE, FALSE), -->
-<!--                       data_type = c("all","protocol_batch_removal","cellline_batch_removal")) -->
-
-<!-- # comDataTranscript <- comDataTranscript[method %in% c("bambu_lr","salmon_lr","rsem_sr","salmon_sr")&(!grepl("PacBio",protocol_general))] -->
-<!-- lapply() -->
-<!-- lr <- "salmon_lr" -->
-<!-- sr <- "salmon_sr" -->
-<!-- gene <- TRUE -->
-<!-- data_type <- "all" -->
-<!-- number_of_genes <- 10000 -->
-
-<!-- pList <- plot_heatmap(dt = comDataGeneFiltered, methodNames = c(lr, sr), gene, data_type,genevec,ensemblAnnotations.transcripts , samples, number_of_genes, runnamevec) -->
-<!-- ``` -->
 ## g gene pca plot with dendrograms using other methods 
 ```{r}
 lrsrList <- CJ(lr = c("bambu_lr","salmon_lr"),
@@ -820,7 +734,7 @@ p_pca <- plot_heatmap(dt = comDataGeneFiltered, methodNames = c(lr, sr), gene, d
 ## arrange supplementary figure
 ```{r}
 p_pca_list_mod <- lapply(seq_along(p_pca_list), function(x) p_pca_list[[x]] + ggtitle(apply(lrsrList,1,paste, collapse = "")[x])+theme(legend.position = "none"))
-pdf("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure3/suppl_figure2_draft_4Sep2023.pdf", width = 14, height = 20)
+pdf("suppl_figure2_draft_4Sep2023.pdf", width = 14, height = 20)
 ggdraw() +
      draw_plot(p_gene_spikein_scatter_suppl+ theme(legend.position="none"),0,11/16, 1/3, 5/16) +
     draw_plot(p_gene_spikein_abe_suppl+ theme(legend.position="none"),1/3,11/16, 1/3, 5/16) +
@@ -840,8 +754,6 @@ ggdraw() +
      draw_plot(p_gene_spikein_correlation_lr_sr_arranged_legend,7/8,0,1/8,1/16)
     
 dev.off()
-
-
 
 pdf("pca_gene_expression_list.pdf", width = 10, height = 8)
 ggarrange(plotlist = p_pca_list, nrow = 2, ncol = 2)
@@ -945,9 +857,7 @@ temp[, runname := gsub("GIS_K562_Illumina_Rep5-Run1","GIS_k562_Illumina_Rep5-Run
 setnames(temp, "runname","rn")
 temp[grepl("GIS", rn ),rn := samples[match(rn, old_runname)]$runname]
 dt_wide <- dcast(temp, gene_name ~ paste0(rn,method), value.var = "normEst")
-# dt_wide <- dcast(comDataGene[method %in% c("salmon_lr","salmon_sr") &(gene_name %in% unique(ensemblAnnotations.transcripts[gene_biotype == "protein_coding"]$gene_name))&(runname %in% runnamevec)], gene_name ~ runname, value.var = "normEst")
-    corMatrix <- cor(log2(dt_wide[,-1,with = FALSE]), method = "spearman", use = "pairwise.complete.obs")
-    
+corMatrix <- cor(log2(dt_wide[,-1,with = FALSE]), method = "spearman", use = "pairwise.complete.obs")
     corMatrix_melt <- melt(data.table(corMatrix,keep.rownames = TRUE), id.vars = "rn", 
                            measure.vars = colnames(corMatrix))
     corMatrix_melt[, rn_var := paste(sort(c(rn, as.character(variable))), collapse = "_"), by = list(rn, variable)]
@@ -1006,7 +916,6 @@ corMatrix_melt[, `:=`(cellLine_1 = unlist(strsplit(rn, "\\_"))[2],
   plotdata <- corMatrix_melt[cellLine_1==cellLine_2&(protocol_1 == protocol_2)&(method1==method2)]
   plotdata[, match_status := (bio_rep1 == bio_rep2)]
   plotdata[, new_protocol_variable := ifelse(grepl("sim",method1),"lr_sim",protocol_1)]
-  
   txCorAll <- copy(plotdata)
   txCorAll[, feature := "transcript"]
   txCorAll[, subset := FALSE]
@@ -1017,7 +926,7 @@ corMatrix_melt[, `:=`(cellLine_1 = unlist(strsplit(rn, "\\_"))[2],
 ```{r}
 filtered_data <- comDataTranscript[method %in% c("salmon_lr","salmon_sr")&(gene_name %in% unique(ensemblAnnotations.transcripts[gene_biotype == "protein_coding"]$gene_name))]
 
-dominant_typeData <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/dominant_typeData_25May2023.rds")
+dominant_typeData <- readRDS("dominant_typeData_25May2023.rds")
 dominant_typeData[, short_read := as.numeric(as.logical(short_read))]
 filtered_data <- dominant_typeData[filtered_data, on = c("tx_name","gene_name","cellLine","short_read")]
 filtered_data <- filtered_data[runname %in% runnamevec]
@@ -1037,9 +946,6 @@ corMatrix_melt <- do.call("rbind",lapply(3, function(xx){
         dt_wide <- dcast(filtered_data, gene_name + tx_name ~ runname, value.var = "normEst")
     }
     
-
-
-#     
 # expression filtering directly
 corMatrix <- cor(log2(dt_wide[,-c(1,2),with = FALSE]), method = "spearman", use = "pairwise.complete.obs")
     
@@ -1077,8 +983,7 @@ corMatrix <- cor(log2(dt_wide[,-c(1,2),with = FALSE]), method = "spearman", use 
 # Supplementary Text Fig. 3
 ### % of reads with both primers 
 ```{r}
-stats.pychopper <- fread("/mnt/projects/SGNExManuscript/output_guppy6.4.2/adapter_analysis/pychopper_results/cdna/statistics.tsv", header = TRUE)
-
+stats.pychopper <- fread("adapter_analysis/pychopper_results/cdna/statistics.tsv", header = TRUE)
 
 stats.pychopper[Category == "Hits"]
 
@@ -1102,8 +1007,6 @@ ggdraw() +
     draw_plot(as_ggplot(get_legend(p_gene_spikein_abe_suppl)),2/3,1/10,1/3,1/10)+
      draw_plot(protocol_annotation,0,1/10,1/3,1/10)+
     draw_plot(method_annotation,1/3,1/10,1/3,1/10)+
-    #  draw_plot(protocol_annotation_tx,1/4,0,1/8,1/5)+
-    # draw_plot(method_annotation_tx,3/8,0,1/8,1/5)+
     draw_plot(ggarrange( plotlist = pList_gene_only_legend,nrow = 1, ncol =6, align = "hv"),0,0,1/2,1/10)+
      draw_plot(ggarrange( plotlist = pList_tx_only_legend,nrow = 1, ncol =6, align = "hv"),1/2,0,1/2,1/10)
 dev.off()
@@ -1135,12 +1038,8 @@ hlineVec <- list(c(0.6,0.8),
 pList <- lapply(1:5, function(kk){
     p_replicate_gene_metric <-
     ggplot(matCorData[(metric_type == metricVec[kk])&(within_cellLine == TRUE)], aes(new_pc_factor , metricValue))+
-    #  geom_hline(yintercept = c(0.8,0.9), linetype = "dashed", col = "grey")+
     geom_hline(yintercept = hlineVec[[kk]], col = "grey", linetype = "dashed")+
     geom_boxplot()+
-    # scale_fill_brewer(type = "qual", palette = 4)+
-    # scale_color_brewer(type = "qual", palette = 4)+
-    #facet_wrap(~factor(within_cellLine, labels = c("Across cell line","Within cell line(matched rep)")), ncol = 2)+
     facet_grid(method_pair ~ gc_factor, scales = "free")+
     ylab(c("Spearman correlation",
            "MAE",
@@ -1151,7 +1050,6 @@ pList <- lapply(1:5, function(kk){
     theme_classic()
     return(p_replicate_gene_metric)
 })
-
 
 p_metrics_suppl <- ggarrange(plotlist = pList, nrow = 5, ncol = 1, align = "hv")
 ```
@@ -1176,38 +1074,6 @@ matCorData_tx <- copy(matCorData)
 
 methodPairVec <- unique(matCorData$method_pair)
 library(ggpubr)
-### old version split by 
-# p_metric_list <- lapply(1:4, function(k){
-#     
-#     my_comparisons <- list(c("majorBoth","majorLongReadOnly"),
-#                        c("majorLongReadOnly","majorShortReadOnly"),
-#                        c("majorShortReadOnly","others"))
-# labeldata <- unique(matCorData[, list(med_value = median(metricValue)),
-#                                    by = list(ct_factor,short_read,method_pair, metric_type)])
-# labeldata[, y := ifelse(metric_type=="cor",0.93, 
-#                                             ifelse(metric_type == "mard_",1.8,
-#                                                    ifelse(metric_type == "mard_mod_",1.2,NA)))]
-# plotdata <- matCorData[(metric_type %in% c("cor","mard_","mard_mod_"))&(method_pair == methodPairVec[k])]
-# plotdata[, short_read := factor(short_read, labels = c("short read vs long read","long read vs long read"))]
-# plotdata[, labelY := ifelse(metric_type=="cor",0.93, 
-#                                             ifelse(metric_type == "mard_",1.8,
-#                                                    ifelse(metric_type == "mard_mod_",1.2,NA)))]
-# # labelData <- labeldata[method_pair == methodPairVec[k]&(metric_type %in% c("cor","mard_","mard_mod_"))]
-# p_replicate_tx_final_overall <- ggplot(plotdata, aes(x = ct_factor, y = metricValue, fill = ct_factor))+
-#     geom_boxplot(outlier.size = 1, outlier.color = "grey", outlier.shape = 16)+
-#     scale_fill_brewer(type = "qual", palette = 1)+
-#     xlab("Protocol comparison")+
-#     stat_compare_means(comparisons = my_comparisons,
-#                        paired = FALSE,
-#                        #label.y = c(1,0.95,0.9,0.85,0.8),
-#                       aes(label.y = labelY))+
-#     facet_grid(factor(metric_type, labels = c("Spearman correlation",
-#            "MARD","MRD"))~short_read, scales = "free_y")+
-#     ggtitle(methodPairVec[k])+
-#     theme_classic()+
-#     theme(legend.position = "top")
-#     return(p_replicate_tx_final_overall)
-# })
 
 ## new split by metric
 p_metric_list <- lapply(1:5, function(k){
@@ -1233,7 +1099,6 @@ labelData <- labeldata[(metric_type %in% metricVec[k])]
 labelData[, short_read := factor(short_read, labels = c("short read vs long read","long read vs long read"))]
 p_replicate_tx_final_overall <- ggplot(plotdata, aes(x = ct_factor, y = metricValue))+
     geom_boxplot(outlier.size = 1, outlier.color = "grey", outlier.shape = 16)+
-    # scale_fill_brewer(type = "qual", palette = 1)+
     xlab("Protocol comparison")+
     stat_compare_means(comparisons = my_comparisons,
                        paired = FALSE,
@@ -1250,26 +1115,13 @@ p_replicate_tx_final_overall <- ggplot(plotdata, aes(x = ct_factor, y = metricVa
     return(p_replicate_tx_final_overall)
 })
 
-# p_replicate_tx_metric <-
-#     ggplot(matCorData[(metric_type %in% c("cor","mard_"))], aes(new_pc_factor , metricValue, fill = ct_factor))+
-#     #  geom_hline(yintercept = c(0.8,0.9), linetype = "dashed", col = "grey")+
-#     #geom_hline(yintercept = hlineVec[[kk]], col = "grey", linetype = "dashed")+
-#     geom_boxplot()+
-#     scale_fill_brewer(type = "qual", palette = 4)+
-#     scale_color_brewer(type = "qual", palette = 4)+
-#     #facet_wrap(~factor(within_cellLine, labels = c("Across cell line","Within cell line(matched rep)")), ncol = 2)+
-#     facet_grid(factor(metric_type, labels = c("Spearman correlation",
-#            "MARD"))~method_pair, scales = "free")+
-#     ylab("")+
-#     xlab("Protocol pairs")+
-#     theme_classic()
 
 p_metric_list_mod <- lapply(seq_along(p_metric_list), function(x) p_metric_list[[x]] + theme(legend.position = "none"))
 ```
 
 
 ```{r}
-pdf("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure3/r3.15.pdf", width = 14, height = 14)
+pdf("r3.15.pdf", width = 14, height = 14)
 ggarrange(pList[[1]]+theme(legend.position = "none"),
                         pList[[3]]+theme(legend.position = "none"),
                         p_metric_list[[1]]+theme(legend.position = "none"),
@@ -1285,8 +1137,7 @@ plotdata_gene_suppl <- si_data_gene[cpm_norm_conc < 2.5]
 plotdata_gene_suppl[, spike_in_general_name_revised := factor(spike_in_general_name_revised, 
             levels = c("Sequin","ERCC","SIRV"))]
 p_gene_spikein_scatter_suppl_cpm0_2.5 <- ggplot(plotdata_gene_suppl, aes(x=log2(cpm_norm_conc+1), y=log2(normEst+1))) +
-               #  geom_smooth(aes(col = method), size = 0.5, se = FALSE )+
-                geom_point(aes(col = method),
+               geom_point(aes(col = method),
                            alpha = 0.5,size = 2) +
                 geom_abline(intercept = 0, slope = 1, col = "grey")+
                 xlab('Expected CPM (log2)')+
@@ -1295,8 +1146,7 @@ p_gene_spikein_scatter_suppl_cpm0_2.5 <- ggplot(plotdata_gene_suppl, aes(x=log2(
                 ggpubr::stat_cor(aes(col = method,
                                      label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
                 facet_grid(paste0(spike_in_general_name_revised,spike_in_version)~protocol)+
-                # geom_smooth(method = "lm")+
-                theme_classic()
+               theme_classic()
 pdf("gene_metrics_scatterplots_cpm0_2.5_16Feb2024.pdf", width = 17, height = 9)
 p_gene_spikein_scatter_suppl_cpm0_2.5
 dev.off()
@@ -1315,8 +1165,7 @@ p_gene_spikein_scatter_suppl_cpm2.5 <- ggplot(plotdata_gene_suppl, aes(x=log2(cp
                 ggpubr::stat_cor(aes(col = method,
                                      label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
                 facet_grid(paste0(spike_in_general_name_revised,spike_in_version)~protocol)+
-                # geom_smooth(method = "lm")+
-                theme_classic()
+               theme_classic()
 
 
 
@@ -1334,8 +1183,7 @@ p_gene_spikein_scatter_cpm0_2.5 <- ggplot(plotdata_gene, aes(x=log2(cpm_norm_con
                 ggpubr::stat_cor(aes(col = spike_in_version,
                                      label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
                 facet_grid(spike_in_general_name_revised~protocol)+
-                # geom_smooth(method = "lm")+
-                theme_classic()
+                 theme_classic()
 
 plotdata_gene <- si_data_gene[method %in% c("salmon_lr","salmon_sr")&!(protocol %in% c("directRNA","PacBio"))&(cpm_norm_conc<2.5)]
 plotdata_gene[, spike_in_general_name_revised := factor(spike_in_general_name_revised, 
@@ -1385,20 +1233,14 @@ pList_gene_no_legend_cpm0_2.5 <- lapply(unique(gene_metrics_cpm0_2.5$variable), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "blue", high = "white") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+    geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
              ggtitle(x)+
     xlab("")+
              ylab("")+
-    #facet_wrap(~variable, scales = "free")+
-    theme_minimal()+
+   theme_minimal()+
            theme( 
-        #        axis.text.x=element_blank(),  #remove y axis labels
-        # axis.ticks.x=element_blank() ,
-               axis.text.y=element_blank(),  #remove y axis labels
+        axis.text.y=element_blank(),  #remove y axis labels
         axis.ticks.y=element_blank() , #remove y axis ticks
                   legend.position = "none")
     }else if(x %in% c("corM","r2")){
@@ -1406,28 +1248,21 @@ pList_gene_no_legend_cpm0_2.5 <- lapply(unique(gene_metrics_cpm0_2.5$variable), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+    geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
             ggtitle(x)+
    xlab("")+
              ylab("")+
-    #facet_wrap(~variable, scales = "free")+
-    theme_minimal()+
+   theme_minimal()+
            theme( 
-        #        axis.text.x=element_blank(),  #remove y axis labels
-        # axis.ticks.x=element_blank() ,
-               axis.text.y=element_blank(),  #remove y axis labels
+     axis.text.y=element_blank(),  #remove y axis labels
         axis.ticks.y=element_blank() , #remove y axis ticks
                   legend.position = "none")
     }else{
          px <- ggplot( plotdata_final_metrics, aes(spike_in_name_factor,paste0(protocol,method), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
-  # scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    scale_fill_gradient2(low = "white",
+ scale_fill_gradient2(low = "white",
                        mid = "blue",
                        high = "white") +
      geom_text(aes(label = round(value,2)), color = "black", size = 4) +
@@ -1435,12 +1270,9 @@ pList_gene_no_legend_cpm0_2.5 <- lapply(unique(gene_metrics_cpm0_2.5$variable), 
             ggtitle(x)+
              xlab("")+
              ylab("")+
-    #facet_wrap(~variable, scales = "free")+
     theme_minimal()+
            theme(
-        #        axis.text.x=element_blank(),  #remove y axis labels
-        # axis.ticks.x=element_blank() ,
-               axis.text.y=element_blank(),  #remove y axis labels
+      axis.text.y=element_blank(),  #remove y axis labels
         axis.ticks.y=element_blank() , #remove y axis ticks
                   legend.position = "none")
     }
@@ -1459,39 +1291,29 @@ pList_gene_only_legend_cpm0_2.5 <- lapply(unique(gene_metrics_cpm0_2.5$variable)
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "blue", high = "white") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+   geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
              ggtitle(x)+
-    #facet_wrap(~variable, scales = "free")+
     theme_minimal()
     }else if(x %in% c("corM","r2")){
         px <- ggplot( plotdata_final_metrics, aes(spike_in_name_factor,paste0(protocol,method), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+   geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
             ggtitle(x)+
-    #facet_wrap(~variable, scales = "free")+
     theme_minimal()
     }else{
          px <- ggplot( plotdata_final_metrics, aes(spike_in_name_factor,paste0(protocol,method), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
-  # scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    scale_fill_gradient2(low = "white",
+   scale_fill_gradient2(low = "white",
                        mid = "blue",
                        high = "white") +
      geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
             ggtitle(x)+
-    #facet_wrap(~variable, scales = "free")+
     theme_minimal()
     }
     return(as_ggplot(get_legend(px)))
@@ -1522,7 +1344,6 @@ metric_annotation <- ggplot(gene_metrics_cpm0_2.5[(variable == "corM")&(protocol
         axis.ticks.y = element_blank(),
         axis.text.y = element_blank())
 
-# pList_gene_combined <- do.call("c",list(pList_gene, list(protocol_annotation, method_annotation)))
 library(gridExtra)
 
 pdf("gene_metrics_heatmap_cpm0_2.5_16Feb2024.pdf", width = 18, height = 9)
@@ -1537,8 +1358,6 @@ dev.off()
 
 
 # Supplementary Fig. 4 and 5 
-
-
 ```{r}
 gene_mat <- dcast(si_data_gene[method %in% c("salmon_lr","salmon_sr")], spike_in_type + spike_in_name + gene_name ~ protocol, value.var = "normEst")
 snames <- unique(gene_mat$spike_in_name)
@@ -1621,23 +1440,17 @@ p_correlation_lr_sr_spike_in <- ggplot(plotdata[spike_in == "Spike-in"], aes(x =
     xlab("")+
     ylab("Spr")+
     ggtitle("Spike-in")+
-    #coord_flip()+
     theme_classic()+
     theme( 
-        # axis.ticks.y = element_blank(),
-        # axis.text.y = element_blank(),
-        legend.position = "top")
+    legend.position = "top")
 p_correlation_lr_sr_cellline <- ggplot(plotdata[spike_in == "Cell lines"], aes(x = gene, y = spr, fill = variable))+
     geom_boxplot()+
     scale_fill_brewer(type = "qual", palette = 3)+
     xlab("")+
     ylab("Spr")+
     ggtitle("Cell lines")+
-    # coord_flip()+
     theme_classic()+
     theme( 
-        # axis.ticks.y = element_blank(),
-        # axis.text.y = element_blank(),
         legend.position = "top")
 p_correlation_lr_sr_arranged <- ggarrange(p_correlation_lr_sr_spike_in + theme(legend.position = "none"), p_correlation_lr_sr_cellline + theme(legend.position = "none"),
           nrow = 1, align = "hv")
@@ -1694,7 +1507,7 @@ noprint <- lapply(seq_len(nrow(methodNamesList)), function(k){
     data_type <- methodNamesList[k]$data_type
     number_of_genes <- 10000
     if(k%%3==1){
-        pdf(paste0(wkdir,"revisionFigures_guppy6.4.2/geneHeatmaps/",lr,"_",sr,"_", c("transcript","gene")[gene+1],"_",number_of_genes,"_25May.pdf"), width = 8, height = 5)
+        pdf(paste0(wkdir,"geneHeatmaps/",lr,"_",sr,"_", c("transcript","gene")[gene+1],"_",number_of_genes,"_25May.pdf"), width = 8, height = 5)
     }
     if(gene){
         

@@ -30,8 +30,6 @@ library(RColorBrewer)
 library(limma)
 library(ggpubr)
 
-# if heya8 still similar to h9, or can be distinguished
-# heatmap for samples
 library(ComplexHeatmap)
 library(circlize)
 library(viridis)
@@ -47,22 +45,21 @@ source("utility_function_revised.R")
 ```{r}
 cat('Setting working directory')
 wkdir <- 'wkdir'
-general_list <- readRDS("data/processed/general_list2023-04-27.rds")
+general_list <- readRDS("general_list2023-04-27.rds")
 samples_wSpikein <- general_list$samples_wSpikein
-cellLines <- general_list$cellLines#c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8")
-protocolCol <-  general_list$protocolCol#adjustcolor(brewer.pal(8,"Dark2")[1:5],0.7)
-protocolVec <-  general_list$protocolVec#c("directRNA","directcDNA","cDNA","PacBio","Illumina")
-protocolLabel <- general_list$protocolLabel#c("RNA","PCR-free cDNA","cDNA","PacBio","Illumina")
+cellLines <- general_list$cellLines
+protocolCol <-  general_list$protocolCol
+protocolVec <-  general_list$protocolVec
+protocolLabel <- general_list$protocolLabel
 
- txvec <- fread(paste0("txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
-#txvec <- fread(paste0(wkdir,"txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
-    txvec <- gsub("\\..*","",txvec$V1)
-    ensemblAnnotations.transcripts <- copy(general_list$ensemblAnnotations.transcripts)
-    setnames(ensemblAnnotations.transcripts, "ensembl_gene_id","gene_name")
-    ensemblAnnotations.transcripts <- data.table(tx_name = txvec, status = TRUE)[ensemblAnnotations.transcripts, on = "tx_name"]
-    ensemblAnnotations.transcripts[is.na(status), status := FALSE]
-    ensemblAnnotations.transcripts[, all_in := all(status), by = gene_name]
-    genevec <- unique(ensemblAnnotations.transcripts[which(all_in)]$gene_name)
+txvec <- fread(paste0("txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
+txvec <- gsub("\\..*","",txvec$V1)
+ensemblAnnotations.transcripts <- copy(general_list$ensemblAnnotations.transcripts)
+setnames(ensemblAnnotations.transcripts, "ensembl_gene_id","gene_name")
+ensemblAnnotations.transcripts <- data.table(tx_name = txvec, status = TRUE)[ensemblAnnotations.transcripts, on = "tx_name"]
+ensemblAnnotations.transcripts[is.na(status), status := FALSE]
+ensemblAnnotations.transcripts[, all_in := all(status), by = gene_name]
+genevec <- unique(ensemblAnnotations.transcripts[which(all_in)]$gene_name)
 samples <- general_list$samples
 ```
 
@@ -178,7 +175,7 @@ ntotalCount <- unlist(lapply(seq_len(nrow(spike_in_samples)), function(t){
 spike_in_samples[, ntotal := ntotalCount]
 spike_in <- spike_in_samples[spike_in, on = "spike_in_type", allow.cartesian = TRUE]
 spike_in[, sum_conc := sum(conc,na.rm = TRUE), by = list(spike_in_type, protocol, spike_in_name)]
-spike_in <- spike_in[, norm_conc := conc/sum_conc*spike_in_perc*0.01*ntotal, by = list(spike_in_type, protocol)]#/sum(conc, na.rm = TRUE)
+spike_in <- spike_in[, norm_conc := conc/sum_conc*spike_in_perc*0.01*ntotal, by = list(spike_in_type, protocol)]
 
 spike_in_gene <- unique(spike_in[,list(conc = sum(conc,na.rm = TRUE),
                                        norm_conc = sum(norm_conc,na.rm = TRUE)), by = list(spike_in_name, spike_in_type,gene_name, protocol)])
@@ -255,7 +252,6 @@ p_tx_spikein_scatter <- ggplot(plotdata_tx, aes(x=log2(cpm_norm_conc+1), y=log2(
                 ggpubr::stat_cor(aes(col = spike_in_version,
                                      label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
                 facet_grid(spike_in_general_name_revised~protocol)+
-                # geom_smooth(method = "lm")+
                 theme_classic()
 ```
 
@@ -267,21 +263,17 @@ mat_cor[, ct_factor := factor(common_type, unique(mat_cor$common_type))]
 mat_cor[, gc_factor := factor(agg_gene_cluster, unique(mat_cor$agg_gene_cluster)[c(4,3,5,1,2,6,7)])]
 
 plotdata <- mat_cor[(gc_factor == "protein_coding")&(ct_factor %in% c("majorBoth",
-"majorLongReadOnly","majorShortReadOnly","others"))&(!is.na(pc_factor))&(!grepl("_HepG2",cellLine))] #&match_status
+"majorLongReadOnly","majorShortReadOnly","others"))&(!is.na(pc_factor))&(!grepl("_HepG2",cellLine))] 
 plotdata[, short_read := factor(!grepl("Illumina",pc_factor), labels = c("short read vs long read","long read vs long read"))]
  my_comparisons <- list(c("majorBoth","majorLongReadOnly"),
                        c("majorLongReadOnly","majorShortReadOnly"),
                        c("majorShortReadOnly","others"))
-# labeldata <- unique(matCorData[, list(med_value = median(metricValue)),
-#                                    by = list(ct_factor,short_read,method_pair, metric_type)])
+
 p_replicate_tx_final <- ggplot(plotdata, aes(x = pc_factor, y = r, fill = ct_factor))+
     geom_hline(yintercept = c(0.6,0.8), col = "grey", linetype = "dashed")+
     geom_boxplot(outlier.size = 1, outlier.color = "grey", outlier.shape = 16)+
     scale_fill_brewer(type = "qual", palette = 1)+
     xlab("Protocol comparison")+
-     # stat_compare_means(comparisons = my_comparisons,
-     #                   paired = FALSE,
-     #                   label.y = 0.93)+
     facet_wrap(~ct_factor, nrow = 1)+
     theme_classic()+
     theme(legend.position = "top")
@@ -304,17 +296,16 @@ ave_data[, log2NormEst := log2(meanNormEst+1)]
 
 plotdata1 <- dcast(ave_data, tx_name + gene_name + majorBoth + majorEitherOnly + majorLongRead + majorShortRead ~ protocol_general, value.var = "log2NormEst")
   p_major_both <- ggplot(plotdata1[which(majorBoth)], aes(x = directcDNA, y = Illumina))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
-        # scale_fill_gradient2(limits = c(0, 50), oob = scales::squish)+
-         ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+
+        ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+
       xlim(c(0,15))+
       ylim(c(0,15))+
         ggtitle("majorBoth")+theme_classic()
   p_majorLongReadOnly <- ggplot(plotdata1[which(majorEitherOnly&majorLongRead)], aes(x = directcDNA, y = Illumina))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
             breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -323,7 +314,7 @@ plotdata1 <- dcast(ave_data, tx_name + gene_name + majorBoth + majorEitherOnly +
       ylim(c(0,15))+
         ggtitle("majorLongReadOnly")+theme_classic()
   p_majorShortReadOnly <- ggplot(plotdata1[which(majorEitherOnly&majorShortRead)], aes(x = directcDNA, y = Illumina))+
-         geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+         geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
             breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -332,7 +323,7 @@ plotdata1 <- dcast(ave_data, tx_name + gene_name + majorBoth + majorEitherOnly +
       ylim(c(0,15))+
         ggtitle("majorShortReadOnly")+theme_classic()
  p_minor <- ggplot(plotdata1[which(!(majorBoth|majorEitherOnly))], aes(x = directcDNA, y = Illumina))+
-         geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+         geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -378,8 +369,6 @@ background_metrics <- do.call("rbind",lapply(unique(tt$cellLine), function(cl){
     }else{
         dd_rest <- ddData[which(!majorBoth)&(cellLine == cl)]
     }
-     
-    # dd_rest <- ddData[!(tx_name %in% tt$sr)]
    dd_rest[, dummy := 1]
    dd_rest[, ir := cumsum(dummy), by = gene_name]
    xxx_ <- splitAsList(dd_rest$ir, dd_rest$gene_name)
@@ -392,7 +381,6 @@ background_metrics <- do.call("rbind",lapply(unique(tt$cellLine), function(cl){
     if(t==1){
         ct <- compareTranscripts(annotations[tt_temp$sr],annotations[dd_selected[match(tt_temp$gene_name, gene_name)]$tx_name])
     }else if(t==2){
-        # ct <- compareTranscripts(annotations[tt$lr],annotations[dd_selected[match(tt$gene_name, gene_name)]$tx_name])
          ct <- compareTranscripts(annotations[dd_selected[match(tt_temp$gene_name, gene_name)]$tx_name],annotations[tt_temp$lr])
     }else{
     geneNameVec <- intersect( unique(ddData[which(!majorBoth&(cellLine == cl))]$gene_name), unique(ddData[which(majorBoth&(cellLine == cl))]$gene_name))
@@ -483,22 +471,14 @@ cat.obs <- unique(obs_metrics[type %in% cat.vars,c("prop","type","variable", "ce
 cat.obs[, bin_variable := ifelse(as.numeric(variable)>=3, ">=3",variable)]
 cat.obs[, bin_prop := sum(prop), by = list(type,bin_variable, cellLine)]
 cat.obs <- unique(cat.obs[,.(bin_prop, bin_variable,type, cellLine)])
-# cat.obs[order(-as.numeric(variable)), cum_prop := cumsum(prop), by = list(type)]
 
 
 con.obs <- unique(obs_metrics[type %in% con.vars,c("variable","type","value","cellLine"),with=FALSE])
 con.obs <- con.obs[, list(exact_value = rep(as.integer(variable), value)), by = list(type, cellLine)]
 
-# binary.sim[, nsim := 20]
-# binary.sim1[, nsim := 100]
-# binary.sim_final <- do.call("rbind", list(binary.sim, binary.sim1))
-
 binary.obs[, subject := grepl("subject", type)]
 binary.obs[, query := grepl("query", type)]
 binary.obs[, query_factor := factor(query, rev(c("TRUE","FALSE")), rev(c("sr","lr")))]
-
-
-
 ```
 
 
@@ -506,8 +486,7 @@ binary data process
 ```{r}
 plotdata1 <- binary.sim[ref == "sr"][binary.obs, on = c("type","cellLine")]
 plotdata2 <- binary.sim[ref == "lr"][binary.obs, on = c("type","cellLine")]
-# plotdata3 <- binary.sim[ref == "both"][binary.obs, on = c("type","cellLine")]
-plotdata <- do.call("rbind", list(plotdata1,plotdata2))#, plotdata3))
+plotdata <- do.call("rbind", list(plotdata1,plotdata2))
 plotdata[, ref_factor := factor(ref, levels = c("lr","sr","both"), labels = c("random sr isoform keep lr isoform",
                                                                        "random lr isoform keep sr isoform","random subject keep both as query"))]
 
@@ -518,9 +497,6 @@ plotdata[, `:=`(type.adj = gsub("\\.(query|subject)","", type))]
 
 plotdata <- plotdata[(query+subject)<1 |(ref == "sr" & query)|(ref == "lr" & subject)|(ref == "both" &query)]
 binary.plotdata <- plotdata[!((query&(ref == "lr"))|(subject&(ref == "sr")))]
-# binary.obs[, prop.adj :=(-1)^subject*prop]
-# binary.plotdata[, `:=`(me.adj =(-1)^subject*me,
-#                 prop.adj =(-1)^subject*prop)]
 binary.plotdata[, `:=`(type.adj = gsub("\\.(query|subject)","", type))]
 binary.obs[, `:=`(type.adj = gsub("\\.(query|subject)","", type))]
 binary.obs_alt <- binary.obs[grepl("alternative",type.adj)]
@@ -543,9 +519,6 @@ plotdata[, bin_variable_factor := factor(bin_variable, levels = rev(c("0","1","2
 cat.obs[, bin_variable_factor := factor(bin_variable, levels = rev(c("0","1","2",">=3")))]
 cat.plotdata <- plotdata[!((query&(ref == "lr"))|(subject&(ref == "sr")))]
 
-# cat.obs[, bin_prop.adj :=(-1)^subject*bin_prop]
-# plotdata[, `:=`(me.adj =(-1)^subject*me,
-#                 bin_prop.adj =(-1)^subject*bin_prop)]
 cat.plotdata[, `:=`(type.adj = gsub("\\.(query|subject)","", type))]
 cat.obs[, `:=`(type.adj = gsub("\\.(query|subject)","", type))]
 setnames(cat.plotdata,"bin_prop","prop")
@@ -566,12 +539,12 @@ obsData <- do.call("rbind", list(binary.obs[,.(prop, cellLine, query_factor, typ
 simData <- do.call("rbind", list(binary.plotdata[,.(type.adj, prop,cellLine,me, sd, query_factor)],
                                  cat.plotdata[bin_variable_factor == 1,.(type.adj, prop,cellLine,me, sd, query_factor)]))
 
-saveRDS(list(obsData, simData), file = paste0(wkdir, "output_guppy6.4.2/obs_sim_data_list.rds"))
+saveRDS(list(obsData, simData), file = paste0(wkdir, "obs_sim_data_list.rds"))
 ```
 
 
 ```{r}
-obsSimData <- readRDS(paste0(wkdir, "output_guppy6.4.2/obs_sim_data_list.rds"))
+obsSimData <- readRDS(paste0(wkdir, "obs_sim_data_list.rds"))
 cl <- "A549"
 obsData <- obsSimData[[1]][cellLine == cl&(!grepl("alt",type.adj))]
 simData <- obsSimData[[2]][cellLine == cl&(!grepl("alt",type.adj))]
@@ -582,7 +555,6 @@ simData[, z_pvalue_adjusted := pmin(1,z_pvalue*7)]
 
 p_combined <- ggplot(obsData, aes(x = type.adj, y = prop))+
     geom_col(aes(fill = query_factor), alpha = 0.5)+
-    # geom_bar(stat = "identity", fill = "lightblue")+
     geom_point(data = simData, aes(y = me, col= query_factor))+
     geom_errorbar(data = simData, aes(ymin = me-2*sd, ymax = me+2*sd, group = query_factor, col= query_factor), width = 0.2)+
      geom_text(data = simData, aes( y = me+3*sd, label = round(z_pvalue_adjusted,4)))+
@@ -649,8 +621,7 @@ p_njunc <- ggplot(plotData[!grepl("allSpikin",runname)],
                            fill = protocol_type_factor,
                            col = protocol_type_factor))+
      geom_boxplot(aes(fill = protocol_type_factor,col = protocol_type_factor), width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+
-      #            alpha = 0.5, size = 2, show.legend = NA)+
-     scale_fill_manual(values = protocolCol,
+      scale_fill_manual(values = protocolCol,
                       name = "Protocol",
                       limits = protocolVec,
                       labels = protocolLabel)+
@@ -679,28 +650,15 @@ p_njunc
 ```{r}
 ntx_dt_sum <- readRDS("ntx_dt_sum_26June2023.rds")
 ntx_dt_sum[trimmed == TRUE, protocol_type_factor := "lr_sim"]
-p_number_of_transcripts_per_read_trimmed <- ggplot(ntx_dt_sum[!grepl("all",runname)], aes(x = ntx_cat, y = nperc,  fill = protocol_type_factor, col =  protocol_type_factor))+ #[!grepl("allSpikein",runname)]
-    geom_boxplot( width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+ # outliers removed already, otherwise, the outlier points for directRNA will be very high up to 30/40%
+p_number_of_transcripts_per_read_trimmed <- ggplot(ntx_dt_sum[!grepl("all",runname)], aes(x = ntx_cat, y = nperc,  fill = protocol_type_factor, col =  protocol_type_factor))+ geom_boxplot( width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+ 
      stat_summary(
         fun = median,
         geom = 'line',
         aes(group = protocol_type_factor, colour = protocol_type_factor),
         position = position_dodge(width = 0.75) #this has to be added
     )+
-      #            alpha = 0.5, size = 2, show.legend = NA)+
-    #  scale_fill_manual(values = protocolCol,
-    #                   name = "Protocol",
-    #                   limits = protocolVec,
-    #                   labels = protocolLabel)+
-    # scale_color_manual(values = protocolCol,
-    #                    name = "Protocol",
-    #                    limits = protocolVec,
-    #                    labels = protocolLabel)+
     scale_fill_brewer(type = "qual", palette = 3)+
     scale_color_brewer(type = "qual", palette = 3)+
-    #  geom_point(data = ntx_dt[grep("allSpikin",runname)],aes(group = protocol_type, col = protocol_type, shape = cellLine), position = position_dodge(width = 0.75),   alpha = 0.5, size = 3, show.legend = NA)+
-    # scale_shape_manual(values = 0:3,limits = c("sequinMixAV1","sequinMixAV2","SIRV-1","SIRV-4"),
-    #                  labels = c("Sequin MixA V1","Sequin MixA V2","SIRV-1","SIRV-4"))+
     scale_x_discrete(limits = c(0:10,">10"))+
     ylab("Relative proportion of reads")+
     xlab("Number of transcripts per read aligned to")+
@@ -725,13 +683,9 @@ plotdata <- unique(ddData_wCount[,list(n = sum(normEst>=1),
                                        ntotal = .N), by = list(cellLine, protocol_general,major_status ,runname, method)])
 plotdata[grepl("sim", method), protocol_general := "lr_sim"]
 
- # txCorAll <- copy(plotdata)
- #  txCorAll[, feature := "transcript"]
- #  txCorAll[, subset := FALSE]
 
 p_major_expression <- ggplot(plotdata, aes(x = major_status, y = n/ntotal, fill = protocol_general))+
     geom_boxplot()+
-    # scale_x_discrete(labels = c("majorShortReadOnly","majorLongReadOnly"))+
     xlab("")+
     ylab("Percentage of transcripts expressed with \n >= 1 CPM in all samples")+
     scale_fill_brewer(type = "qual", palette = 3)+
@@ -782,20 +736,11 @@ plotdata_final[,nc := .N, by = list(lr_name, sr_name, data_type)]
 p_sim_lr_cor <-ggplot(plotdata_final[methodNames == "lr_sim"&(data_type != "all")], aes(x = data_type, y = spCor))+
     geom_hline(yintercept = c(0.6,0.8, 0.9), linetype = "dashed", col = "grey")+
      geom_line(aes(group = paste(lr_name,sr_name)), col = "grey", linewidth = 0.4)+
-     geom_boxplot(col = "black",width = 0.5, outlier.shape = NA)+
-    # geom_line(aes(group = paste(lr_name,sr_name)), col = "grey", linewidth = 0.4)+
+    geom_boxplot(col = "black",width = 0.5, outlier.shape = NA)+
     geom_point(alpha = 0.2, shape = 16, col = "grey")+
-   
-    #geom_point(aes(col = data_type), shape = 1, size = 3)+
-    #  stat_summary(
-    #     fun = median,
-    #     geom = 'line',
-    #     aes(group = data_type, col = data_type) #this has to be added
-    # )+
-     ylab("Spearman correlation \n (trimmed vs original)")+
+    ylab("Spearman correlation \n (trimmed vs original)")+
     xlab("Transcript type")+
     theme_classic()
-
 ```
 
 
@@ -819,10 +764,9 @@ mrd_data_across <- do.call("rbind",lapply(matched_names, function(x){
     plotdata_wide <- unique(dominant_typeData[cellLine == unique(x_data$cellLine),.(tx_name, gene_name, geneExpressedInBoth, majorBoth, majorEither, majorLongRead, majorShortRead, majorEitherOnly)])[plotdata_wide, on = c("tx_name","gene_name")]
   
     colIds <- setdiff(match(rev(methodVec_used), colnames(plotdata_wide)),NA)
-   # diff_pairs <- combn(c(2,1,5),2)[,c(1,2)]
-      diff_pairs <- combn(c(5,2,1,6),2)[,c(1,2,3)] # salmon lr vs lr sim, salmon sr, sr_150bp
-    #diff_pairs <- combn(c(1,2,5,6),2)[,c(1,2,3)]
-    cor_data_across <- data.table(mrd = c(pair_mrd(log2(plotdata_wide[majorBoth&geneExpressedInBoth,colIds, with = FALSE]+1), diff_pairs),
+   diff_pairs <- combn(c(5,2,1,6),2)[,c(1,2,3)] # salmon lr vs lr sim, salmon sr, sr_150bp
+   
+cor_data_across <- data.table(mrd = c(pair_mrd(log2(plotdata_wide[majorBoth&geneExpressedInBoth,colIds, with = FALSE]+1), diff_pairs),
 pair_mrd(log2(plotdata_wide[majorLongRead&majorEitherOnly&geneExpressedInBoth,colIds, with = FALSE]+1), diff_pairs),
 pair_mrd(log2(plotdata_wide[majorShortRead&majorEitherOnly&geneExpressedInBoth,colIds, with = FALSE]+1), diff_pairs),
 pair_mrd(log2(plotdata_wide[!((majorBoth|majorEitherOnly)&geneExpressedInBoth),colIds, with = FALSE]+1), diff_pairs),
@@ -849,13 +793,6 @@ p_sim_lr_mrd <-ggplot(plotdata_final[methodNames == "lr_sim"&(data_type != "all"
      geom_boxplot(col = "black",width = 0.5, outlier.shape = NA)+
   
     geom_point(alpha = 0.2, shape = 16, col = "grey")+
-   
-    #geom_point(aes(col = data_type), shape = 1, size = 3)+
-    #  stat_summary(
-    #     fun = median,
-    #     geom = 'line',
-    #     aes(group = data_type, col = data_type) #this has to be added
-    # )+
      ylab("Mean relative absolute \n difference  (trimmed vs original)")+
     xlab("Transcript type")+
     theme_classic()
@@ -900,14 +837,8 @@ saveRDS(cor_data_across, file = paste0(wkdir, "cor_data_across.rds"))
 
 #### the correlation between kallisto_sr_public or rsem_sr_public 
 ```{r}
-#methodVec_used <- c("kallisto_sr_public","rsem_sr_public","lr_sim","salmon_lr")
 methodVec_used <- c("lr_sim","salmon_lr","kallisto_sr_public")
-#methodVec_used <- c("lr_sim","salmon_lr","rsem_sr_public")
 plotdata[, cellLineRep := paste0(cellLine, bioRep)]
-# rep_dt <- unique(plotdata[,.(runname, method, cellLine)])
-# rep_dt[,nc := length(unique(method)), by = cellLineRep]
-# when comparing against public dataset, 
-##matched_names <- unique(rep_dt[nc>4&(method == "kallisto_sr_public")]$runname)
 ## create name match CJ
 rname_pair <- do.call("rbind",lapply(cellLines[1:5], function(k){
     dt <- CJ(sr_runname = unique(plotdata[method == "kallisto_sr_public"&(i.cellLine == k)]$runname),
@@ -980,13 +911,7 @@ p_sim_lr_vs_sr_cor <-ggplot(plotdata_final[methodNames %in% c("lr_sim","salmon_l
    
    
     geom_point(aes(col = factor(methodNames,methodVec_used)), alpha = 0.5)+
-    #geom_point(aes(col = data_type), shape = 1, size = 3)+
-    #  stat_summary(
-    #     fun = median,
-    #     geom = 'line',
-    #     aes(group = data_type, col = data_type) #this has to be added
-    # )+
-     stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")),
+    stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")),
                         label.y = c(1, 0.9, 0.8),
                         symnum.args <- list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, Inf), symbols = c("****", "***", "**", "*", "ns")))+
    geom_text(data = labeldata, aes(label = label))+
@@ -999,10 +924,6 @@ p_sim_lr_vs_sr_cor <-ggplot(plotdata_final[methodNames %in% c("lr_sim","salmon_l
 ```
 
 ```{r}
-# cor_data_across <- readRDS(paste0(wkdir, "output_guppy6.4.2/cor_data_across.rds"))
-# plotdata_final <- na.omit(cor_data_across)
-# plotdata_final[,nc := .N, by = list(lr_name, sr_name, data_type)]
-# methodVec_used <- c("salmon_lr","lr_sim")
 labeldata <- unique(plotdata_final[, list(med_value = median(spCor)),
                                    by = list(methodNames,data_type)])
 labeldata <- labeldata[methodNames %in% c("lr_sim","salmon_lr")&(data_type == "all")]
@@ -1017,13 +938,7 @@ p_sim_lr_vs_sr_cor_all <-ggplot(plotdata_final[methodNames %in% c("lr_sim","salm
    
    
     geom_point(aes(col = factor(methodNames,methodVec_used)), alpha = 0.5)+
-    #geom_point(aes(col = data_type), shape = 1, size = 3)+
-    #  stat_summary(
-    #     fun = median,
-    #     geom = 'line',
-    #     aes(group = data_type, col = data_type) #this has to be added
-    # )+
-     stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")),
+    stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")),
                         label.y = c(1, 0.9, 0.8),
                         symnum.args <- list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, Inf), symbols = c("****", "***", "**", "*", "ns")))+
    geom_text(data = labeldata, aes(label = label))+
@@ -1055,13 +970,7 @@ p_sim_lr_vs_sr_cor_kallisto <-ggplot(plotdata_final[methodNames %in% c("lr_sim",
    
    
     geom_point(aes(col = factor(methodNames,methodVec_used)), alpha = 0.5)+
-    #geom_point(aes(col = data_type), shape = 1, size = 3)+
-    #  stat_summary(
-    #     fun = median,
-    #     geom = 'line',
-    #     aes(group = data_type, col = data_type) #this has to be added
-    # )+
-     stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")))+
+    stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")))+
    geom_text(data = labeldata, aes(label = label))+
     scale_color_brewer(type = "qual", palette = 2)+
     scale_fill_brewer(type = "qual", palette = 2)+
@@ -1072,10 +981,6 @@ p_sim_lr_vs_sr_cor_kallisto <-ggplot(plotdata_final[methodNames %in% c("lr_sim",
 ```
 
 ```{r}
-# cor_data_across <- readRDS(paste0(wkdir, "output_guppy6.4.2/cor_data_across.rds"))
-# plotdata_final <- na.omit(cor_data_across)
-# plotdata_final[,nc := .N, by = list(lr_name, sr_name, data_type)]
-# methodVec_used <- c("salmon_lr","lr_sim")
 labeldata <- unique(plotdata_final[, list(med_value = median(spCor)),
                                    by = list(methodNames,data_type)])
 labeldata <- labeldata[methodNames %in% c("lr_sim","salmon_lr")&(data_type == "all")]
@@ -1090,13 +995,7 @@ p_sim_lr_vs_sr_cor_all_kallisto <-ggplot(plotdata_final[methodNames %in% c("lr_s
    
    
     geom_point(aes(col = factor(methodNames,methodVec_used)), alpha = 0.5)+
-    #geom_point(aes(col = data_type), shape = 1, size = 3)+
-    #  stat_summary(
-    #     fun = median,
-    #     geom = 'line',
-    #     aes(group = data_type, col = data_type) #this has to be added
-    # )+
-     stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")),
+    stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")),
                         label.y = c(1, 0.9, 0.8,0.7),
                         symnum.args <- list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, Inf), symbols = c("****", "***", "**", "*", "ns")))+
    geom_text(data = labeldata, aes(label = label))+
@@ -1129,13 +1028,7 @@ p_sim_lr_vs_sr_cor_rsem <-ggplot(plotdata_final[methodNames %in% c("lr_sim","sal
    
    
     geom_point(aes(col = factor(methodNames,methodVec_used)), alpha = 0.5)+
-    #geom_point(aes(col = data_type), shape = 1, size = 3)+
-    #  stat_summary(
-    #     fun = median,
-    #     geom = 'line',
-    #     aes(group = data_type, col = data_type) #this has to be added
-    # )+
-     stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")))+
+    stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")))+
    geom_text(data = labeldata, aes(label = label))+
     scale_color_brewer(type = "qual", palette = 2)+
     scale_fill_brewer(type = "qual", palette = 2)+
@@ -1146,10 +1039,6 @@ p_sim_lr_vs_sr_cor_rsem <-ggplot(plotdata_final[methodNames %in% c("lr_sim","sal
 ```
 
 ```{r}
-# cor_data_across <- readRDS(paste0(wkdir, "output_guppy6.4.2/cor_data_across.rds"))
-# plotdata_final <- na.omit(cor_data_across)
-# plotdata_final[,nc := .N, by = list(lr_name, sr_name, data_type)]
-# methodVec_used <- c("salmon_lr","lr_sim")
 labeldata <- unique(plotdata_final[, list(med_value = median(spCor)),
                                    by = list(methodNames,data_type)])
 labeldata <- labeldata[methodNames %in% c("lr_sim","salmon_lr")&(data_type == "all")]
@@ -1164,13 +1053,7 @@ p_sim_lr_vs_sr_cor_all_rsem <-ggplot(plotdata_final[methodNames %in% c("lr_sim",
    
    
     geom_point(aes(col = factor(methodNames,methodVec_used)), alpha = 0.5)+
-    #geom_point(aes(col = data_type), shape = 1, size = 3)+
-    #  stat_summary(
-    #     fun = median,
-    #     geom = 'line',
-    #     aes(group = data_type, col = data_type) #this has to be added
-    # )+
-     stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")))+
+    stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("lr_sim","salmon_lr")))+
    geom_text(data = labeldata, aes(label = label))+
     scale_color_brewer(type = "qual", palette = 2)+
     scale_fill_brewer(type = "qual", palette = 2)+
@@ -1240,23 +1123,16 @@ p_tx_spikein_scatter_suppl <- ggplot(plotdata_tx_suppl, aes(x=log2(cpm_norm_conc
                 ggpubr::stat_cor(aes(col = method,
                                      label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
                 facet_grid(paste0(spike_in_general_name_revised,spike_in_version)~protocol)+
-                # geom_smooth(method = "lm")+
-                theme_classic()
+               theme_classic()
 ```
 ## b spike-in mean absolute errors
 ```{r}
-p_transcript_spikein_abe_suppl <- ggplot(si_data_transcript, aes(x=ae, fill = method)) + #"PacBio",
-                # geom_histogram(aes(fill = protocol),position = "identity", alpha = 0.2, binwidth = 0.25) +
-    geom_histogram(aes(y=..density..), alpha = 0.5, position = "identity",binwidth = 0.25) +  # scale histogram y
-  #geom_density()+
-                #geom_freqpoly(binwidth = 0.1)+
-    #geom_density()+
+p_transcript_spikein_abe_suppl <- ggplot(si_data_transcript, aes(x=ae, fill = method)) +
+    geom_histogram(aes(y=..density..), alpha = 0.5, position = "identity",binwidth = 0.25) +  
       scale_fill_brewer(type = "qual", palette = 3)+
                 xlab('Absolute error')+
-                #ylab('Frequency')+
                 facet_grid(paste0(spike_in_general_name_revised,spike_in_version)~protocol)+
-                # geom_smooth(method = "lm")+
-                theme_classic()
+               theme_classic()
 
 pdf("tx_abe_suppl.pdf", width = 12, height = 12)
 p_transcript_spikein_abe_suppl
@@ -1277,20 +1153,12 @@ pList_tx_no_legend <- lapply(unique(tx_metrics$variable), function(x){
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "blue", high = "white") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
-  coord_fixed()+
-             ggtitle(x)+
-    xlab("")+
-             ylab("")+
-    #facet_wrap(~variable, scales = "free")+
-    theme_minimal()+
+   geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+  coord_fixed()+ggtitle(x)+
+    xlab("")+ylab("")+
+   theme_minimal()+
            theme( 
-        #        axis.text.x=element_blank(),  #remove y axis labels
-        # axis.ticks.x=element_blank() ,
-               axis.text.y=element_blank(),  #remove y axis labels
+        axis.text.y=element_blank(),  #remove y axis labels
         axis.ticks.y=element_blank() , #remove y axis ticks
                   legend.position = "none")
     }else if(x %in% c("corM","r2")){
@@ -1298,27 +1166,20 @@ pList_tx_no_legend <- lapply(unique(tx_metrics$variable), function(x){
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+    geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
             ggtitle(x)+
    xlab("")+
              ylab("")+
-    #facet_wrap(~variable, scales = "free")+
     theme_minimal()+
            theme( 
-        #        axis.text.x=element_blank(),  #remove y axis labels
-        # axis.ticks.x=element_blank() ,
-               axis.text.y=element_blank(),  #remove y axis labels
+        axis.text.y=element_blank(),  #remove y axis labels
         axis.ticks.y=element_blank() , #remove y axis ticks
                   legend.position = "none")
     }else{
          px <- ggplot( plotdata_final_metrics, aes(spike_in_name_factor,paste0(protocol,method), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
-  # scale_fill_gradient(low = "white", high = "blue") + # red means bad
     scale_fill_gradient2(low = "white",
                        mid = "blue",
                        high = "white") +
@@ -1327,12 +1188,9 @@ pList_tx_no_legend <- lapply(unique(tx_metrics$variable), function(x){
             ggtitle(x)+
              xlab("")+
              ylab("")+
-    #facet_wrap(~variable, scales = "free")+
-    theme_minimal()+
+   theme_minimal()+
            theme( 
-        #        axis.text.x=element_blank(),  #remove y axis labels
-        # axis.ticks.x=element_blank() ,
-               axis.text.y=element_blank(),  #remove y axis labels
+       axis.text.y=element_blank(),  #remove y axis labels
         axis.ticks.y=element_blank() , #remove y axis ticks
                   legend.position = "none")
     }
@@ -1351,40 +1209,30 @@ pList_tx_only_legend <- lapply(unique(tx_metrics$variable), function(x){
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "blue", high = "white") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+    geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
              ggtitle(x)+
-    #facet_wrap(~variable, scales = "free")+
     theme_minimal()
     }else if(x %in% c("corM","r2")){
         px <- ggplot( plotdata_final_metrics, aes(spike_in_name_factor,paste0(protocol,method), 
                                                                  fill= value)) + 
    geom_tile(color = "black") +
   scale_fill_gradient(low = "white", high = "blue") + # red means bad
-    # scale_fill_gradient2(low = "#075AFF",
-    #                    mid = "#FFFFCC",
-    #                    high = "#FF0000") +
-     geom_text(aes(label = round(value,2)), color = "black", size = 4) +
+    geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
             ggtitle(x)+
-    #facet_wrap(~variable, scales = "free")+
     theme_minimal()
     }else{
          px <- ggplot( plotdata_final_metrics, aes(spike_in_name_factor,paste0(protocol,method), 
                                                                  fill= value)) + 
-   geom_tile(color = "black") +
-  # scale_fill_gradient(low = "white", high = "blue") + # red means bad
+    geom_tile(color = "black") +
     scale_fill_gradient2(low = "white",
                        mid = "blue",
                        high = "white") +
      geom_text(aes(label = round(value,2)), color = "black", size = 4) +
   coord_fixed()+
             ggtitle(x)+
-    #facet_wrap(~variable, scales = "free")+
-    theme_minimal()
+     theme_minimal()
     }
     return(as_ggplot(get_legend(px)))
 })
@@ -1415,12 +1263,6 @@ metric_annotation_tx <- ggplot(tx_metrics[(variable == "corM")&(protocol == "cDN
         axis.text.y = element_blank())
 p_tx_spikein_metrics_summarised <- ggarrange( plotlist = pList_tx_no_legend,nrow = 1, ncol =6, align = "hv")
 p_tx_spikein_metrics_summarised_legend <- ggarrange( plotlist = pList_tx_only_legend,nrow = 1, ncol =6, align = "hv")
-# pList_tx_combined <- do.call("c",list(pList_tx, list(protocol_annotation, method_annotation)))
-# library(gridExtra)
-# 
-# # pdf("tx_metrics_heatmap_wtPacBio_18Jul.pdf", width = 18, height = 18)
-# do.call("grid.arrange", c(pList_tx_combined, ncol=3))
-# # dev.off()
 ```
 
 
@@ -1491,16 +1333,6 @@ p_correlation_lr_sr_cellline <- ggplot(plotdata[spike_in == "Cell lines"], aes(x
     theme(legend.position = "top")
 p_tx_spikein_correlation_lr_sr_arranged <- ggarrange(p_correlation_lr_sr_spike_in, p_correlation_lr_sr_cellline,
           nrow = 1, ncol = 2, align = "hv", labels = "auto")
-# p_correlation_lr_sr_spike_in <- ggplot(plotdata, aes(x = spike_in, y = spr, fill = variable))+
-#     geom_boxplot()+
-#     scale_fill_brewer(type = "qual", palette = 2)+
-#     xlab("")+
-#     ylab("Spearman correlation")+
-#     theme_classic()+
-#     theme(legend.position = "top")
-# pdf("summarised_correlation_between_lr_sr_by_spike_in_celllines.pdf", width = 8, height = 4)
-# p_correlation_lr_sr_arranged
-# dev.off()
 ```
 
 
@@ -1539,7 +1371,7 @@ p_tx_cellline_scatter_suppl_majorLongReadOnly <- ggplot(plotdata2[cellLine %in% 
           facet_grid(cellLine~variable)+
     theme_classic()
 p_tx_cellline_scatter_suppl_majorShortReadOnly <- ggplot(plotdata2[cellLine %in% cellLines&(major_status == "majorShortReadOnly")], aes(x = value, y = Illumina))+
-      geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+      geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -1547,7 +1379,7 @@ p_tx_cellline_scatter_suppl_majorShortReadOnly <- ggplot(plotdata2[cellLine %in%
           facet_grid(cellLine~variable)+
     theme_classic()
 p_tx_cellline_scatter_suppl_minor <- ggplot(plotdata2[cellLine %in% cellLines&(major_status == "others")], aes(x = value, y = Illumina))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -1558,18 +1390,13 @@ p_tx_cellline_scatter_suppl_minor <- ggplot(plotdata2[cellLine %in% cellLines&(m
 ## f simulation vs long read scatter plot
 ```{r}
 ensemblAnnotations.transcripts <- general_list$ensemblAnnotations.transcripts
-#com_data[method == "trim_lr_300bp_salmon", runname := "SGNex_A549_cDNA_replicate1_run2"]
 
 plotdata <- comDataTranscriptTrimmed
 plotdata[, method := gsub("_salmon","",gsub("trim_","",method))]
 pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
 setnames(ensemblAnnotations.transcripts, "gene_id","gene_name")
 plotdata <- unique(ensemblAnnotations.transcripts[,.(gene_name, gene_biotype)])[plotdata, on = c("gene_name")]
-#plotdata <- dominant_typeData[cellLine == "A549"][plotdata, on = c("tx_name","gene_name")]
 
-# name_match <- samples[,.(runname, old_runname)]
-# setnames(name_match, c(1,2),c("public_name","old_name"))
-# plotdata[grepl("GIS", runname), runname := name_match[match(runname, old_name)]$public_name]
 samples <- general_list$samples
 plotdata <- samples[plotdata, on = "runname"]
 library(GGally)    
@@ -1592,7 +1419,7 @@ temp_data_wide[, majorType := ifelse(majorBoth, "majorBoth",
            ifelse(majorEitherOnly&majorShortRead, "majorShortReadOnly","minor")))]
 
 p_sim_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(lr_sim+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -1601,7 +1428,7 @@ p_sim_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(lr_sim
         ggtitle("fragmentation simulated sr vs lr")+theme_classic()
     
 p_sr_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(salmon_sr+1)))+
-       geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+       geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -1610,7 +1437,7 @@ p_sr_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(salmon_
         ggtitle("original sr vs lr")+theme_classic()
 
 p_sr_vs_sim <- ggplot(temp_data_wide, aes(x = log2(lr_sim + 1), y = log2(salmon_sr+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -1695,15 +1522,14 @@ plotdata[, short_read := factor(short_read, labels = c("short read vs long read"
 plotdata[, labelY := ifelse(metric_type=="cor",0.93, 
                                             ifelse(metric_type == "mard_",1.8,
                                                    ifelse(metric_type == "mard_mod_",1.2,NA)))]
-# labelData <- labeldata[method_pair == methodPairVec[k]&(metric_type %in% c("cor","mard_","mard_mod_"))]
+
 p_replicate_tx_final_overall <- ggplot(plotdata, aes(x = ct_factor, y = metricValue, fill = ct_factor))+
     geom_boxplot(outlier.size = 1, outlier.color = "grey", outlier.shape = 16)+
     scale_fill_brewer(type = "qual", palette = 1)+
     xlab("Protocol comparison")+
     stat_compare_means(comparisons = my_comparisons,
                        paired = FALSE,
-                       #label.y = c(1,0.95,0.9,0.85,0.8),
-                      aes(label.y = labelY))+
+                       aes(label.y = labelY))+
     facet_grid(factor(metric_type, labels = c("Spearman correlation",
            "MARD","MRD"))~short_read, scales = "free_y")+
     ggtitle(methodPairVec[k])+
@@ -1711,20 +1537,6 @@ p_replicate_tx_final_overall <- ggplot(plotdata, aes(x = ct_factor, y = metricVa
     theme(legend.position = "top")
     return(p_replicate_tx_final_overall)
 })
-
-# p_replicate_tx_metric <-
-#     ggplot(matCorData[(metric_type %in% c("cor","mard_"))], aes(new_pc_factor , metricValue, fill = ct_factor))+
-#     #  geom_hline(yintercept = c(0.8,0.9), linetype = "dashed", col = "grey")+
-#     #geom_hline(yintercept = hlineVec[[kk]], col = "grey", linetype = "dashed")+
-#     geom_boxplot()+
-#     scale_fill_brewer(type = "qual", palette = 4)+
-#     scale_color_brewer(type = "qual", palette = 4)+
-#     #facet_wrap(~factor(within_cellLine, labels = c("Across cell line","Within cell line(matched rep)")), ncol = 2)+
-#     facet_grid(factor(metric_type, labels = c("Spearman correlation",
-#            "MARD"))~method_pair, scales = "free")+
-#     ylab("")+
-#     xlab("Protocol pairs")+
-#     theme_classic()
 
 p_metric_list_mod <- lapply(seq_along(p_metric_list), function(x) p_metric_list[[x]] + theme(legend.position = "none"))
 ```
@@ -1738,16 +1550,8 @@ mat_cor[, ct_factor := factor(common_type, unique(mat_cor$common_type))]
 mat_cor[, gc_factor := factor(agg_gene_cluster, unique(mat_cor$agg_gene_cluster)[c(4,3,5,1,2,6,7)])]
 
 
-# ggplot(mat_cor[gc_factor %in% c("protein_coding")], aes(x = ct_factor, y = spr, fill = pc_factor))+ #[which(expressed)]#&match_status
-#     geom_hline(yintercept = c(0.6,0.8), col = "grey", linetype = "dashed")+
-#     geom_boxplot()+
-#     scale_fill_brewer(type = "qual", palette = 1)+
-#     xlab("transcript type by expression rank")+
-#     theme_classic()
 
-#[(ct_factor %in% c("majorBoth",
-#    "majorLongReadOnly","majorShortReadOnly","others","all"))]
-p_replicate_tx_complexity <- ggplot(mat_cor[!grepl("_HepG2",cellLine)&(gc_factor == "protein_coding")&(ct_factor != "all")], aes(x = pc_factor, #y = spr, 
+p_replicate_tx_complexity <- ggplot(mat_cor[!grepl("_HepG2",cellLine)&(gc_factor == "protein_coding")&(ct_factor != "all")], aes(x = pc_factor, 
                                             y = r,
                                             fill = ct_factor, col = ct_factor))+
     geom_hline(yintercept = c(0.6,0.8), col = "grey", linetype = "dashed")+
@@ -1755,14 +1559,8 @@ p_replicate_tx_complexity <- ggplot(mat_cor[!grepl("_HepG2",cellLine)&(gc_factor
     scale_fill_brewer(type = "qual", palette = 2)+
     scale_color_brewer(type = "qual", palette = 2)+
     facet_wrap(~ct_factor, nrow = 1)+
-    # facet_wrap(factor(grepl("_HepG2",mat_cor$cellLine),levels = c(TRUE, FALSE), labels = c("across cellline","within cellline"))~gc_factor, scales = "free_y", nrow = 2, ncol = 2)+
     xlab("transcript type by complexity (number of isoforms)")+
     theme_classic()
-
-# pdf(paste0(wkdir, "revisionFigures_guppy6.4.2/figure3/tx_correlation_by_complexity_for_replicates.pdf"), width = 10, height = 12)
-# p_replicate_tx_final
-# dev.off()
-# final figure used in extended data figure 
 ```
 
 
@@ -1789,7 +1587,6 @@ disagreeDt <- ddData[which(statusEither), list(type = ifelse(majorLongRead, 1, i
 # full-length
 flDt <- data.table(assays(seOutput)$fullLengthCounts, keep.rownames = TRUE)
 flDt <- melt(flDt, id.vars = "rn", measure.vars = colnames(flDt)[-1])
-#flDt <- flDt[grepl("A549", variable)]
 setnames(flDt, "rn","tx_name")
 flDt[, cellLine := strsplit(as.character(variable),"\\_")[[1]][2], by = variable]
 # unique read 
@@ -1800,59 +1597,7 @@ agreeDt[, valueSum := sum(value,na.rm = TRUE), by = list(gene_name, variable, ce
 agreeDtAve <- unique(agreeDt[, list(aveProp = mean(valueProp,na.rm = TRUE),
                              aveSum = mean(valueSum,na.rm = TRUE)), by = list(tx_name, gene_name, type, cellLine)])
 
-# plotdata <- unique(agreeDtAve[, list(sumProp = sum(aveProp,na.rm = TRUE)), by = list(gene_name,type, aveSum, cellLine)])
-# plotdata_wide <- dcast(plotdata[aveSum>5], gene_name + aveSum + cellLine ~ type, value.var = "sumProp")[order(aveSum)]
-# library(ComplexHeatmap)
-# 
-# pdf(paste0(wkdir, "lrvssr_agree_heatmap_fl_support.pdf"), width = 20, height = 10)
-# col_fun = colorRamp2(seq(0,1,length.out = 8), brewer.pal(8,"BuGn"))
-# col_fun2 = colorRamp2(c(log2(30), log2(max(plotdata_wide$aveSum))), c("white", "red"))
-# for(cellLine_t in unique(plotdata_wide$cellLine)){
-#     plotdata_wide_t <- plotdata_wide[cellLine == cellLine_t]
-#     tmp <- t(as.matrix(plotdata_wide_t[,4:5, with= FALSE]))
-#     tmp[is.na(tmp)] <- 0
-# 
-# # colCellLine <- brewer.pal(9,"Paired")[seq_len(length(unique(plotdata_wide$cellLine)))]
-# # names(colCellLine) <- unique(plotdata_wide$cellLine)
-# ha = HeatmapAnnotation(geneSum = log2(plotdata_wide_t$aveSum),
-#                        # cellLine = as.factor(plotdata_wide$cellLine),
-#                        col = list(geneSum = col_fun2)) #,cellLine = colCellLine
-# p <- Heatmap(tmp, name = "full-length-fraction", col = col_fun, 
-#                  cluster_rows = FALSE,
-#                  cluster_columns =  TRUE,
-#         column_title = cellLine_t,
-#         #row_split = as.factor(plotdata_wide$cellLine),
-#         top_annotation = ha)#,
-# print(p)
-# }
-# dev.off()
-# 
-# p_agree <- ggplot(agreeDtAve[aveSum>5], aes(x = factor(type, levels = c(TRUE, FALSE), labels = c("MajorBoth","Others")), y = aveProp*100))+
-#     geom_boxplot(outlier.size = 0.1)+
-# # scale_x_discrete(breaks = c(TRUE, FALSE),
-# #                  limits = c(TRUE, FALSE),
-# #                  labels = c("MajorBoth","Others"))+
-#     xlab("transcript type")+
-#     ylab("full-length read support of isoform/gene")+
-#     facet_wrap(~cellLine, scales = "free")+
-#     theme_classic()
-# pdf(paste0(wkdir, "revisionFigures_guppy6.4.2/figure3/lrvssr_agree_boxplot_fl_support.pdf"), width = 8, height = 10)
-# p_agree
-# dev.off()
-# agreeDtAve[, aveProp_cat := cut(aveProp, breaks = seq(-0.1,1,by =0.1))]
-# pdf(paste0(wkdir, "revisionFigures_guppy6.4.2/figure3/lrvssr_agree_barplot_fl_support.pdf"), width = 8, height = 10)
-# ggplot(agreeDtAve[aveSum>5], aes(x = aveProp_cat))+
-#     #geom_boxplot(outlier.size = 0.1)+
-#     geom_bar()+
-# # scale_x_discrete(breaks = c(TRUE, FALSE),
-# #                  limits = c(TRUE, FALSE),
-# #                  labels = c("MajorBoth","Others"))+
-#     xlab("full length quantile")+
-#     ylab("number of transcripts")+
-#     facet_wrap(cellLine ~as.factor(type), ncol = 4, scales = "free")+
-#     # facet_wrap(~factor(type, levels = c(TRUE, FALSE), labels = c("MajorBoth","Others")), scales = "free")+
-#     theme_classic()
-# dev.off()
+
 disagreeDt <- flDt[disagreeDt, on = c("tx_name","cellLine")]
 disagreeDt[, valueProp := value/sum(value,na.rm = TRUE), by = list(gene_name, variable)]
 disagreeDt[, valueSum := sum(value,na.rm = TRUE), by = list(gene_name, variable)]
@@ -1861,55 +1606,6 @@ disagreeDtAve <- unique(disagreeDt[, list(aveProp = mean(valueProp,na.rm = TRUE)
                              aveSum = mean(valueSum,na.rm = TRUE)), by = list(tx_name, gene_name, type, cellLine)])
 
 
-
-# plotdata <- unique(disagreeDtAve[, list(sumProp = sum(aveProp,na.rm = TRUE)), by = list(gene_name,type, aveSum, cellLine)])
-# plotdata_wide <- dcast(plotdata[aveSum>5], gene_name + aveSum + cellLine ~ type, value.var = "sumProp")
-# plotdata_wide <- ct[plotdata_wide, on = c("gene_name","cellLine")]
-# library(ComplexHeatmap)
-# pdf(paste0(wkdir, "revisionFigures_guppy6.4.2/figure3/lrvssr_disagree_heatmap_fl_support.pdf"), width = 20, height = 10)
-# col_fun = colorRamp2(seq(0,1,length.out = 8), brewer.pal(8,"BuGn"))
-# col_fun2 = colorRamp2(c(log2(30), log2(max(plotdata_wide$aveSum))), c("white", "red"))
-# for(cellLine_t in unique(plotdata_wide$cellLine)){
-#     plotdata_wide_t <- plotdata_wide[cellLine == cellLine_t]
-#     tmp <- t(as.matrix(plotdata_wide_t[,21:23, with= FALSE]))
-#     tmp[is.na(tmp)] <- 0
-# 
-#     ha = HeatmapAnnotation(geneSum = log2(plotdata_wide_t$aveSum), col = list(geneSum = col_fun2))
-#     colInternalFirstExon <- brewer.pal(9,"Paired")[1:3]
-#     colInternalLastExon <- brewer.pal(9,"Paired")[1:3]
-#     colAlternativeFirstExon <-  brewer.pal(8,"Dark2")[1:2]
-#     colAlternativeLastExon <-  brewer.pal(8,"Dark2")[1:2]
-# 
-# names(colInternalFirstExon) <- as.factor(c(0,1,2))
-# names(colInternalLastExon) <- as.factor(c(0,1,2))
-# names(colAlternativeFirstExon) <- c(TRUE, FALSE)
-# names(colAlternativeLastExon) <- c(TRUE, FALSE)
-#  
-#     bottom_anno = columnAnnotation(
-#         internalFirstExon = as.factor(2*plotdata_wide_t$internalFirstExon.query+1*plotdata_wide_t$internalFirstExon.subject),
-#         internalLastExon = as.factor(2*plotdata_wide_t$internalLastExon.query+1*plotdata_wide_t$internalLastExon.subject),
-#         alterFirstExon = as.factor(plotdata_wide_t$alternativeLastExon),
-#         alterLastExon = as.factor(plotdata_wide_t$alternativeFirstExon),
-#         col = list(internalFirstExon = colInternalFirstExon,
-#                    internalLastExon = colInternalLastExon,
-#                    alterFirstExon = colAlternativeFirstExon,
-#                    alterLastExon = colAlternativeLastExon),
-#         annotation_name_side = "right")
-# 
-# 
-# p <- Heatmap(tmp, name = "full-length-fraction", col = col_fun, 
-#                  cluster_rows = FALSE,
-#                  cluster_columns =  TRUE,
-#         top_annotation = ha,
-#         column_title = cellLine_t,
-#         bottom_annotation = bottom_anno)
-# print(p)
-# }
-# dev.off()
-# p_paired_disagree <- ggplot(plotdata, aes(x = reorder(gene_name,aveSum), fill = sumProp, y = as.factor(type)))+geom_raster()+facet_wrap(~cellLine)
-# 
-# ggplot(plotdata_wide, aes(x = gene_name, y = as.factor(type)))+
-#      stat_bin2d(aes(fill = after_stat(count)), binwidth = c(3,1))
 
 
 ct1 <- copy(ct[,c("queryId", "internalFirstExon.query", "internalLastExon.query", "gene_name","cellLine"), with = FALSE])
@@ -1942,28 +1638,9 @@ p_disagree <- ggplot(disagreeDtAve[aveSum>5], aes(x = as.factor(type), y = avePr
     facet_wrap(~cellLine)+
     ylab("full-length read support of isoform/gene")+
     theme_classic()
-pdf(paste0(wkdir, "revisionFigures_guppy6.4.2/figure3/lrvssr_disagree_boxplot_fl_support.pdf"), width = 12, height = 10)
+pdf(paste0(wkdir, "lrvssr_disagree_boxplot_fl_support.pdf"), width = 12, height = 10)
 p_disagree
 dev.off()
-# library(ggpubr)
-# ggarrange(p_agree, p_disagree, align = "hv")
-
-# disagreeDtAve[, aveProp_cat := cut(aveProp, breaks = seq(-0.1,1,by =0.1))]
-# pdf(paste0(wkdir, "lrvssr_disagree_barplot_fl_support.pdf"), width = 12, height = 10)
-# ggplot(disagreeDtAve[aveSum>5], aes(x = aveProp_cat, fill = internal_factor))+
-#     #geom_boxplot(outlier.size = 0.1)+
-#     geom_bar()+
-# # scale_x_discrete(breaks = c(TRUE, FALSE),
-# #                  limits = c(TRUE, FALSE),
-# #                  labels = c("MajorBoth","Others"))+
-#     xlab("full length quantile")+
-#     ylab("number of transcripts")+
-#     facet_wrap(cellLine~as.factor(type), scales = "free", ncol = 3)+
-#     # facet_wrap(~factor(type, levels = c(TRUE, FALSE), labels = c("MajorBoth","Others")), scales = "free")+
-#     theme_classic()
-# dev.off()
-
-
 ```
 
 
@@ -1993,18 +1670,13 @@ p_combined_suppl <- ggplot(obsData, aes(x = type.adj, y = prop))+
 ## i short read simulation
 ```{r}
 ensemblAnnotations.transcripts <- general_list$ensemblAnnotations.transcripts
-#com_data[method == "trim_lr_300bp_salmon", runname := "SGNex_A549_cDNA_replicate1_run2"]
 
 plotdata <- comDataTranscriptTrimmed
 plotdata[, method := gsub("_salmon","",gsub("trim_","",method))]
 pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
 setnames(ensemblAnnotations.transcripts, "gene_id","gene_name")
 plotdata <- unique(ensemblAnnotations.transcripts[,.(gene_name, gene_biotype)])[plotdata, on = c("gene_name")]
-#plotdata <- dominant_typeData[cellLine == "A549"][plotdata, on = c("tx_name","gene_name")]
 
-# name_match <- samples[,.(runname, old_runname)]
-# setnames(name_match, c(1,2),c("public_name","old_name"))
-# plotdata[grepl("GIS", runname), runname := name_match[match(runname, old_name)]$public_name]
 samples <- general_list$samples
 plotdata <- samples[plotdata, on = "runname"]
 sr_names <- unique(plotdata[protocol_general == "Illumina"]$runname)
@@ -2039,24 +1711,15 @@ plotdata_final <- plotdata_final[nc>5]
 labeldata <- unique(plotdata_final[(methodNames %in% c("sr_150bp", "sr_125bp","sr_100bp","sr_75bp","sr_50bp"))&(data_type != "all"), list(med_value = median(spCor)),
                                    by = list(methodNames,data_type)])
 
-# labeldata <- dcast(labeldata, data_type ~ methodNames, value.var = "med_value")
-# labeldata[, label := paste0(round(salmon_lr,2), " vs ", round(lr_sim, 2))]
-# labeldata[, `:=`(methodNames = "salmon_lr",
-#                  spCor = 0.95)]
 p_short_read <-ggplot(plotdata_final[(methodNames %in% c("sr_150bp", "sr_125bp","sr_100bp","sr_75bp","sr_50bp"))&(data_type != "all")], aes(x = data_type, y = spCor))+
     geom_boxplot(col = "black",width = 0.5)+
-    #geom_hline(yintercept = c(0.8, 0.9), linetype = "dashed", col = "grey")+
     geom_line(aes(group = runname), col = "grey", size = 0.4)+
     geom_point(aes(col = data_type), alpha = 0.5)+
-    stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("majorBoth","majorLongread"),
-                                                                            c("majorBoth","majorShortRead"),
-                                                                            c("majorLongread","majorShortRead")),
-                       label.y = c(0.99, 0.89, 0.79))+
+    stat_compare_means(paired = TRUE, method = "t.test", comparisons = list(c("majorBoth","majorLongread"),c("majorBoth","majorShortRead"), c("majorLongread","majorShortRead")),label.y = c(0.99, 0.89, 0.79))+
     geom_text(data = labeldata, aes(y = 0.99, label = round(med_value,2)))+
     scale_color_brewer(type = "qual", palette = 2)+
     scale_fill_brewer(type = "qual", palette = 2)+
-    facet_wrap(~factor(methodNames, c("sr_150bp",
-                                                                   "sr_125bp","sr_100bp","sr_75bp","sr_50bp")), ncol = 5)+
+    facet_wrap(~factor(methodNames, c("sr_150bp", "sr_125bp","sr_100bp","sr_75bp","sr_50bp")), ncol = 5)+
     ylab("Spearman correlation")+
      xlab("Short reads: trimmed to single-end")+
     theme_classic()
@@ -2091,7 +1754,6 @@ p_sr_vs_lr+theme(legend.position="none"),p_sr_vs_sim+theme(legend.position="none
     draw_plot(as_ggplot(get_legend(p_correlation_lr_sr_cellline)),4/7,0,1/7,1/21)+
      draw_plot(as_ggplot(get_legend(p_short_read)),5/7,0,1/7,1/21)+
     draw_plot(as_ggplot(get_legend(p_tx_cellline_scatter_suppl_majorBoth)),6/7,0,1/7,1/21)
-    
 dev.off()
 ```
 
@@ -2115,8 +1777,6 @@ library(BiocFileCache)
 bfc1 <- BiocFileCache("RunBambu22Apr/rc", ask = FALSE)
 info <- bfcinfo(bfc1)
 
-
-#disttables <- metadata(seOutput)$distTables
 dst_incompatible <- do.call("rbind",lapply(names(disttables), function(dst_name){
     dst <- data.table(as.data.frame(disttables[[dst_name]]))
     dst <- dst[which(!compatible)]
@@ -2125,7 +1785,6 @@ dst_incompatible <- do.call("rbind",lapply(names(disttables), function(dst_name)
     rc <- data.table(as.data.frame(rowData(rc)), keep.rownames = TRUE)
     setnames(rc, "rn","readClassId")
     dst <- rc[dst, on = c("readClassId")]
-    # dst_ntx <- unique(dst[, list(ntx =length(unique(.SD[which(compatible)]$annotationTxId))), by = list(readClassId, readCount)])
     dst[, runname := dst_name]
     return(dst)
 }))
@@ -2155,18 +1814,13 @@ p_nperc <- ggplot(data_final, aes(x = reorder_within(runname_reduced,ntotal,prot
     geom_bar(data = data_final,aes(fill = readClassType_factor),stat = "identity", position = position_stack())+
     geom_point(data = unique(data_final[,.(runname_reduced, ntotal, protocol, nperc)]),
                aes(x = reorder_within(runname_reduced,ntotal,protocol), y = nperc))+
-    # geom_point(data = data_wide[ntotal<=400000],alpha = 0.5 ,size = 4)+
-    # geom_point(data = data_wide[ntotal>400000],size = 4)+
     scale_x_reordered() +
-    # coord_flip()+
     scale_fill_brewer(type = "qual",palette = 3, direction = -1)+
     facet_wrap(~protocol, scales = "free", ncol = 1)+
     xlab("Sample")+
     ylab("Percentage")+
     theme_minimal()
-# pdf("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure2/p_incompatibleReadsFrequency.pdf", width = 20, height = 6)
-# p_nperc
-# dev.off()
+
 
 p_nperc_xlabel <- ggplot(data_final, aes(x = reorder_within(runname,ntotal,protocol), y = 1, fill = gsub("SGNex_|_(directRNA|cDNA|directcDNA).*|-(N082|N104|N122|EV)","",runname)))+
     geom_tile()+
@@ -2207,24 +1861,18 @@ dev.off()
 compare paired end sim vs long read, short read
 ```{r}
 cat('Setting working directory')
-wkdir <- '/mnt/projects/SGNExManuscript/'
-#wkdir <- "/mnt/projectsInstanceStore2/chenying/deseq2_protocol/"
+wkdir <- '.'
 general_list <- readRDS("general_list2023-04-27.rds")
 dominant_typeData <- readRDS("ominant_typeData_25May2023.rds")
 
 ensemblAnnotations.transcripts <- general_list$ensemblAnnotations.transcripts
-#com_data[method == "trim_lr_300bp_salmon", runname := "SGNex_A549_cDNA_replicate1_run2"]
-#
+
 plotdata <- comDataTranscriptTrimmed
 plotdata[, method := gsub("_salmon","",gsub("trim_","",method))]
 pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
 setnames(ensemblAnnotations.transcripts, "gene_id","gene_name")
 plotdata <- unique(ensemblAnnotations.transcripts[,.(gene_name, gene_biotype)])[plotdata, on = c("gene_name")]
-#plotdata <- dominant_typeData[cellLine == "A549"][plotdata, on = c("tx_name","gene_name")]
 
-# name_match <- samples[,.(runname, old_runname)]
-# setnames(name_match, c(1,2),c("public_name","old_name"))
-# plotdata[grepl("GIS", runname), runname := name_match[match(runname, old_name)]$public_name]
 samples <- general_list$samples
 plotdata <- samples[plotdata, on = "runname"]
 library(GGally)    
@@ -2235,7 +1883,7 @@ pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_ln
 repVec <- unique(rep_dt[nc==10]$cellLineRep)
 test_runname <- unique(comDataTranscriptTrimmed[method == "lr_sim_pe"]$runname)
 rv <- unique(rep_dt[runname == test_runname]$cellLineRep)
-#rv <- repVec[1]
+
 temp_data <- unique(plotdata[(runname == test_runname | (method == "salmon_sr"&cellLineRep == rv))&(gene_biotype %in% pro_types), 
     list(normEst = mean(normEst)), by = list(gene_name, tx_name, gene_biotype, method)])
 
@@ -2248,7 +1896,7 @@ temp_data_wide[, majorType := ifelse(majorBoth, "majorBoth",
            ifelse(majorEitherOnly&majorShortRead, "majorShortReadOnly","minor")))]
 
 p_sim_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(lr_sim+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2256,7 +1904,7 @@ p_sim_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(lr_sim
     facet_wrap(~majorType, nrow = 1)+
         ggtitle("fragmentation simulated sr vs lr")+theme_classic()
 p_sim_pe_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(lr_sim_pe+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2265,7 +1913,7 @@ p_sim_pe_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(lr_
         ggtitle("fragmentation simulated sr vs lr")+theme_classic()    
 
 p_sr_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(salmon_sr+1)))+
-       geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+       geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2274,7 +1922,7 @@ p_sr_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(salmon_
         ggtitle("original sr vs lr")+theme_classic()
 
 p_sr_vs_sim <- ggplot(temp_data_wide, aes(x = log2(lr_sim + 1), y = log2(salmon_sr+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2283,7 +1931,7 @@ p_sr_vs_sim <- ggplot(temp_data_wide, aes(x = log2(lr_sim + 1), y = log2(salmon_
         ggtitle("original sr vs fragmentation simulated")+theme_classic()
 
 p_sr_vs_sim_pe <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pe + 1), y = log2(salmon_sr+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2292,7 +1940,7 @@ p_sr_vs_sim_pe <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pe + 1), y = log2(s
         ggtitle("original sr vs fragmentation simulated")+theme_classic()
 
 p_sim_vs_sim_pe <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pe + 1), y = log2(lr_sim+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2314,26 +1962,19 @@ compare sim short read vs short read (using public short read)
 ```{r}
 cat('Setting working directory')
 wkdir <- 'wkdir'
-#wkdir <- "/mnt/projectsInstanceStore2/chenying/deseq2_protocol/"
 general_list <- readRDS("general_list2023-04-27.rds")
 dominant_typeData <- readRDS("dominant_typeData_25May2023.rds")
 
 ensemblAnnotations.transcripts <- general_list$ensemblAnnotations.transcripts
-#com_data[method == "trim_lr_300bp_salmon", runname := "SGNex_A549_cDNA_replicate1_run2"]
-#
+
 ensemblAnnotations.transcripts <- general_list$ensemblAnnotations.transcripts
-#com_data[method == "trim_lr_300bp_salmon", runname := "SGNex_A549_cDNA_replicate1_run2"]
 
 plotdata <- comDataTranscriptTrimmed
 plotdata[, method := gsub("_salmon","",gsub("trim_","",method))]
 pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
 setnames(ensemblAnnotations.transcripts, "gene_id","gene_name")
 plotdata <- unique(ensemblAnnotations.transcripts[,.(gene_name, gene_biotype)])[plotdata, on = c("gene_name")]
-#plotdata <- dominant_typeData[cellLine == "A549"][plotdata, on = c("tx_name","gene_name")]
 
-# name_match <- samples[,.(runname, old_runname)]
-# setnames(name_match, c(1,2),c("public_name","old_name"))
-# plotdata[grepl("GIS", runname), runname := name_match[match(runname, old_name)]$public_name]
 samples <- general_list$samples
 plotdata <- samples[plotdata, on = "runname"]
 library(GGally)    
@@ -2344,11 +1985,6 @@ pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_ln
 repVec <- unique(rep_dt[nc==10]$cellLineRep)
 
 rv <- repVec[1]
-# test_runname <- unique(comDataTranscriptTrimmed[method == "lr_sim_pe"]$runname)
-# rv <- unique(rep_dt[runname == test_runname]$cellLineRep)
-#rv <- repVec[1]
-# temp_data <- unique(plotdata[cellLineRep == rv&(gene_biotype %in% pro_types), 
-#     list(normEst = mean(normEst)), by = list(gene_name, tx_name, gene_biotype, method)])
 
 temp_data <- unique(plotdata[((method %in% c("kallisto_sr_public","rsem_sr_public")&i.cellLine == "A549")|(method %in% c("salmon_sr","salmon_lr","lr_sim")&(cellLineRep==rv)))&(gene_biotype %in% pro_types), 
     list(normEst = mean(normEst)), by = list(gene_name, tx_name, gene_biotype, method)])
@@ -2363,24 +1999,17 @@ temp_data_wide[, majorType := ifelse(majorBoth, "majorBoth",
 
 temp_data_wide <- temp_data_wide[!is.na(majorType)]
 p_sim_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(lr_sim+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
     facet_wrap(~majorType, nrow = 1)+
         ggtitle("fragmentation simulated sr vs lr")+theme_classic()
-# p_sim_pe_vs_lr <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pe+1), y = log2(salmon_lr+1)))+
-#         geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
-#         scale_fill_steps(
-#            breaks = c(10,100,1000,10000),
-#             low = "steelblue1", high = "steelblue4",trans = "log10")+
-#          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
-#     facet_wrap(~majorType, nrow = 1)+
-#         ggtitle("fragmentation simulated sr vs lr")+theme_classic()    
+  
 
 p_sr_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(salmon_sr+1)))+
-       geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+       geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2389,7 +2018,7 @@ p_sr_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(salmon_
         ggtitle("original sr vs lr")+theme_classic()
 
 p_sr_encode_kallisto_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(kallisto_sr_public+1)))+
-       geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+       geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2398,7 +2027,7 @@ p_sr_encode_kallisto_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), 
         ggtitle("encode sr (kallisto) vs lr")+theme_classic()
 
 p_sr_encode_rsem_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = log2(rsem_sr_public+1)))+
-       geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+       geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2408,7 +2037,7 @@ p_sr_encode_rsem_vs_lr <- ggplot(temp_data_wide, aes(x = log2(salmon_lr+1), y = 
 
 
 p_sr_vs_sim <- ggplot(temp_data_wide, aes(x = log2(lr_sim + 1), y = log2(salmon_sr+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2417,7 +2046,7 @@ p_sr_vs_sim <- ggplot(temp_data_wide, aes(x = log2(lr_sim + 1), y = log2(salmon_
         ggtitle("original sr vs fragmentation simulated")+theme_classic()
 
 p_sr_kallisto_public_vs_sim <- ggplot(temp_data_wide, aes(x = log2(lr_sim + 1), y = log2(kallisto_sr_public+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2426,49 +2055,13 @@ p_sr_kallisto_public_vs_sim <- ggplot(temp_data_wide, aes(x = log2(lr_sim + 1), 
         ggtitle("encode kallisto vs fragmentation simulated")+theme_classic()
 
 p_sr_rsem_public_vs_sim <- ggplot(temp_data_wide, aes(x = log2(lr_sim + 1), y = log2(rsem_sr_public+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
     facet_wrap(~majorType, nrow = 1)+
         ggtitle("encode rsem vs fragmentation simulated")+theme_classic()
-
-# p_sr_kallisto_public_vs_sim_pe <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pe + 1), y = log2(kallisto_sr_public+1)))+
-#         geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
-#         scale_fill_steps(
-#            breaks = c(10,100,1000,10000),
-#             low = "steelblue1", high = "steelblue4",trans = "log10")+
-#          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
-#     facet_wrap(~majorType, nrow = 1)+
-#         ggtitle("encode kallisto vs fragmentation simulated")+theme_classic()
-# 
-# p_sr_rsem_public_vs_sim_pe <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pe + 1), y = log2(rsem_sr_public+1)))+
-#         geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
-#         scale_fill_steps(
-#            breaks = c(10,100,1000,10000),
-#             low = "steelblue1", high = "steelblue4",trans = "log10")+
-#          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
-#     facet_wrap(~majorType, nrow = 1)+
-#         ggtitle("encode rsem vs fragmentation simulated")+theme_classic()
-# 
-# p_sr_vs_sim_pe <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pe + 1), y = log2(salmon_sr+1)))+
-#         geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
-#         scale_fill_steps(
-#            breaks = c(10,100,1000,10000),
-#             low = "steelblue1", high = "steelblue4",trans = "log10")+
-#          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
-#     facet_wrap(~majorType, nrow = 1)+
-#         ggtitle("original sr vs fragmentation simulated")+theme_classic()
-# 
-# p_sim_vs_sim_pe <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pe + 1), y = log2(lr_sim+1)))+
-#         geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
-#         scale_fill_steps(
-#            breaks = c(10,100,1000,10000),
-#             low = "steelblue1", high = "steelblue4",trans = "log10")+
-#          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
-#     facet_wrap(~majorType, nrow = 1)+
-#         ggtitle("original sr vs fragmentation simulated")+theme_classic()
 
 pdf("comment_figure_simulation_vs_public_a549.pdf", width = 16, height = 12)
 ggarrange(
@@ -2487,23 +2080,17 @@ compare pacbio vs short read, pacbio trimmed vs short read
 ```{r}
 cat('Setting working directory')
 wkdir <- 'wkdir'
-#wkdir <- "/mnt/projectsInstanceStore2/chenying/deseq2_protocol/"
 general_list <- readRDS("general_list2023-04-27.rds")
 dominant_typeData <- readRDS("dominant_typeData_25May2023.rds")
 
 ensemblAnnotations.transcripts <- general_list$ensemblAnnotations.transcripts
-#com_data[method == "trim_lr_300bp_salmon", runname := "SGNex_A549_cDNA_replicate1_run2"]
-#
+
 plotdata <- copy(comDataTranscriptTrimmed)
 plotdata[, method := gsub("_salmon","",gsub("trim_","",method))]
 pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
 setnames(ensemblAnnotations.transcripts, "gene_id","gene_name")
 plotdata <- unique(ensemblAnnotations.transcripts[,.(gene_name, gene_biotype)])[plotdata, on = c("gene_name")]
-#plotdata <- dominant_typeData[cellLine == "A549"][plotdata, on = c("tx_name","gene_name")]
 
-# name_match <- samples[,.(runname, old_runname)]
-# setnames(name_match, c(1,2),c("public_name","old_name"))
-# plotdata[grepl("GIS", runname), runname := name_match[match(runname, old_name)]$public_name]
 samples <- general_list$samples
 plotdata <- samples[plotdata, on = "runname"]
 library(GGally)    
@@ -2513,8 +2100,7 @@ rep_dt[,nc := length(unique(method)), by = cellLineRep]
 pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
 repVec <- unique(rep_dt[nc==10]$cellLineRep)
 test_runname <- unique(plotdata[method == "lr_sim_pb"]$runname)
-#rv <- unique(rep_dt[runname == test_runname]$cellLineRep)
-#rv <- repVec[1]
+
 rc <- "SGNex_MCF7_Illumina_replicate2_run1" 
 temp_data <- unique(plotdata[(runname == test_runname | runname == rc)&(gene_biotype %in% pro_types), 
     list(normEst = mean(normEst)), by = list(gene_name, tx_name, gene_biotype, method)])
@@ -2527,20 +2113,18 @@ temp_data_wide[, majorType := ifelse(majorBoth, "majorBoth",
            ifelse(majorEitherOnly&majorShortRead, "majorShortReadOnly","minor")))]
 
 p_sr_vs_sim_pb <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pb + 1), y = log2(salmon_sr+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
-    #facet_wrap(~majorType, nrow = 1)+
         ggtitle("Illumina vs fragmented PacBio")+theme_classic()
 p_sr_vs_pb <- ggplot(temp_data_wide, aes(x = log2(salmon_lr + 1), y = log2(salmon_sr+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
          ggpubr::stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
-    #facet_wrap(~majorType, nrow = 1)+
         ggtitle("Illumina vs PacBio")+theme_classic()
 
 pdf("comment_figure_fragmentation_for_pacbio.pdf", width = 8, height = 6)
@@ -2556,11 +2140,7 @@ plotdata[, method := gsub("_salmon","",gsub("trim_","",method))]
 pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
 setnames(ensemblAnnotations.transcripts, "gene_id","gene_name")
 plotdata <- unique(ensemblAnnotations.transcripts[,.(gene_name, gene_biotype)])[plotdata, on = c("gene_name")]
-#plotdata <- dominant_typeData[cellLine == "A549"][plotdata, on = c("tx_name","gene_name")]
 
-# name_match <- samples[,.(runname, old_runname)]
-# setnames(name_match, c(1,2),c("public_name","old_name"))
-# plotdata[grepl("GIS", runname), runname := name_match[match(runname, old_name)]$public_name]
 samples <- general_list$samples
 plotdata <- samples[plotdata, on = "runname"]
 library(GGally)    
@@ -2570,21 +2150,15 @@ rep_dt[,nc := length(unique(method)), by = cellLineRep]
 pro_types <- c("protein_coding","antisense_RNA","lincRNA","non_coding","macro_lncRNA")
 repVec <- unique(rep_dt[nc==10]$cellLineRep)
 test_runname <- unique(plotdata[method == "lr_sim_pb"]$runname)
-#rv <- unique(rep_dt[runname == test_runname]$cellLineRep)
-#rv <- repVec[1]
+
 rc <- "SGNex_MCF7_Illumina_replicate2_run1" 
 temp_data <- unique(plotdata[(runname == test_runname | runname == rc)&(gene_biotype %in% pro_types), 
     list(normEst = mean(normEst)), by = list(gene_name, gene_biotype, method)])
 
 temp_data_wide <- dcast(temp_data, gene_name + gene_name + gene_biotype  ~ method, value.var = "normEst")
-    # temp_data_wide <- dominant_typeData[cellLine == "MCF7"][temp_data_wide, on = c("tx_name","gene_name")]
-
-# temp_data_wide[, majorType := ifelse(majorBoth, "majorBoth", 
-#     ifelse(majorEitherOnly&majorLongRead, "majorLongReadOnly",
-#            ifelse(majorEitherOnly&majorShortRead, "majorShortReadOnly","minor")))]
 temp_data_wide[, gene_biotype_reclass:= ifelse(gene_biotype %in% c("protein_coding","lincRNA"), gene_biotype,"others")]
 p_sr_vs_sim_pb_gene <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pb + 1), y = log2(salmon_sr+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2592,7 +2166,7 @@ p_sr_vs_sim_pb_gene <- ggplot(temp_data_wide, aes(x = log2(lr_sim_pb + 1), y = l
     facet_wrap(~gene_biotype_reclass, nrow = 1)+
         ggtitle("Illumina vs fragmented PacBio")+theme_classic()
 p_sr_vs_pb_gene <- ggplot(temp_data_wide, aes(x = log2(salmon_lr + 1), y = log2(salmon_sr+1)))+
-        geom_hex(binwidth = c(0.1, 0.1))+ #col = "steelblue", size = 0.5, alpha = 0.1
+        geom_hex(binwidth = c(0.1, 0.1))+ 
         scale_fill_steps(
            breaks = c(10,100,1000,10000),
             low = "steelblue1", high = "steelblue4",trans = "log10")+
@@ -2642,20 +2216,15 @@ ntxDt_union <- unique(ddData[,list(ntx = length(unique(tx_name)),ngene = length(
 
 ## prepare data for number of junctions
 ```{r junctions-number}
-# data_lr = readRDS(paste0(wkdir,"output_guppy6.4.2/juncLR_Apr25.rds"))
-# data_lr_sample109 <- readRDS(paste0(wkdir,"output_guppy6.4.2/juncLR_May5_updatedsample109.rds"))
-# data_lr <- rbindlist(list(data_lr, data_lr_sample109))
-# saveRDS(data_lr, file = paste0(wkdir,"output_guppy6.4.2/juncLR_May6.rds"))
-
-data_lr <- readRDS(paste0(wkdir,"output_guppy6.4.2/juncLR_May6.rds"))
-data_lr_pacbio = readRDS(paste0(wkdir,"output_guppy6.4.2/juncLR_pacbio_Apr25.rds"))
-data_sr = readRDS(paste0(wkdir,"output/juncSR.rds"))
+data_lr <- readRDS(paste0(wkdir,"juncLR_May6.rds"))
+data_lr_pacbio = readRDS(paste0(wkdir,"juncLR_pacbio_Apr25.rds"))
+data_sr = readRDS(paste0(wkdir,"juncSR.rds"))
 setnames(data_sr, "runName", "old_runname")
 data_sr <- samples_wSpikein[,.(runname, old_runname)][data_sr, on = "old_runname"]
 data_sr[, old_runname := NULL]
 setnames(data_sr, "runname", "runName")
-data_lr_spikein = readRDS(paste0(wkdir,"output_guppy6.4.2/juncLR_spikein_Apr25.rds"))
-data_sr_spikein = readRDS(paste0(wkdir,"output/juncSR_spikein.rds"))
+data_lr_spikein = readRDS(paste0(wkdir,"juncLR_spikein_Apr25.rds"))
+data_sr_spikein = readRDS(paste0(wkdir,"juncSR_spikein.rds"))
 data_sr_spikein[, runName := gsub("\\,","",runName)]
 
 dt <- rbindlist(list(data_sr,data_lr, data_sr_spikein, data_lr_spikein, data_lr_pacbio), fill = TRUE)
@@ -2679,86 +2248,18 @@ saveRDS(dt, file = "junc_dt_26June2023.rds")
 
 
 ```{r}
-#plotData <- unique(dt[, list(count=sum(nread)), by = list(njunc_cat,runname,protocol_type,cellLine)])
 plotData <- unique(dt[, list(count=sum(nread)), by = list(njunc_cat,runname,protocol_type,cellLine)])
 plotData[,total_count:= sum(count), by = list(protocol_type,runname)]
 plotData[, frac_count:=count/total_count]
 plotData[, protocol_type_factor:=factor(protocol_type, levels = protocolVec )]
-# p_njunc <- ggplot(plotData[!grepl("allSpikein",runname)], 
-#                   aes(x = njunc, #njunc_cat,
-#                            y = count/total_count,
-#                            fill = protocol_type_factor,
-#                            col = protocol_type_factor))+
-#     geom_point(alpha = 0.5)+
-#     #geom_smooth(method='lm')+
-#     #scale_y_log10()+
-#      scale_fill_manual(values = protocolCol,
-#                       name = "Protocol",
-#                       limits = protocolVec,
-#                       labels = protocolLabel)+
-#     scale_color_manual(values = protocolCol,
-#                        name = "Protocol",
-#                        limits = protocolVec,
-#                        labels = protocolLabel)+
-#      labs(title = 'All cell lines',
-#          x = 'Number of junctions',
-#          y = 'Percentage over all reads')+
-#     theme_classic()
-# 
-# p_njunc <- ggplot(plotData[!grepl("allSpikein",runname)], 
-#                   aes(x = njunc, #njunc_cat,
-#                            y = count,
-#                            fill = protocol_type_factor,
-#                            col = protocol_type_factor))+
-#     geom_point(alpha = 0.5)+
-#     stat_smooth(method = "lm",
-#               formula = y ~ poly(x, 3),
-#               se = FALSE)+
-#     #scale_y_log10()+
-#      scale_fill_manual(values = protocolCol,
-#                       name = "Protocol",
-#                       limits = protocolVec,
-#                       labels = protocolLabel)+
-#     scale_color_manual(values = protocolCol,
-#                        name = "Protocol",
-#                        limits = protocolVec,
-#                        labels = protocolLabel)+
-#     scale_y_log10()+
-#      labs(title = 'All cell lines',
-#          x = 'Number of junctions',
-#          y = 'Percentage over all reads')+
-#     theme_classic()
-# 
-# 
-# p_njunc_zoomed <- ggplot(plotData[!grepl("allSpikein",runname)], 
-#                   aes(x = njunc, #njunc_cat,
-#                            y = count/total_count,
-#                            fill = protocol_type_factor,
-#                            col = protocol_type_factor))+
-#     geom_point(alpha = 0.5)+
-#     #geom_smooth(method='lm')+
-#     #scale_y_log10()+
-#      scale_fill_manual(values = protocolCol,
-#                       name = "Protocol",
-#                       limits = protocolVec,
-#                       labels = protocolLabel)+
-#     scale_color_manual(values = protocolCol,
-#                        name = "Protocol",
-#                        limits = protocolVec,
-#                        labels = protocolLabel)+
-#     ylim(c(0,0.01))+
-#      labs(title = 'All cell lines',
-#          x = 'Number of junctions',
-#          y = 'Percentage over all reads')+
-#     theme_classic()
+
 p_njunc <- ggplot(plotData[!grepl("allSpikein",runname)], 
                   aes(x = njunc_cat,
                            y = count/total_count,
                            fill = protocol_type_factor,
                            col = protocol_type_factor))+
      geom_boxplot(aes(fill = protocol_type_factor,col = protocol_type_factor), width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+
-      #            alpha = 0.5, size = 2, show.legend = NA)+
-     scale_fill_manual(values = protocolCol,
+      scale_fill_manual(values = protocolCol,
                       name = "Protocol",
                       limits = protocolVec,
                       labels = protocolLabel)+
@@ -2766,29 +2267,12 @@ p_njunc <- ggplot(plotData[!grepl("allSpikein",runname)],
                        name = "Protocol",
                        limits = protocolVec,
                        labels = protocolLabel)+
-    # scale_color_brewer(type = "qual", palette = 3, 
-    #                    limits = c("sequinMixAV1","sequinMixAV2","SIRV-1","SIRV-4"),
-    #                    labels = c("Sequin MixA V1","Sequin MixA V2","SIRV-1","SIRV-4"))+
-    # geom_point(data = plotData[grep("allSpikin",old_runname)],aes(group = protocol_type, col = protocol_type, shape = cellLine), position = position_dodge(width = 0.75),   alpha = 0.5, size = 3, show.legend = NA)+
-    # scale_shape_manual(values = 0:3,limits = c("sequinMixAV1","sequinMixAV2","SIRV-1","SIRV-4"),
-    #                  labels = c("Sequin MixA V1","Sequin MixA V2","SIRV-1","SIRV-4"))+
-    # ylab("Fraction of reads")+
-    #scale_x_discrete(limits = c(0,1,2,3,4,5,6,7,8,9,"9-119","120-187"))+
-    # xlab("Alignment type")+
     stat_summary(
         fun = median,
         geom = 'line',
         aes(group = protocol_type_factor, colour = protocol_type_factor),
         position = position_dodge(width = 0.9) #this has to be added
     )+
-    
-    # scale_fill_brewer(type = "qual", palette = 4, direction = -1,name = 'Sequencing\ntechonology',
-    #                   labels = c('Long read',
-    #                              'Short read'))+
-    # scale_color_brewer(type = "qual", palette = 4, direction = -1,name = 'Sequencing\ntechonology',
-    #                    labels = c('Long read',
-    #                               'Short read'),guide = "none")+
-    #facet_grid(cols = vars(njunc_cat))+
     labs(title = 'All cell lines',
          x = 'Number of junctions',
          y = 'Percentage over all reads')+
@@ -2802,32 +2286,30 @@ p_njunc
 
 ## number of transcripts compatible per read 
 ```{r number-of-transcripts-per-read, eval = FALSE}
-seOutput <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_May25.rds")
+seOutput <- readRDS("bambuOutput_May25.rds")
 disttables <- metadata(seOutput)$distTables
 dst_ntx <- do.call("rbind",lapply(names(disttables), function(dst_name){
     dst <- data.table(as.data.frame(disttables[[dst_name]]))
-    #dst <- dst[which(compatible)]
     dst_ntx <- unique(dst[, list(ntx =length(unique(.SD[which(compatible)]$annotationTxId))), by = list(readClassId, readCount)])
     dst_ntx[, runname := dst_name]
     return(dst_ntx)
 }))
-saveRDS(dst_ntx, file = "/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_lr.rds")
+saveRDS(dst_ntx, file = "number_of_transcripts_per_read_lr.rds")
 
 
-seOutput <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_PacBio_May22.rds")
+seOutput <- readRDS("bambuOutput_PacBio_May22.rds")
 disttables <- metadata(seOutput)$distTables
 dst_ntx <- do.call("rbind",lapply(names(disttables), function(dst_name){
     dst <- data.table(as.data.frame(disttables[[dst_name]]))
-    #dst <- dst[which(compatible)]
     dst_ntx <- unique(dst[, list(ntx =length(unique(.SD[which(compatible)]$annotationTxId))), by = list(readClassId, readCount)])
     dst_ntx[, runname := dst_name]
     return(dst_ntx)
 }))
-saveRDS(dst_ntx, file = "/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_lr_pacbio.rds")
+saveRDS(dst_ntx, file = "number_of_transcripts_per_read_lr_pacbio.rds")
 
 
 
-seSpikein_lr <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_spikein_bam_ont_May22.rds")
+seSpikein_lr <- readRDS("bambuOutput_spikein_bam_ont_May22.rds")
 disttables <- metadata(seSpikein_lr)$distTables
 dst_ntx <- do.call("rbind",lapply(names(disttables), function(dst_name){
     dst <- data.table(as.data.frame(disttables[[dst_name]]))
@@ -2835,9 +2317,9 @@ dst_ntx <- do.call("rbind",lapply(names(disttables), function(dst_name){
     dst_ntx[, runname := dst_name]
     return(dst_ntx)
 }))
-saveRDS(dst_ntx, file = "/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_spikein_lr_ont.rds")
+saveRDS(dst_ntx, file = "number_of_transcripts_per_read_spikein_lr_ont.rds")
 
-seSpikein_lr <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_spikein_bam_pacbio_May22.rds")
+seSpikein_lr <- readRDS("bambuOutput_spikein_bam_pacbio_May22.rds")
 disttables <- metadata(seSpikein_lr)$distTables
 dst_ntx <- do.call("rbind",lapply(names(disttables), function(dst_name){
     dst <- data.table(as.data.frame(disttables[[dst_name]]))
@@ -2845,10 +2327,10 @@ dst_ntx <- do.call("rbind",lapply(names(disttables), function(dst_name){
     dst_ntx[, runname := dst_name]
     return(dst_ntx)
 }))
-saveRDS(dst_ntx, file = "/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_spikein_lr_pacbio.rds")
+saveRDS(dst_ntx, file = "number_of_transcripts_per_read_spikein_lr_pacbio.rds")
 
 
-seSpikein_sr <- readRDS("/mnt/projects/SGNExManuscript/output/bambuOutput_spikein_bam_sr.rds")
+seSpikein_sr <- readRDS("bambuOutput_spikein_bam_sr.rds")
 disttables <- metadata(seSpikein_sr)$distTables
 dst_ntx <- do.call("rbind",lapply(names(disttables), function(dst_name){
     dst <- data.table(as.data.frame(disttables[[dst_name]]))
@@ -2856,10 +2338,10 @@ dst_ntx <- do.call("rbind",lapply(names(disttables), function(dst_name){
     dst_ntx[, runname := dst_name]
     return(dst_ntx)
 }))
-saveRDS(dst_ntx, file = "/mnt/projects/SGNExManuscript/output/number_of_transcripts_per_read_spikein_sr.rds")
+saveRDS(dst_ntx, file = "number_of_transcripts_per_read_spikein_sr.rds")
 
 
-sr_rds <- dir("/mnt/projects/SGNExManuscript/output/srSe_revised", pattern = "genome.rds", full.names = TRUE)
+sr_rds <- dir("srSe_revised", pattern = "genome.rds", full.names = TRUE)
 dst_ntx_sr <- do.call("rbind",lapply(sr_rds, function(k){
     srSe <- readRDS(k)
     disttable <- metadata(srSe)$distTables[[1]]
@@ -2868,11 +2350,11 @@ dst_ntx_sr <- do.call("rbind",lapply(sr_rds, function(k){
     dst_ntx[, runname := gsub("_genome.rds","",basename(k))]
     return(dst_ntx)
 }))
-saveRDS(dst_ntx_sr, file = "/mnt/projects/SGNExManuscript/output/number_of_transcripts_per_read_sr.rds")
+saveRDS(dst_ntx_sr, file = "number_of_transcripts_per_read_sr.rds")
 
 
 # trim_reads--- need to check again 
-sr_rds <- dir("/mnt/projects/SGNExManuscript/output_guppy6.4.2/trim_reads/lr_150bpSingleEnd_1ts_incompatible/03_Bambu/se/", pattern = "seOutput.rds", full.names = TRUE)
+sr_rds <- dir("trim_reads/lr_150bpSingleEnd_1ts_incompatible/03_Bambu/se/", pattern = "seOutput.rds", full.names = TRUE)
 dst_ntx_sr <- do.call("rbind",lapply(sr_rds, function(k){
     srSe <- readRDS(k)
     disttable <- metadata(srSe)$distTables[[1]]
@@ -2881,24 +2363,23 @@ dst_ntx_sr <- do.call("rbind",lapply(sr_rds, function(k){
     dst_ntx[, runname := gsub("_seOutput.rds","",basename(k))]
     return(dst_ntx)
 }))
-saveRDS(dst_ntx_sr, file = "/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_lr_trimmed_reads_updated.rds")
+saveRDS(dst_ntx_sr, file = "number_of_transcripts_per_read_lr_trimmed_reads_updated.rds")
 
 ```
 
 
 ```{r}
-dst_ntx_lr <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_lr.rds")
-dst_ntx_lr_trimmed <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_lr_trimmed_reads_updated.rds")
+dst_ntx_lr <- readRDS("number_of_transcripts_per_read_lr.rds")
+dst_ntx_lr_trimmed <- readRDS("number_of_transcripts_per_read_lr_trimmed_reads_updated.rds")
 dst_ntx_lr_trimmed[, trimmed := TRUE]
-dst_ntx_lr_pacbio <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_lr_pacbio.rds")
-dst_ntx_sr <- readRDS("/mnt/projects/SGNExManuscript/output/number_of_transcripts_per_read_sr.rds")
-dst_ntx_spikein_lr_ont <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_spikein_lr_ont.rds")
-dst_ntx_spikein_lr_pacbio <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/number_of_transcripts_per_read_spikein_lr_pacbio.rds")
-dst_ntx_spikein_sr <- readRDS("/mnt/projects/SGNExManuscript/output/number_of_transcripts_per_read_spikein_sr.rds")
+dst_ntx_lr_pacbio <- readRDS("number_of_transcripts_per_read_lr_pacbio.rds")
+dst_ntx_sr <- readRDS("number_of_transcripts_per_read_sr.rds")
+dst_ntx_spikein_lr_ont <- readRDS("number_of_transcripts_per_read_spikein_lr_ont.rds")
+dst_ntx_spikein_lr_pacbio <- readRDS("number_of_transcripts_per_read_spikein_lr_pacbio.rds")
+dst_ntx_spikein_sr <- readRDS("number_of_transcripts_per_read_spikein_sr.rds")
 dst_ntx <- rbindlist(list(dst_ntx_lr, dst_ntx_lr_trimmed, dst_ntx_lr_pacbio, dst_ntx_sr, dst_ntx_spikein_lr_ont, dst_ntx_spikein_lr_pacbio, dst_ntx_spikein_sr), fill = TRUE)
 dst_ntx[is.na(trimmed), trimmed := FALSE]
 ntx_dt <- unique(dst_ntx[, list(nread=sum(readCount)), by = list(ntx,runname, trimmed)])
-# ntx_dt <- unique(dst_ntx[, list(nread=sum(readCount)), by = list(ntx,runname,new, sample)])
 
 ntx_dt[, ntotal:=sum(nread), by = list(runname, trimmed)]
 ntx_dt[, runname := gsub("GIS_Hct116_PacBio-SMRTcell_Rep5_Run1","GIS_HCT116_PacBio-SMRTcell_Rep7_Run1",gsub("HCT116","Hct116",gsub("_genome.rds|STAR_alignment|_sorted","", runname)))]
@@ -2912,17 +2393,12 @@ ntx_dt <- samplesRC_combined[ntx_dt, on = "runname"]
 
 ntx_dt[, ntx_cat:=ifelse(ntx>10, ">10",ntx)]
 ntx_dt[, nperc := nread/ntotal]
-# saveRDS(ntx_dt, file = "/mnt/projects/SGNExManuscript/output/summarised_ntx_dt.rds")
-# ntx_dt[, rel_nread:=sum(nread)/ntotal, by = list(runname, ntx_cat)]
-# 
-# saveDate <- as.character(as.Date(Sys.time()))
-# ntx_dt[is.na(protocol_type), protocol_type := "Illumina"]
-# plotdata <- unique(ntx_dt[ntotal>400000,.(protocol_type,ntx_cat,rel_nread)])[, list(ave_rel=mean(rel_nread)), by = list(protocol_type, ntx_cat)]
+
 ntx_dt[, alpha_value := ifelse(trimmed, 0.5, 1)]
 ntx_dt_sum <- unique(ntx_dt[, list(nperc = sum(nperc)), by = list(ntx_cat, protocol_type_factor, runname, trimmed)])
 
-saveRDS(ntx_dt_sum, file = "/mnt/projects/SGNExManuscript/output_guppy6.4.2/ntx_dt_sum_26June2023.rds")
-p_number_of_transcripts_per_read_trimmed <- ggplot(ntx_dt_sum[!grepl("all",runname)], aes(x = ntx_cat, y = nperc,  fill = paste0(protocol_type_factor,trimmed), col =  paste0(protocol_type_factor,trimmed)))+ #[!grepl("allSpikein",runname)]
+saveRDS(ntx_dt_sum, file = "ntx_dt_sum_26June2023.rds")
+p_number_of_transcripts_per_read_trimmed <- ggplot(ntx_dt_sum[!grepl("all",runname)], aes(x = ntx_cat, y = nperc,  fill = paste0(protocol_type_factor,trimmed), col =  paste0(protocol_type_factor,trimmed)))+ 
     geom_boxplot(aes(alpha =1-trimmed/2), width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+ # outliers removed already, otherwise, the outlier points for directRNA will be very high up to 30/40%
      stat_summary(
         fun = median,
@@ -2930,52 +2406,13 @@ p_number_of_transcripts_per_read_trimmed <- ggplot(ntx_dt_sum[!grepl("all",runna
         aes(group = paste0(protocol_type_factor, trimmed), colour = paste0(protocol_type_factor,trimmed)),
         position = position_dodge(width = 0.75) #this has to be added
     )+
-      #            alpha = 0.5, size = 2, show.legend = NA)+
-    #  scale_fill_manual(values = protocolCol,
-    #                   name = "Protocol",
-    #                   limits = protocolVec,
-    #                   labels = protocolLabel)+
-    # scale_color_manual(values = protocolCol,
-    #                    name = "Protocol",
-    #                    limits = protocolVec,
-    #                    labels = protocolLabel)+
     scale_fill_brewer(type = "qual", palette = 3)+
     scale_color_brewer(type = "qual", palette = 3)+
-    #  geom_point(data = ntx_dt[grep("allSpikin",runname)],aes(group = protocol_type, col = protocol_type, shape = cellLine), position = position_dodge(width = 0.75),   alpha = 0.5, size = 3, show.legend = NA)+
-    # scale_shape_manual(values = 0:3,limits = c("sequinMixAV1","sequinMixAV2","SIRV-1","SIRV-4"),
-    #                  labels = c("Sequin MixA V1","Sequin MixA V2","SIRV-1","SIRV-4"))+
     scale_x_discrete(limits = c(0:10,">10"))+
     ylab("Relative proportion of reads")+
     xlab("Number of transcripts per read aligned to")+
     theme_classic()
 
-
-
-# p_number_of_transcripts_per_read <- ggplot(ntx_dt[grep("directRNA", runname)], aes(x = ntx_cat, y = nread/ntotal, fill = sample, col = sample, group = runname))+ #[!grepl("allSpikein",runname)]
-#     # geom_boxplot(aes(fill = new,col = new), width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+ # outliers removed already, otherwise, the outlier points for directRNA will be very high up to 30/40%
-#     #  stat_summary(
-#     #     fun = median,
-#     #     geom = 'line',
-#     #     aes(group = new, colour = new),
-#     #     position = position_dodge(width = 0.75) #this has to be added
-#     # )+
-#     geom_line(aes(linetype = new))+
-#        #            alpha = 0.5, size = 2, show.legend = NA)+
-#      scale_fill_manual(values = protocolCol,
-#                       name = "Protocol",
-#                       limits = protocolVec,
-#                       labels = protocolLabel)+
-#     scale_color_manual(values = protocolCol,
-#                        name = "Protocol",
-#                        limits = protocolVec,
-#                        labels = protocolLabel)+
-#     #  geom_point(data = ntx_dt[grep("allSpikin",runname)],aes(group = protocol_type, col = protocol_type, shape = cellLine), position = position_dodge(width = 0.75),   alpha = 0.5, size = 3, show.legend = NA)+
-#     # scale_shape_manual(values = 0:3,limits = c("sequinMixAV1","sequinMixAV2","SIRV-1","SIRV-4"),
-#     #                  labels = c("Sequin MixA V1","Sequin MixA V2","SIRV-1","SIRV-4"))+
-#     scale_x_discrete(limits = c(0:10,">10"))+
-#     ylab("Relative proportion of reads")+
-#     xlab("Number of transcripts per read aligned to")+
-#     theme_classic()
 ```
 
 
@@ -2996,7 +2433,6 @@ p_tx_spikein_scatter_cpm0_2.5 <- ggplot(plotdata_tx, aes(x=log2(cpm_norm_conc+1)
                 ggpubr::stat_cor(aes(col = spike_in_version,
                                      label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
                 facet_grid(spike_in_general_name_revised~protocol)+
-                # geom_smooth(method = "lm")+
                 theme_classic()
 
 plotdata_tx <- si_data_transcript[method %in% c("salmon_lr","salmon_sr")&!(protocol %in% c("directRNA","PacBio"))&(cpm_norm_conc>=2.5)]
@@ -3013,31 +2449,29 @@ p_tx_spikein_scatter_cpm2.5 <- ggplot(plotdata_tx, aes(x=log2(cpm_norm_conc+1), 
                 ggpubr::stat_cor(aes(col = spike_in_version,
                                      label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+ 
                 facet_grid(spike_in_general_name_revised~protocol)+
-                # geom_smooth(method = "lm")+
                 theme_classic()
 ```
 
 ## check samples for figure 8 used
 ```{r}
-
-figure8_samples <- readxl::read_xlsx("/home/cheny1/Dropbox/ONT RNA/figures_tables_SGNex/RevisedFiguresTables/Supplementary_Table11.xlsx")
+figure8_samples <- readxl::read_xlsx("Supplementary_Table11.xlsx")
 ```
 
 
 ## Prepare candidates for dPCR and qPCR experiments
 find gene candidates with dominant isoform switch between long and short reads 
 ```{r}
-dominant_typeData <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/dominant_typeData_25May2023.rds")
+dominant_typeData <- readRDS("dominant_typeData_25May2023.rds")
 ddData <- unique(dominant_typeData[,
                 .(cellLine, tx_name, gene_name,majorBoth, majorEither, majorEitherOnly, majorSecBoth, majorLongRead, majorShortRead)])
 tt <- dcast(ddData[which(majorEitherOnly)], gene_name + cellLine ~ majorLongRead, value.var = "tx_name")
 setnames(tt, 3:4, c("sr","lr"))
-devtools::load_all("/mnt/projects/testBambu/bambu")
-seOutput <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/bambuOutput_May25.rds")
+devtools::load_all("bambu")
+seOutput <- readRDS("bambuOutput_May25.rds")
 annotations <- rowRanges(seOutput)
 
-comDataTranscript <- readRDS(paste0(wkdir, "output_guppy6.4.2/combinedExpressionDataTranscript_19June2023.rds"))
-comDataGene <- readRDS(paste0(wkdir, "output_guppy6.4.2/combinedExpressionDataGene_19June2023.rds"))
+comDataTranscript <- readRDS(paste0(wkdir, "combinedExpressionDataTranscript_19June2023.rds"))
+comDataGene <- readRDS(paste0(wkdir, "combinedExpressionDataGene_19June2023.rds"))
 
 comDataGene[, old_runname := runname]
 comDataGene <- temp[comDataGene, on = "old_runname"]
@@ -3133,7 +2567,7 @@ print(estDataMean[protocol_general == "cDNA"][tx_name %in%other_tx][cellLine == 
 
 ```{r}
 library(Biostrings)
-txSeqFile <- "/mnt/projects/hg38_sequins_SIRV_ERCCs_longSIRVs_cdna.fa"
+txSeqFile <- "hg38_sequins_SIRV_ERCCs_longSIRVs_cdna.fa"
 txSeq <- readDNAStringSet(file=txSeqFile)
 txSeqNames <- names(txSeq)
 listNames <- unlist(lapply(strsplit(txSeqNames," "),'[[',1))
@@ -3217,18 +2651,13 @@ candidateGene <- c("ENSG00000186468",
                    "ENSG00000197756",
                    "ENSG00000167526",
                    "ENSG00000164587",
-                   #"ENSG00000133112", sr is a subset of lr, except first and last exon different
                    "ENSG00000137154",
                    "ENSG00000167996",
                    "ENSG00000147604",
-                   "ENSG00000145592" #,
-                   #"ENSG00000147403",sr is a subset of lr, except first and last exon different
-                   #"ENSG00000156508" # genome browser showing both lr and sr isoform are wrongly defined 
-                   )
+                   "ENSG00000145592")
 
 setnames(gcDt, c(1,2), c("tx_name","gc_perc"))
 source("temp.R")
-#candidateTable <- do.call("rbind",lapply(seq_along(candidateGene), function(geneidd){
     print(geneidd)
     gene <- candidateGene[geneidd]
     print(rowRanges(seOutput)[tt_mcf7[gene_name == gene]$tx_name])
@@ -3240,7 +2669,6 @@ source("temp.R")
     seqid <- match(as.character(unique(seqnames(lrgr))),listNames)
     tt_mcf7[gene_name == gene]
     if(geneidd==1){
-        
         # enlonged second exon of sr isoform 
         lrposStart <- 82276061
         lrposEnd <-end(srgr)[2]#82276177
@@ -3289,16 +2717,11 @@ source("temp.R")
      lrposStart <- 101002289
      lrposEnd <- end(lrgr)[2]
      lrUniqueSeq <- paste0(as.character(geneSeq[[seqid]][lrposStart:end(lrgr)[1]]),as.character(geneSeq[[seqid]][start(lrgr)[2]:end(lrgr)[2]]))
-     # srUniqueSeq <- as.character(geneSeq[[match(as.character(unique(seqnames(lrgr))),listNames)]][start(srgr)[1]:end(srgr)[1]]) 
      srUniqueSeq <- paste0(as.character(geneSeq[[seqid]][start(lrgr)[2]:end(lrgr)[2]]),as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]),as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]))
-    
      srposStart <- start(lrgr)[2]
      srposEnd <- end(lrgr)[4]
-     
      uniquePos <- c(1,28)
       substr(lrUniqueSeq, uniquePos[1], uniquePos[2]) <-  tolower(substr(lrUniqueSeq, uniquePos[1], uniquePos[2]))
-     # uniquePos <- c(1,12)
-     #    substr(srUniqueSeq, uniquePos[1], uniquePos[2]) <- tolower(substr(srUniqueSeq, uniquePos[1], uniquePos[2]))
      lrExtendSeq <-paste0(as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]),as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]),
                           as.character(geneSeq[[seqid]][start(lrgr)[5]:101006423]))
            srExtendSeq <- ""
@@ -3310,19 +2733,13 @@ source("temp.R")
      lrposEnd <- 75405692
      lrUniqueSeq <- paste0(as.character(geneSeq[[seqid]][start(lrgr)[6]:end(lrgr)[6]]),
                       as.character(geneSeq[[seqid]][start(lrgr)[7]:lrposEnd]))
-     # 
-     # srUniqueSeq <- as.character(geneSeq[[seqid]][start(srgr)[6]:end(srgr)[6]])
-     # srposStart <-start(srgr)[6]
-     # srposEnd <- end(srgr)[6]
      srUniqueSeq <- paste0(as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]),as.character(geneSeq[[seqid]][start(lrgr)[5]:end(lrgr)[5]]),as.character(geneSeq[[seqid]][start(lrgr)[6]:end(lrgr)[6]]))
     
      srposStart <- start(lrgr)[4]
      srposEnd <- end(lrgr)[6]
      uniquePos <- c(197,198)
      substr(lrUniqueSeq, uniquePos[1], uniquePos[2]) <-  tolower(substr(lrUniqueSeq, uniquePos[1], uniquePos[2]))
-     # uniquePos <- c(198,323)
-     # substr(srUniqueSeq, uniquePos[1], uniquePos[2]) <- tolower(substr(srUniqueSeq, uniquePos[1], uniquePos[2]))
-      lrExtendSeq <-paste0(as.character(geneSeq[[seqid]][75399518:end(lrgr)[1]]),
+     lrExtendSeq <-paste0(as.character(geneSeq[[seqid]][75399518:end(lrgr)[1]]),
                            as.character(geneSeq[[seqid]][start(lrgr)[2]:end(lrgr)[2]]),
                            as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]),
                            as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]),
@@ -3338,20 +2755,14 @@ source("temp.R")
      lrposEnd  <- 44801630
      lrUniqueSeq <- paste0(as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]),
                            as.character(geneSeq[[seqid]][start(lrgr)[5]:lrposEnd]))
-     # srUniqueSeq <- as.character(geneSeq[[seqid]][start(srgr)[4]:end(srgr)[4]])
-     # srposStart <- end(lrgr)[4]
-     # srposEnd <- end(srgr)[4]
-     
-      srUniqueSeq <- paste0(as.character(geneSeq[[seqid]][start(lrgr)[2]:end(lrgr)[2]]),as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]),as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]))
+     srUniqueSeq <- paste0(as.character(geneSeq[[seqid]][start(lrgr)[2]:end(lrgr)[2]]),as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]),as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]))
     
      srposStart <- start(lrgr)[2]
      srposEnd <- end(lrgr)[4]
      
      uniquePos <- c(173,517)
      substr(lrUniqueSeq, uniquePos[1], uniquePos[2]) <-  tolower(substr(lrUniqueSeq, uniquePos[1], uniquePos[2]))
-     # uniquePos <- c(174,310)
-     # substr(srUniqueSeq, uniquePos[1], uniquePos[2]) <- tolower(substr(srUniqueSeq, uniquePos[1], uniquePos[2]))
-      lrExtendSeq <-paste0(as.character(geneSeq[[seqid]][75399518:end(lrgr)[1]]),
+     lrExtendSeq <-paste0(as.character(geneSeq[[seqid]][75399518:end(lrgr)[1]]),
                            as.character(geneSeq[[seqid]][start(lrgr)[2]:end(lrgr)[2]]),
                            as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]))
       srExtendSeq <- paste0(as.character(geneSeq[[seqid]][start(srgr)[1]:end(srgr)[1]]))
@@ -3361,21 +2772,16 @@ source("temp.R")
      if(geneidd==6){
      lrposStart <- 6534517
      lrposEnd <- end(lrgr)[2]
-     # srposStart <- start(srgr)[1]
-     # srposEnd <- end(srgr)[1]
      lrUniqueSeq <- paste0(as.character(geneSeq[[seqid]][lrposStart:end(lrgr)[1]]),
                       as.character(geneSeq[[seqid]][start(lrgr)[2]:end(lrgr)[2]]))
-     # srUniqueSeq <- as.character(geneSeq[[seqid]][start(srgr)[1]:end(srgr)[1]])
-     srUniqueSeq <- paste0(as.character(geneSeq[[seqid]][start(lrgr)[2]:end(lrgr)[2]]),as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]),as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]))
+    srUniqueSeq <- paste0(as.character(geneSeq[[seqid]][start(lrgr)[2]:end(lrgr)[2]]),as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]),as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]))
     
      srposStart <- start(lrgr)[2]
      srposEnd <- end(lrgr)[4]
      
      uniquePos <- c(1,54)
      substr(lrUniqueSeq, uniquePos[1], uniquePos[2]) <-  tolower(substr(lrUniqueSeq, uniquePos[1], uniquePos[2]))
-     # uniquePos <- c(1,57)
-     # substr(srUniqueSeq, uniquePos[1], uniquePos[2]) <- tolower(substr(srUniqueSeq, uniquePos[1], uniquePos[2]))
-      lrExtendSeq <-paste0(as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]),
+     lrExtendSeq <-paste0(as.character(geneSeq[[seqid]][start(lrgr)[3]:end(lrgr)[3]]),
                            as.character(geneSeq[[seqid]][start(lrgr)[4]:end(lrgr)[4]]),
                            as.character(geneSeq[[seqid]][start(lrgr)[5]:end(lrgr)[5]]),
                            as.character(geneSeq[[seqid]][start(lrgr)[6]:end(lrgr)[6]]),
@@ -3451,15 +2857,7 @@ source("temp.R")
          lrCompleteSeq <- paste0(lrUniqueSeq,lrExtendSeq)
          srCompleteSeq <- paste0(srUniqueSeq, srExtendSeq)
      }
-     # if(geneidd==10){
-     # lrUniqueSeq <- c(as.character(reverseComplement(geneSeq[[seqid]][start(lrgr)[1]:start(srgr)[1]])), as.character(reverseComplement(geneSeq[[seqid]][end(srgr)[6]:end(lrgr)[6]])))
-     # srUniqueSeq <- as.character(reverseComplement(geneSeq[[match(as.character(unique(seqnames(lrgr))),listNames)]][start(srgr)[6]:start(lrgr)[6]]))
-     # lrposStart <- c(start(lrgr)[1],end(srgr)[6])
-     # lrposEnd <- c(start(srgr)[1],end(lrgr)[6])
-     # srposStart <- start(srgr)[6]
-     # srposEnd <- start(lrgr)[6]
-     # }
-      if(geneidd==10){
+     if(geneidd==10){
           lrposEnd <- 19380236
      lrUniqueSeq <- microseq::reverseComplement(paste0(as.character(geneSeq[[seqid]][start(lrgr)[5]:end(lrgr)[5]]),as.character(geneSeq[[seqid]][start(lrgr)[6]:lrposEnd])))
      srUniqueSeq <- microseq::reverseComplement(paste0(as.character(geneSeq[[seqid]][start(srgr)[5]:end(srgr)[5]]),as.character(geneSeq[[seqid]][start(srgr)[6]:end(srgr)[6]])))
@@ -3568,7 +2966,7 @@ write.table(candidateTable, file = "candidateTable_dPCR_24Jun2024.csv", row.name
 ```
 
 ```{r}
-sink("/mnt/projects/SGNExManuscript/revision3/YF_validation/digital_PCR/dpcr_seq.txt")
+sink("digital_PCR/dpcr_seq.txt")
 for( gene in candidateGene){
     cat("####",gene, "  \n")
     cat("#### LR isoform ",candidateTable[gene_name == gene&(variable == "lr")]$tx_name, "  \n")

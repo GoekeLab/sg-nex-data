@@ -39,7 +39,7 @@ setwd(wkdir)
 library(readxl)
 
 
-sampleData <- data.table(as.data.frame(read_xlsx(paste0(annoDir,"ONT Master Table.xlsx"), sheet = 2))) ## need to convert from tibble to data.frame
+sampleData <- data.table(as.data.frame(read_xlsx(paste0(annoDir,"."), sheet = 2))) ## need to convert from tibble to data.frame
 sampleNames <- sampleData$public_name
 library(BiocParallel)
 
@@ -130,7 +130,6 @@ trim_process <- function(prefix,fileList1,trim_bp, fastqDir,wkdir){
         filtered_fastq <- gsub(".fastq$","_filtered.fastq",unzip_trim_fileList1)
         prob_fastq <- gsub(".fastq$","_prob.fastq",unzip_trim_fileList1)
         trimmed_prob_fastq <- gsub(".fastq$","_trimmed_prob.fastq",unzip_trim_fileList1)
-        #empty_fastq <- gsub(".fastq$","_empty.fastq",unzip_trim_fileList1)
         system(paste0("filter_fastq.sh -i ", unzip_trim_fileList1,
                       " -o ",filtered_fastq, " -r ", prob_fastq))
        }

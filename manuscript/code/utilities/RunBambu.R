@@ -34,16 +34,13 @@ nnn <- as.integer(opts$g)
 ####################
 ## readclass      ##
 ####################
-sampleData <- data.table(as.data.frame(read_xlsx(paste0('ONT Master Table.xlsx'), sheet = 1))) ## need to convert from tibble to data.frame
+sampleData <- data.table(as.data.frame(read_xlsx(paste0('.'), sheet = 1))) ## need to convert from tibble to data.frame
 sampleData <- sampleData[(grepl("H9|HEYA8",runName)&(grepl("ON00",name))&(!grepl("HEYA8.*H9",
                                                                                  runName)))|(SG_NextData_Release=="Yes"&(!is.na(SG_NextData_Release))&(!grepl("CRC",runName)))|(grepl("HCT116",runName))]
-#sampleData$runName_combined <- gsub('-pre|-Pre','',sampleData$runName) # there are runs with multiple datasets that should be combined together
 sampleData[,runName_combined := ifelse(grepl("directRNA",runName)|(!grepl("H9|HEYA8",runName))|(SG_NextData_Release=="Yes"),
                                        runName,
                                        `GIS Library ID`)]
 sampleData[runName_combined != runName, runName_combined := paste0(gsub("_Run.*","",runName),"_",runName_combined)]
-#sampleNames <- unique(sampleData$runName_combined)##
-#sampleNames_old <- unique(sampleData[grepl("ON002-RNA-R00177|ON002-RNA-R00178",name)]$runName)
 sampleNames <- unique(sampleData$`publicName (SGNex_CellLine_protocol_replicate1_run1)`)[1:111]
 
 bam.file <- sapply(sampleNames, function(x) paste0("s3://sg-nex-data/data/sequencing_data_ont/bam/genome/"x,"/",x,".bam"))
@@ -54,8 +51,7 @@ if(!dir.exists(local_path)) dir.create(local_path)
 rcSaveDir <- paste0(local_path,"rc")
 if(!dir.exists(rcSaveDir)) dir.create(rcSaveDir)
 if(!dir.exists(paste0(rcSaveDir,"/raw_reads")) dir.create(paste0(rcSaveDir,"/raw_reads"))
-# 
-# # download bam file
+
 system(paste0("aws s3 cp --no-sign-request ", bam.file[nnn], " ",local_path))
 local_bam_file <- dir(local_path, pattern = ".bam$", full.names = TRUE)
 # 
@@ -77,12 +73,10 @@ seNoPut <- bambu(reads = local_bam_file,
                   discovery = FALSE,
                   quant = FALSE,
                   yieldSize = 1000000,
-                  #opt.discovery = list(min.primarySecondaryDistStartEnd2 = 100000),
                   verbose=TRUE)
 
 system(paste0("rm ",local_bam_file))
-# 
-# # locally with read class files 
+
 library(bambu)
 rcSaveDir <- "RunBambu22Apr/rc"
 library(BiocFileCache)
@@ -96,7 +90,6 @@ se <- bambu(reads = rcfiles,
                  ncore = 4,
                  returnDistTable = TRUE,
                  opt.em = list(degradationBias = FALSE),
-                 #opt.discovery = list(min.primarySecondaryDistStartEnd2 = 100000),
                  verbose=TRUE)
 saveRDS(se, file = "bambuOutput_May25.rds")
 
@@ -110,16 +103,15 @@ seNoPut <- bambu(reads = local_bam_file,
                   quant = FALSE,
                   yieldSize = 1000000,
                   trackReads = TRUE,
-                  #opt.discovery = list(min.primarySecondaryDistStartEnd2 = 100000),
                   verbose=TRUE)
 
 
 ############################
 ## Pacbio samples         ##
 ############################
-pacbio_data <-  data.table(as.data.frame(read_xlsx(paste0('ONT Master Table.xlsx'), sheet = 2)))
+pacbio_data <-  data.table(as.data.frame(read_xlsx(paste0('.'), sheet = 2)))
 
-bam.file <- gsub('s3://ontdata.store.genome.sg','/mnt/ontdata',pacbio_data$`bam-genome.path`)#
+bam.file <- pacbio_data$`bam-genome.path`)
 
 library(bambu)
 
@@ -129,7 +121,7 @@ rcSaveDir <- paste0(local_path,"rc")
 if(!dir.exists(rcSaveDir)) dir.create(rcSaveDir)
 
 # download bam file
-system(paste0("aws s3 cp ", gsub('/mnt/ontdata','s3://ontdata.store.genome.sg',bam.file[nnn]), " ",local_path, " --profile ontdata.store.genome.sg "))
+system(paste0("aws s3 cp ", bam.file[nnn], " ",local_path))
 local_bam_file <- dir(local_path, pattern = ".bam$", full.names = TRUE)
 
 anno.file <- "hg38_sequins_SIRV_ERCCs_longSIRVs_v5_reformatted.gtf"
@@ -150,8 +142,6 @@ seNoPut <- bambu(reads = local_bam_file,
                  discovery = FALSE,
                  quant = FALSE, 
                  yieldSize = 1000000,
-                 #NDR = 0.1,
-                 #opt.discovery = list(min.primarySecondaryDistStartEnd2 = 100000),
                  verbose=TRUE)
 
 system(paste0("rm ",local_bam_file))
@@ -170,7 +160,6 @@ se <- bambu(reads = rcfiles,
             ncore = 6,
             returnDistTable = TRUE,
             opt.em = list(degradationBias = FALSE),
-            #opt.discovery = list(min.primarySecondaryDistStartEnd2 = 100000),
             verbose=TRUE)
 saveRDS(se, file = "bambuOutput_PacBio_May22.rds")
 
@@ -181,7 +170,6 @@ se <- bambu(reads = rcfiles,
             returnDistTable = TRUE,
             opt.em = list(degradationBias = FALSE),
             NDR = 0.1,
-            #opt.discovery = list(min.primarySecondaryDistStartEnd2 = 100000),
             verbose=TRUE)
 saveRDS(se, file = "bambuOutput_PacBioNDR0.1_Aug18.rds")
 
@@ -193,7 +181,6 @@ se <- bambu(reads = rcfiles,
             returnDistTable = TRUE,
             opt.em = list(degradationBias = FALSE),
             NDR = 1,
-            #opt.discovery = list(min.primarySecondaryDistStartEnd2 = 100000),
             verbose=TRUE)
 saveRDS(se, file = "bambuOutput_PacBioNDR1_May22.rds")
 
@@ -216,7 +203,7 @@ system.time(bambuOutput <- bambu(reads = bam.file,
                                  returnDistTable = TRUE,
                                  opt.em = list(degradationBias = FALSE),
                                  stranded = FALSE, ncore = 6,
-                                 NDR = 0, # bambu recommended NDR is 0.311
+                                 NDR = 0, 
                                  yieldSize = 1000000, verbose = TRUE))
 saveRDS(bambuOutput, file = paste0("bambuOutput_spikein_bam_ont_May22.rds"))
 
@@ -231,7 +218,7 @@ system.time(bambuOutput <- bambu(reads = bam.file,
                                  returnDistTable = TRUE,
                                  opt.em = list(degradationBias = FALSE),
                                  stranded = FALSE, ncore = 6,
-                                 NDR = 0, # bambu recommended NDR is 0.311
+                                 NDR = 0, 
                                  yieldSize = 1000000, verbose = TRUE))
 saveRDS(bambuOutput, file = paste0("bambuOutput_spikein_bam_pacbio_May22.rds"))
 
@@ -245,6 +232,6 @@ system.time(bambuOutput <- bambu(reads = rcfiles,
                                  returnDistTable = TRUE,
                                  opt.em = list(degradationBias = FALSE),
                                  stranded = FALSE, ncore = 6,
-                                 NDR = 0, # bambu recommended NDR is 0.311
+                                 NDR = 0,
                                  yieldSize = 1000000, verbose = TRUE))
 saveRDS(bambuOutput, file = paste0("bambuOutput_spikein_bam_May22.rds"))

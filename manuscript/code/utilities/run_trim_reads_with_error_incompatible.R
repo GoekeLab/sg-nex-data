@@ -40,16 +40,14 @@ annotationDir <- "transcriptome-index/salmon_index_hg38_sirv_longsirv_ercc_sequi
 
 setwd(wkdir)
 library(readxl)
-sampleData <- data.table(as.data.frame(read_xlsx(paste0('ONT Master Table.xlsx'), sheet = 1))) ## need to convert from tibble to data.frame
+sampleData <- data.table(as.data.frame(read_xlsx(paste0('.'), sheet = 1))) ## need to convert from tibble to data.frame
 sampleData <- sampleData[(grepl("H9|HEYA8",runName)&(grepl("ON00",name))&(!grepl("HEYA8.*H9",
                                                                                  runName)))|(SG_NextData_Release=="Yes"&(!is.na(SG_NextData_Release))&(!grepl("CRC",runName)))|(grepl("HCT116",runName))]
-#sampleData$runName_combined <- gsub('-pre|-Pre','',sampleData$runName) # there are runs with multiple datasets that should be combined together 
 sampleData[,runName_combined := ifelse(grepl("directRNA",runName)|(!grepl("H9|HEYA8",runName))|(SG_NextData_Release=="Yes"),
                                        runName, 
                                        `GIS Library ID`)]
 sampleData[runName_combined != runName, runName_combined := paste0(gsub("_Run.*","",runName),"_",runName_combined)]
 
-#sampleNames <- unique(sampleData$runName_combined)#
 sampleNames <- unique(sampleData$`publicName (SGNex_CellLine_protocol_replicate1_run1)`)[1:111]
 
 
@@ -106,9 +104,6 @@ get_fastq <- function(k,sampleData,wkdir, prefix, trim_bp){
         system(paste0('aws s3 sync --no-sign-request ',s3_fastq_dir," ", fastqDir))
     }
     
-    #cmdTMP <- paste0('aws s3 cp ',sampleData_runName$fastq.path,'/ ', fastqDir,'/ --profile ontdata.store.genome.sg --recursive --exclude "*.md5"')
-    
-    
     if(prefix == "sr"){
         fileList1 <- paste0(fastqDir,'/',rname,"_R1.fastq.gz")
         fileList2 <- paste0(fastqDir,'/',rname,"_R2.fastq.gz")
@@ -135,21 +130,19 @@ trim_process <- function(prefix,fileList1,trim_bp, fastqDir,wkdir, trim_times){
         system(paste0("seqtk trimfq ",c("-L ","-l ")[(prefix=="lr")+1],
                       trim_bp+1, " -q ",
                       #0.01," ",
-                      rep(seq(0.01, 0.1, by = 0.01),4)[kk]," ", # it turns out that the default error rate threshold will give the same sequence all the time, so I want to see if change the error threshold will give different trimmed sequences
+                      rep(seq(0.01, 0.1, by = 0.01),4)[kk]," ", 
                       unzip_fileList1," > ",unzip_trim_fileList1)) #
-        # extra step to confirm all reads less than 150bp, if not, extract non-150bp reads and trim again with -L
-        # this happens for 
+        
         filtered_fastq <- gsub(".fastq$","_filtered.fastq",unzip_trim_fileList1)
         prob_fastq <- gsub(".fastq$","_prob.fastq",unzip_trim_fileList1)
         trimmed_prob_fastq <- gsub(".fastq$","_trimmed_prob.fastq",unzip_trim_fileList1)
-        #empty_fastq <- gsub(".fastq$","_empty.fastq",unzip_trim_fileList1)
-        system(paste0("/home/cheny1/filter_fastq.sh -i ", unzip_trim_fileList1,
+        system(paste0("filter_fastq.sh -i ", unzip_trim_fileList1,
                       " -o ",filtered_fastq, " -r ", prob_fastq))
        
         if(file.size(prob_fastq)>0){
             system(paste0("rm -rvf ", unzip_trim_fileList1))
             system(paste0("seqtk trimfq -L ",
-                          trim_bp+1, " ", # it turns out that the default error rate threshold will give the same sequence all the time, so I want to see if change the error threshold will give different trimmed sequences
+                          trim_bp+1, " ", 
                           prob_fastq," > ",trimmed_prob_fastq))
             system(paste0("cat ", filtered_fastq, " ", trimmed_prob_fastq, "  > ", unzip_trim_fileList1))
             system(paste0("rm -rvf ",filtered_fastq))
@@ -203,7 +196,6 @@ map_function_star <- function(mapDir, annotationDir,gzip_trim_fileList1,trim_bp,
                   ' --readFilesIn ',gzip_trim_fileList1,
                   ' --readFilesCommand gunzip -c ',
                   ' --outFileNamePrefix ',mapDir, 
-                  #' --outSAMprimaryFalg AllBestScore',
                   ' --outMultimapperOrder Random ',
                   ' --outSAMattributes NH HI NM MD AS nM jM jI XS ',
                   ' --outSAMtype BAM Unsorted '))
@@ -214,21 +206,19 @@ map_function_star <- function(mapDir, annotationDir,gzip_trim_fileList1,trim_bp,
 
 run_bambu <- function(bam.file, bambuAnnotations, fasta.file, save.dir_rc, save.dir_se){
     library(bambu)
-    system.time(bambuOutput <- bambu(reads = bam.file, #rcfile_check,#
+    system.time(bambuOutput <- bambu(reads = bam.file, 
                                      rcOutDir = save.dir_rc,
                                      annotations = bambuAnnotations,
                                      genome = fasta.file,
                                      returnDistTable = TRUE,
                                      opt.em = list(degradationBias = FALSE),
                                      stranded = FALSE, ncore = 1,
-                                     #NDR = 0.247, # bambu recommended NDR is 0.311
                                      yieldSize = 1000000, verbose = TRUE))
     saveRDS(bambuOutput, file = paste0(save.dir_se,gsub("Aligned.out.bam$","",basename(bam.file)),"_seOutput.rds"))
 }
 
 set.seed(1)
 prefix <- 'lr'
-#sim_LR_from_SR(sampleNames[g],wkdir,txSeqDt)
 wkdir <- paste0(wkdir,'trim_reads/',prefix,'_',trim_bp,'bpSingleEnd_',trim_times,'ts_incompatible')
 trim_function(trim_times, trim_bp, sampleNames[g], sampleData, prefix = prefix,wkdir,annotationDir)
 

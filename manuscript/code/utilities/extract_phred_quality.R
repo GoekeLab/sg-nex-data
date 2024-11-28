@@ -31,16 +31,13 @@ print(opts)
 nnn <- as.integer(opts$g)
 
 
-sampleData <- data.table(as.data.frame(read_xlsx(paste0('ONT Master Table.xlsx'), sheet = 1))) ## need to convert from tibble to data.frame
+sampleData <- data.table(as.data.frame(read_xlsx(paste0('.'), sheet = 1))) ## need to convert from tibble to data.frame
 sampleData <- sampleData[(grepl("H9|HEYA8",runName)&(grepl("ON00",name))&(!grepl("HEYA8.*H9",
                                                                                  runName)))|(SG_NextData_Release=="Yes"&(!is.na(SG_NextData_Release))&(!grepl("CRC",runName)))|(grepl("HCT116",runName))]
-#sampleData$runName_combined <- gsub('-pre|-Pre','',sampleData$runName) # there are runs with multiple datasets that should be combined together
 sampleData[,runName_combined := ifelse(grepl("directRNA",runName)|(!grepl("H9|HEYA8",runName))|(SG_NextData_Release=="Yes"),
                                        runName,
                                        `GIS Library ID`)]
 sampleData[runName_combined != runName, runName_combined := paste0(gsub("_Run.*","",runName),"_",runName_combined)]
-#sampleNames <- unique(sampleData$runName_combined)##
-#sampleNames_old <- unique(sampleData[grepl("ON002-RNA-R00177|ON002-RNA-R00178",name)]$runName)
 sampleNames <- unique(sampleData$`publicName (SGNex_CellLine_protocol_replicate1_run1)`)[1:112]
 
 
@@ -74,7 +71,6 @@ seNoPut <- bambu(reads = local_bam_file,
                   discovery = FALSE,
                   quant = FALSE,
                   yieldSize = 1000000,
-                  #opt.discovery = list(min.primarySecondaryDistStartEnd2 = 100000),
                   verbose=TRUE)
 system(paste0("rm ",local_bam_file))
 # 
@@ -93,7 +89,6 @@ se <- bambu(reads = rcfiles,
             returnDistTable = TRUE,
             NDR = 0.1, 
             opt.em = list(degradationBias = FALSE),
-            #opt.discovery = list(min.primarySecondaryDistStartEnd2 = 100000),
             verbose=TRUE)
 saveRDS(se, file = "bambuOutput_21May2024_NDR0.1.rds")
 
@@ -122,7 +117,6 @@ salmon_lr <- do.call('rbind',lapply(sampleNames,function(k){
                               counts = txi$counts[,1],
                               length = txi$length[,1],
                               countsFromAbundance = txi$countsFromAbundance)
-    # short_read <- fread(filePath, header = TRUE)
     salmon_read[, runname:=k]
     return(salmon_read)
 }))
@@ -133,7 +127,7 @@ salmon_lr <- do.call('rbind',lapply(sampleNames,function(k){
 salmon_lr[, method:='salmon_lr_q7filter']
 salmon_lr[, ntotal:=sum(counts), by = runname]
 setnames(salmon_lr, 'abundance','estimates')
-salmon_lr[, `:=`(#counts = NULL,
+salmon_lr[, `:=`(
     length = NULL,
     countsFromAbundance = NULL)]
 

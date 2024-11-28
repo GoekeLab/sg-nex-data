@@ -29,8 +29,6 @@ library(gplots)
 library(RColorBrewer)
 library(limma)
 
-# if heya8 still similar to h9, or can be distinguished
-# heatmap for samples
 library(ComplexHeatmap)
 library(circlize)
 library(viridis)
@@ -98,16 +96,12 @@ samplesRC_combined <- rbindlist(list(readCount, readCountSR), fill = TRUE)
 samplesRC_combined[, `:=`(protocol_type = gsub("-SMRTcell","",protocol_type))]
 samplesRC_combined[, protocol_type_factor := factor(protocol_type, c('directRNA','directcDNA','cDNA',"PacBio","Illumina"),
                                              protocolVec)]
-#samplesRC_combined <- samplesRC_combined[cellLine %in% cellLines]
-
-
 
 plotdata <- samplesRC_combined[,.(protocol_type_factor, runname, total_reads, Platform, demultiplexed,cellLine)]
 plotdata[is.na(demultiplexed), demultiplexed := FALSE]
 ## all de-multiplexed are gridion/minion
 
 library(tidyverse)
-#library(see)
 source("https://raw.githubusercontent.com/datavizpyr/data/master/half_flat_violinplot.R")
 
 # short read are all demultiplexed 
@@ -160,7 +154,7 @@ rlData <- do.call("rbind",lapply(seq_along(rdfile_name), function(r){
 saveRDS(rlData, file = paste0(wkdir,"output_guppy6.4.2/readLengthData_Apr27.rds"))
 
 rdfile <- c(list.files(".", pattern = "readLength_", full.names = TRUE, recursive = TRUE),
-            list.files("/mnt/projects/SGNExManuscript/output/", pattern = "readLength.*Illumina", full.names = TRUE, recursive = TRUE))
+            list.files(".", pattern = "readLength.*Illumina", full.names = TRUE, recursive = TRUE))
 rdfile_name <- gsub("readLength_|\\.rds","",basename(rdfile))
 
 rlData <- do.call("rbind",lapply(seq_along(rdfile_name)[grep("H9_cDNA_replicate4",rdfile_name)], function(r){
@@ -234,10 +228,7 @@ runname <- gsub("covDT|(\\.rds)","",basename(rdsFiles))
 txdbEnsembl91 <- loadDb('hg38_sequins_SIRV_ERCCs_longSIRVs-txdb.sqlite')
 tx <- transcripts(txdbEnsembl91)
 txInfo <- data.table(tx_name = tx$tx_name, strand = as.character(strand(tx)))
-# dt <- data.table(runname = c(runname,rdsFiles2))
-# dt[, protocol:=strsplit(runname,"\\_")[[1]][3],by = runname]
-# dt[,protocol_type:=gsub("RandomPrimer","",gsub("Stranded","",gsub("PromethionD","d",protocol)))]
-# dt[, cellLine:=gsub('k562','K562',strsplit(runname, '\\_')[[1]][2]),by = runname]
+
 covData1 <- do.call("rbind",lapply(rdsFiles, function(s){
     print(s)
     covd <- readRDS(s) 
@@ -245,7 +236,6 @@ covData1 <- do.call("rbind",lapply(rdsFiles, function(s){
         setnames(covd, "run_name","runname")
         covd <- covd[!grepl("ENST",tx_name)]
     }
-    # covd[, pos_bin_new:=ifelse(is.na(strand), pos_bin, ifelse(strand=="-", 100-pos_bin+1,pos_bin))]
     covdt <- unique(covd[, list(ave_bin_count=mean(rel_bin_count)), by = list(pos_bin,nread,runname)])
     return(covdt)
 }))
@@ -297,28 +287,11 @@ plotData[, min_count := min(normCount), by = list(protocol_type_factor,pos_bin)]
 plotData[, max_count := max(normCount), by = list(protocol_type_factor,pos_bin)]
 
 plotData[, pc := paste0(protocol_type_factor," ",cellLine)]
-# p_coverage_5to3_spikein <- ggplot(plotData[grep("sequin|SIRV",cellLine)], aes(x = pos_bin, y = normCount, group = pc))+
-#     geom_line(aes(col = protocol_type_factor))+
-#     scale_x_continuous(limits = c(0,100),
-#                        breaks = c(0,100),
-#                      labels = c("5'","3'"))+
-#     scale_fill_manual(values = protocolCol,
-#                       name = "Protocol",
-#                       limits = protocolVec,
-#                       labels = protocolLabel)+
-#     scale_color_manual(values = protocolCol,
-#                        name = "Protocol",
-#                        limits = protocolVec[1:5],
-#                        labels = protocolLabel[1:5])+
-#     ylab("Coverage")+
-#     xlab("Transcription direction")+
-#     theme_classic()
-# p_coverage_5to3_spikein
+
 
 p_coverage_5to3 <- ggplot(plotData[cellLine %in% cellLines], aes(x = pos_bin, y = normCount, group = pc))+
     geom_line(aes(col = protocol_type_factor), alpha = 0.1)+
     geom_line(data = plotData[cellLine == "A549"], aes(x = pos_bin, y = mean_count,group = pc, col = protocol_type_factor))+
-     # geom_ribbon(aes(ymin=pmax(0,cumEstQ1)*100, ymax=pmin(1,cumEstQ3)*100), col = NA, alpha=0.2,show.legend = FALSE)+
     scale_x_continuous(limits = c(0,100),
                        breaks = c(0,100),
                      labels = c("5'","3'"))+
@@ -444,8 +417,6 @@ saveRDS(type_dist_sr, file = "type_dist_sr.rds")
 type_dist_lr <- readRDS("type_dist_lr.rds")#_protein_coding
 type_dist_lr_pacbio <- readRDS("type_dist_lr_pacbio.rds")
 
-# type_dist_lr <- readRDS("type_dist_lr_spliced_reads_only_protein_coding.rds")#_protein_coding
-# type_dist_lr_pacbio <- readRDS("type_dist_lr_pacbio__spliced_reads_only_protein_coding.rds")
 type_dist_sr <- readRDS("type_dist_sr.rds")
 type_dist_spikein <- readRDS("type_dist_spikein.rds")
 type_dist_spikein_sr <- readRDS("type_dist_spikein.rds")
@@ -464,14 +435,8 @@ type_dist[, protocol_type_factor := factor(protocol_type, c('directRNA','directc
                                                     protocolVec)]
 
 
-# sum_stats <- unique(type_dist[, list(full_length = sum(.SD[type %in% c("FIM","FSIM","MFIM")]$read_count)), by = list(protocol_type_factor,runname, nTotal)], by = NULL)
-# median(sum_stats[protocol_type_factor == "directRNA"]$full_length/sum_stats[protocol_type_factor == "directRNA"]$nTotal)
-# median(sum_stats[protocol_type_factor == "directcDNA"]$full_length/sum_stats[protocol_type_factor == "directcDNA"]$nTotal)
-# median(sum_stats[protocol_type_factor == "cDNA"]$full_length/sum_stats[protocol_type_factor == "cDNA"]$nTotal)
-# median(sum_stats[protocol_type_factor == "PacBio"]$full_length/sum_stats[protocol_type_factor == "PacBio"]$nTotal)
 
 p_full_length <- ggplot(type_dist[!grepl("all",runname)], aes(x = type, y = read_count/nTotal*100))+
-    #geom_violin(draw_quantiles = NULL, trim = TRUE,adjust = 0.5)+
     geom_boxplot(aes(fill = protocol_type_factor,col = protocol_type_factor), width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+
     scale_fill_manual(values = protocolCol,
                       name = "Protocol",
@@ -491,9 +456,6 @@ p_full_length <- ggplot(type_dist[!grepl("all",runname)], aes(x = type, y = read
     xlab("Alignment type")+
     theme_classic()
 p_full_length
-# pdf("full_length_spliced_reads_protein_coding_genesonly.pdf", width = 6, height = 9/2)
-# p_full_length + theme(legend.position = "top")
-# dev.off()
 ```
 
 
@@ -502,13 +464,10 @@ p_full_length
 ## e fraction of transcription
 ```{r 6-transcript-diversity}
 txLengths.tbldf <- general_list$txLengths.tbldf
-# seSpikein <- readRDS("bambuOutput_spikein_bam.rds")
-# seOutput <- readRDS("bambuOutput_spikein_bam.rds")
 com_data_gene <- readRDS("combinedExpressionDataGene_19June2023.rds")
 com_data_gene[, protocol_general := gsub("-SMRTcell","", protocol_general)]
 geneTable <- unique(txLengths.tbldf[,.(gene_id, gene_biotype,hgnc_symbol)])
 setnames(geneTable, "gene_id","gene_name")
-#com_data_gene_tmp <- geneTable[com_data_gene[grepl("ENSG",gene_name)&(method %in% c("bambu_lr","salmon_sr"))], on = "gene_name"]
 com_data_gene_tmp <- geneTable[com_data_gene[grepl("ENSG",gene_name)&(method %in% c("salmon_lr","salmon_sr"))], on = "gene_name"]
 
 
@@ -541,7 +500,6 @@ dt_agg <- dt[, list(geneRank_new = 1:max(ceiling(geneRank)),
 
 
 dt_agg_ave <- unique(dt_agg[!grepl("Myeloma",runname)&!grepl("RandomPrimer",runname), list(cumEstAve = median(cumEstFun,na.rm = TRUE), cumEstQ1 = quantile(cumEstFun,na.rm = TRUE, prob = 0.25), cumEstQ3 = quantile(cumEstFun,na.rm = TRUE, prob = 0.75)), by = list(protocol_reduced, geneRank_new)])
-
 ```
 
 
@@ -565,17 +523,11 @@ p_transcript_diversity <- ggplot(dt_agg_ave, aes(x = geneRank_new, y = cumEstAve
     xlab("Number of genes (rank by expression)")+
     theme_classic()
 p_transcript_diversity
-
-# # for salmon_lr
-# pdf("p_gene_diversity_salmon.pdf", width = 6, height = 4)
-# p_transcript_diversity
-# dev.off()
 ```
 
 
 ## f cDNA vs dRNA bias 
 ```{r 9-pcr-bias-2}
-# resOld <- readRDS("pcr_bias_results.rds")
 data <- readRDS("bambuOutput_May25.rds")
 txLengths <- sum(width(rowRanges(data)))
 geneLengths <- tapply(txLengths, rowData(data)$GENEID, min)
@@ -631,11 +583,7 @@ score.cdna.illumina=(mean.cdna-mean.illumina)/sqrt((mean.cdna*(1-mean.cdna))/mea
 score.cdna.illumina.p.adjust <- p.adjust(pnorm(abs(score.cdna.illumina), lower.tail = F), method = 'fdr')
 score.drna.illumina=(mean.drna-mean.illumina)/sqrt((mean.drna*(1-mean.drna))/meanCount.drna+(mean.illumina*(1-mean.illumina))/meanCount.illumina)
 score.drna.illumina.p.adjust <- p.adjust(pnorm(abs(score.drna.illumina), lower.tail = F), method = 'fdr')
-# smoothScatter(mean.cdna[setBiasCandidates],
-#               mean.dcdna[setBiasCandidates], xlim=c(0,1), ylim=c(0,1), nrpoints = 10000)
-# abline(0,1)
-# points(mean.cdna[score.cdna.dcdna< (-3.5) ], mean.dcdna[score.cdna.dcdna<(-3.5) ], col=2)
-# 
+
 
 dat <- data.table(meanCount.cdna = meanCount.cdna,
                   meanCount.dcdna = meanCount.dcdna,
@@ -673,7 +621,7 @@ cellLines <- general_list$cellLines
 ```
 ```{r}
 library(ggpubr)
-# pList <- lapply(1, function(x){ #1:7
+
 dat <- scoreList[[1]][[2]]
 p_cdna_drna <- ggplot(data = dat[which(setBiasCandidates)], aes(x = mean.drna, y = mean.cdna))+
     xlim(0,1)+
@@ -682,16 +630,9 @@ p_cdna_drna <- ggplot(data = dat[which(setBiasCandidates)], aes(x = mean.drna, y
     xlab("Mean coverage per gene \n (direct RNA)")+
     ylab("Mean coverage per gene \n (cDNA)")+
     geom_hex(aes(fill = stat(count)),
-             # stat(cut(log(count), 
-             #               breaks = log(c(1, 10, 100, 1000,10000,Inf)), 
-             #               labels = F, right = T, include.lowest = T))), 
              binwidth = 0.01) +
     scale_fill_gradient(name = 'count', low = "grey", high = "black")+
-    #labels = c('0', '1', '2', '3','4+')
-    #)+
     stat_cor(aes(label = ..r.label..),method = "spearman", cor.coef.name = "Sp.R")+
-    # geom_point(data = dat[setBiasCandidates&abs(score.cdna.drna) > 3.5],
-    #            aes(x = mean.drna, y = mean.cdna, col = score.cdna.drna> 3.5), shape = 1, size = 0.5)+
     theme_classic()
 
 p_cdna_drna
@@ -715,21 +656,6 @@ ggarrange(p_sequencing_depth+theme(legend.position="none"),
           common.legend = TRUE,labels = c(letters[1:6],rep("",4)),
           ncol = 3, nrow = 4, align = "hv")
 dev.off()
-
-# pdf("full_length.pdf", width = 10, height = 4)
-# ggarrange(p_full_length, p_number_of_transcripts_per_read, p_njunc,
-#           common.legend = TRUE,labels = "auto",
-#           ncol = 3, nrow = 1, align = "hv")
-# dev.off()
-# 
-# pdf("transcript_diversity.pdf", width = 4, height = 3)
-# p_transcript_diversity
-# dev.off()
-# 
-# 
-# pdf("transcript_diversity_atGeneRank1000.pdf", width = 10, height = 12)
-# p_gene_diversity
-# dev.off()
 
 ```
 
@@ -786,55 +712,39 @@ library(RColorBrewer)
 library(data.table)
 library(ggplot2)
 data_cost <- data.table(cost = c(
-    #(cost.directcDNA*(1:12)+cost.promethion+c(0,rep(cost.multiplex.directcDNA,11)))/(1:12),
-                            (c(cost.PCRcDNA.single,cost.PCRcDNA*(2:12))+cost.promethion+c(0,rep(cost.multiplex.PCRcDNA,11)))/(1:12),
-                            (cost.directRNA*(1:12)+cost.promethion_12*(1:12))/(1:12),
-                            #  (c(cost.PCRcDNA.single,cost.PCRcDNA*(2:12))+cost.promethion_96+c(0,rep(cost.multiplex.PCRcDNA,11)))/(1:12),
-                            # (cost.directRNA*(1:12)+cost.promethion_96*(1:12))/(1:12),
-                            #  (c(cost.PCRcDNA.single,cost.PCRcDNA*(2:12))+cost.promethion_2880+c(0,rep(cost.multiplex.PCRcDNA,11)))/(1:12),
-                            # (cost.directRNA*(1:12)+cost.promethion_2880*(1:12))/(1:12),
-                           # (cost.directcDNA*(1:12)+cost.gridion+c(0,rep(cost.multiplex.directcDNA,11)))/(1:12),
-                            (c(cost.PCRcDNA.single,cost.PCRcDNA*(2:12))+cost.gridion+c(0,rep(cost.multiplex.PCRcDNA,11)))/(1:12),
-                            (cost.directRNA*(1:12)+cost.gridion*(1:12))/(1:12),
-                           # (c(cost.PCRcDNA.single,cost.PCRcDNA*(2:12))+cost.gridion_96+c(0,rep(cost.multiplex.PCRcDNA,11)))/(1:12),
-                            # (cost.directRNA*(1:12)+cost.gridion_96*(1:12))/(1:12),
-                            (cost.shortRead*(1:12)+cost.illumina)/(1:12)),
+(c(cost.PCRcDNA.single,cost.PCRcDNA*(2:12))+cost.promethion+c(0,rep(cost.multiplex.PCRcDNA,11)))/(1:12), (cost.directRNA*(1:12)+cost.promethion_12*(1:12))/(1:12),
+(c(cost.PCRcDNA.single,cost.PCRcDNA*(2:12))+cost.gridion+c(0,rep(cost.multiplex.PCRcDNA,11)))/(1:12),
+(cost.directRNA*(1:12)+cost.gridion*(1:12))/(1:12),
+(cost.shortRead*(1:12)+cost.illumina)/(1:12)),
                         samples = rep(c(1:12),5),
-                        #platform = c(rep(c("PromethION (12)","PromethION (96)","PromethION (2880)","GridION (12)","GridION (96)"),each = 24),rep("Illumina",12)),
     platform = c(rep(c("PromethION","GridION"),each = 24),rep("Illumina",12)),
                         protocols = c(rep(rep(c("cDNA","directRNA"),each = 12),2),rep("Illumina",12)))
 
 data_cost[, platform_protocol := paste0(platform,"_", protocols)]
 data_cost[, protocol_factor := factor(protocols, levels = c("directRNA",
-                                                            #"directcDNA",
                                                             "cDNA","Illumina"))]
-# pdf("/mnt/projects/SGNExManuscript/figures/cost_per_sample.pdf",width = 8, height = 6)
 p_expected_data_cost <- ggplot(data_cost, aes(x = samples, y = cost))+
     geom_line(aes(group = platform_protocol),,col = "grey")+
     geom_point(aes(col = protocol_factor, shape = platform), size = 2)+
-    # scale_color_brewer(type = "qual",palette = 3, name ="Protocols")+
-  scale_color_manual(values = protocolCol[c(1,3,5)],
+    scale_color_manual(values = protocolCol[c(1,3,5)],
                        name = "Protocol",
                        limits = protocolVec[c(1,3,5)],
                        labels = protocolLabel[c(1,3,5)])+
     scale_shape_manual(values = c(16,17,15), 
-                       breaks = c("PromethION","GridION","Illumina"),#c("PromethION","GridION","Illumina"), 
+                       breaks = c("PromethION","GridION","Illumina"), 
                        name = "Platform")+
     xlab("Number of samples")+
     ylab("Cost per sample (USD)")+
     scale_x_continuous(breaks = (1:6)*2)+
     scale_y_continuous(breaks =((1:8)-1)*500, limits = c(0,3000))+
     theme_classic()
-# dev.off()
 
 # throughput in giga base 
 data_readcount <- data.table(bp = c(
-    #readCount.promethion.directcDNA/(1:12)*0.9,
-                                      readCount.promethion.PCRcDNA.observed/(1:12)*700,
-                                      readCount.promethion.directRNA*rep(1,12)*1000,
-                                      #readCount.gridion.directcDNA/(1:12)*0.9,
-                                      readCount.gridion.PCRcDNA/(1:12)*700, ## cDNA 
-                                      readCount.gridion.directRNA*rep(1,12)*1000,
+    readCount.promethion.PCRcDNA.observed/(1:12)*700,
+    readCount.promethion.directRNA*rep(1,12)*1000,
+    readCount.gridion.PCRcDNA/(1:12)*700, ## cDNA 
+    readCount.gridion.directRNA*rep(1,12)*1000,
                                       readCount.illumina/(1:12)*300,
                                       5/1:12*3000),
                         samples = rep(c(1:12),6),
@@ -847,11 +757,10 @@ data_readcount[, platform_protocol := paste0(platform,"_", protocols)]
 data_readcount[, protocol_factor := factor(protocols, levels = c("directRNA",
                                                                  #"directcDNA",
                                                                  "cDNA","Illumina","PacBio"))]
-# pdf("sequencing_throughput_per_sample.pdf",width = 8, height = 6)
+
 p_expected_throughput <- ggplot(data_readcount, aes(x = samples, y = bp*1000000/1024^3))+
     geom_line(aes(group = platform_protocol),,col = "grey")+
     geom_point(aes(col = protocol_factor, shape = platform), size = 2)+
-    # scale_color_brewer(type = "qual",palette = 3, name ="Protocols")+
   scale_color_manual(values = protocolCol[-2],
                        name = "Protocol",
                        limits = protocolVec[-2],
@@ -860,9 +769,7 @@ p_expected_throughput <- ggplot(data_readcount, aes(x = samples, y = bp*1000000/
     xlab("Number of samples")+
     ylab("Sequencing throughput per sample (million)")+
     scale_x_continuous(breaks = (1:6)*2)+
-    # scale_y_continuous(breaks =c(0.3,1,10,100), labels =c(0.01,0.1,1,10,100), limits = c(0.01,120))+
     theme_classic()
-# dev.off()
 p_expected_data_cost
 p_expected_throughput
 ```
@@ -1003,7 +910,6 @@ print(p_total_bases)
 ## f spike-in mapping bases
 ```{r}
 p_total_bases_spikein <- ggplot(plotdata[special_prep == 4], aes(x = protocol_type_factor, y = cigarmapped_bases/1024^3))+
-    #, color = variable
     geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
         alpha = 0.5,
                       position=position_nudge(0.25), 
@@ -1040,25 +946,14 @@ plotdata[Platform == "Illumina", demultiplexed := TRUE]
 plotdata[, special_prep:=ifelse(grepl("allSpik",runname),4,ifelse(demultiplexed,3,ifelse(Platform == "PromethION",2,1)))]
 plotdata[is.na(special_prep), special_prep := 1]
 p_error_rate <- ggplot(plotdata[special_prep != 4], aes(x = protocol_type_factor, y = error_rate))+
-    #, color = variable
     geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
-        #fill = "lightblue",col = "lightblue", 
-        alpha = 0.5,
+    alpha = 0.5,
                       position=position_nudge(0.25), 
-                      adjust = 2)+#color = "steelblue",
-    #geom_flat_violin(draw_quantiles = NULL, trim = TRUE,  adjust = 0.5)+#color = "steelblue",
-    geom_boxplot( aes(fill = protocol_type_factor), #fill = "lightblue",
-                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+#color = "steelblue",
-    #             geom="pointrange", position = position_jitterdodge(0.5))+
-    #geom_jitter(width = 0.2,alpha = 0.5)+#color = "steelblue",
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
    geom_point(aes(col = protocol_type_factor,shape = as.factor(special_prep)),
-                #binaxis = "y", stackdir = "centerwhole",
-                # right = FALSE,
-                #fill = "darkgrey",binwidth = 0.1,# col = cellLine),
                position = position_jitter(0.2),  
-               # dotsize = 1,
-              #col = "darkgrey", 
-              # size = 2,
                alpha = 0.8)+
      scale_fill_manual(values = protocolCol,
                       name = "Protocol",
@@ -1068,38 +963,23 @@ p_error_rate <- ggplot(plotdata[special_prep != 4], aes(x = protocol_type_factor
                        name = "Protocol",
                        limits = protocolVec,
                        labels = protocolLabel)+
-    # scale_color_brewer(type = "qual", palette = 2,
-    #                    limits = c("sequinMixAV1","sequinMixAV2","SIRV-1","SIRV-4"),
-    #                    labels = c("Sequin MixA V1","Sequin MixA V2","SIRV-1","SIRV-4"))+
      scale_shape_manual(values = c(1,0,2,3),labels = c("MinION/GridION","PromethION","Demultiplexed","Spikein"),
                        name = "Protocol")+
-    # scale_y_log10()+
     xlab("Protocols")+
     ylab("Error rate")+ #\nPromethION runs excluded
     theme_classic()
 print(p_error_rate)
 ```
+
+
 ```{r}
 p_error_rate_log10 <- ggplot(plotdata[special_prep != 4], aes(x = protocol_type_factor, y = error_rate))+
-    #, color = variable
-     geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
-        #fill = "lightblue",col = "lightblue", 
-        alpha = 0.5,
-                      position=position_nudge(0.25), 
-                      adjust = 2)+#color = "steelblue",
-    #geom_flat_violin(draw_quantiles = NULL, trim = TRUE,  adjust = 0.5)+#color = "steelblue",
-    geom_boxplot( aes(fill = protocol_type_factor), #fill = "lightblue",
-                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+#color = "steelblue",
-    #             geom="pointrange", position = position_jitterdodge(0.5))+
-    #geom_jitter(width = 0.2,alpha = 0.5)+#color = "steelblue",
+    geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
+        alpha = 0.5,position=position_nudge(0.25), adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
    geom_point(aes(col = protocol_type_factor,shape = as.factor(special_prep)),
-                #binaxis = "y", stackdir = "centerwhole",
-                # right = FALSE,
-                #fill = "darkgrey",binwidth = 0.1,# col = cellLine),
-               position = position_jitter(0.2),  
-               # dotsize = 1,
-              #col = "darkgrey", 
-              # size = 2,
+                position = position_jitter(0.2),  
                alpha = 0.8)+
      scale_fill_manual(values = protocolCol,
                       name = "Protocol",
@@ -1109,9 +989,6 @@ p_error_rate_log10 <- ggplot(plotdata[special_prep != 4], aes(x = protocol_type_
                        name = "Protocol",
                        limits = protocolVec,
                        labels = protocolLabel)+
-    # scale_color_brewer(type = "qual", palette = 2,
-    #                    limits = c("sequinMixAV1","sequinMixAV2","SIRV-1","SIRV-4"),
-    #                    labels = c("Sequin MixA V1","Sequin MixA V2","SIRV-1","SIRV-4"))+
     scale_shape_manual(values = c(1,0,2,3),labels = c("MinION/GridION","PromethION","Demultiplexed","Spikein"),
                        name = "Protocol")+
     scale_y_log10()+
@@ -1124,25 +1001,14 @@ print(p_error_rate_log10)
 ## h spikein-error rate
 ```{r}
 p_error_rate_log10_spikein <- ggplot(plotdata[special_prep == 4], aes(x = protocol_type_factor, y = error_rate))+
-    #, color = variable
-     geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
-        #fill = "lightblue",col = "lightblue", 
+    geom_flat_violin( aes(fill = protocol_type_factor, col = protocol_type_factor),
         alpha = 0.5,
                       position=position_nudge(0.25), 
-                      adjust = 2)+#color = "steelblue",
-    #geom_flat_violin(draw_quantiles = NULL, trim = TRUE,  adjust = 0.5)+#color = "steelblue",
-    geom_boxplot( aes(fill = protocol_type_factor), #fill = "lightblue",
-                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+#color = "steelblue",
-    #             geom="pointrange", position = position_jitterdodge(0.5))+
-    #geom_jitter(width = 0.2,alpha = 0.5)+#color = "steelblue",
+                      adjust = 2)+
+    geom_boxplot( aes(fill = protocol_type_factor), 
+                 width = 0.05, outlier.alpha = 0,position=position_nudge(0.25))+
    geom_point(aes(col = protocol_type_factor,shape = as.factor(cellLine)),
-                #binaxis = "y", stackdir = "centerwhole",
-                # right = FALSE,
-                #fill = "darkgrey",binwidth = 0.1,# col = cellLine),
-               position = position_jitter(0.2),  
-               # dotsize = 1,
-              #col = "darkgrey", 
-              # size = 2,
+                position = position_jitter(0.2),  
                alpha = 0.8)+
      scale_fill_manual(values = protocolCol,
                       name = "Protocol",
@@ -1152,13 +1018,10 @@ p_error_rate_log10_spikein <- ggplot(plotdata[special_prep == 4], aes(x = protoc
                        name = "Protocol",
                        limits = protocolVec,
                        labels = protocolLabel)+
-    # scale_color_brewer(type = "qual", palette = 2,
-    #                    limits = c("sequinMixAV1","sequinMixAV2","SIRV-1","SIRV-4"),
-    #                    labels = c("Sequin MixA V1","Sequin MixA V2","SIRV-1","SIRV-4"))+
-    scale_shape_manual(values = c(1,0,2,3),name = "Spike-in")+
+   scale_shape_manual(values = c(1,0,2,3),name = "Spike-in")+
     scale_y_log10()+
     xlab("Protocols")+
-    ylab("Error rate")+ #\nPromethION runs excluded
+    ylab("Error rate")+ 
     theme_classic()
 print(p_error_rate_log10_spikein)
 ```
@@ -1237,13 +1100,12 @@ cvr_dt <- rbind(samples[,.(runname, cellLine, protocol_type)],
                 samples_wSpikein[grep("Illumina",runname),.(runname, cellLine, protocol_type)])[rbind(rlData,rlData_sr), on = "runname"]
 
 cvr_agg <- unique(cvr_dt[grepl("allSpik",runname),list(cumEstAve=median(cn),
-                                                      cumEstSD = sd(cn)), by = list(protocol_type,cellLine, txCvr_round)])  #cellLine %in% cellLines|
+                                                      cumEstSD = sd(cn)), by = list(protocol_type,cellLine, txCvr_round)])  
 
 cvr_agg[order(protocol_type, cellLine, txCvr_round), cumsumEstAve:=cumsum(cumEstAve), by = list(protocol_type, cellLine)]
 cvr_agg[, cumEstDisp:=cumEstSD/cumsumEstAve]
 cvr_agg[, cell_protocol := paste0(cellLine, protocol_type)]
 p_read_coverage_spikein <- ggplot(cvr_agg, aes(x = (-txCvr_round), y = cumEstAve*100,group = cell_protocol))+
-    # geom_ribbon(aes(ymin=pmax(0,cumEstAve-cumEstDisp), ymax=pmin(1,cumEstAve+cumEstDisp), fill = protocol_type), alpha=0.2,show.legend = FALSE)+
     geom_line(aes(color = protocol_type))+
     scale_x_continuous(breaks = -(5:0)/5,
                        limits = c(-1,0),
@@ -1258,7 +1120,6 @@ p_read_coverage_spikein <- ggplot(cvr_agg, aes(x = (-txCvr_round), y = cumEstAve
                       limits = protocolVec,
                       labels = protocolLabel)+
     ylab("Percent of reads")+
-    
     xlab("Coverage proportion of transcript(%)")+
     theme_classic()
 p_read_coverage_spikein
@@ -1268,14 +1129,13 @@ p_read_coverage_spikein
 ## k read coverage 
 ```{r}
 cvr_agg <- unique(cvr_dt[cellLine %in% cellLines,list(cumEstAve=median(cn),
-                                                      cumEstSD = sd(cn)), by = list(protocol_type,cellLine, txCvr_round)])  #cellLine %in% cellLines|
+                                                      cumEstSD = sd(cn)), by = list(protocol_type,cellLine, txCvr_round)]) 
 
 cvr_agg[order(protocol_type, cellLine, txCvr_round), cumsumEstAve:=cumsum(cumEstAve), by = list(protocol_type, cellLine)]
 cvr_agg[, cumEstDisp:=cumEstSD/cumsumEstAve]
 cvr_agg[, protocol_type := gsub("-SMRTcell","", protocol_type)]
 cvr_agg[, cell_protocol := paste0(cellLine, protocol_type)]
 p_read_coverage <- ggplot(cvr_agg, aes(x = (-txCvr_round), y = cumEstAve*100,group = cell_protocol))+
-    # geom_ribbon(aes(ymin=pmax(0,cumEstAve-cumEstDisp), ymax=pmin(1,cumEstAve+cumEstDisp), fill = protocol_type), alpha=0.2,show.legend = FALSE)+
     geom_line(aes(color = protocol_type))+
     scale_x_continuous(breaks = -(5:0)/5,
                        limits = c(-1,0),
@@ -1290,14 +1150,12 @@ p_read_coverage <- ggplot(cvr_agg, aes(x = (-txCvr_round), y = cumEstAve*100,gro
                       limits = protocolVec,
                       labels = protocolLabel)+
     ylab("Percent of reads")+
-    
     xlab("Coverage proportion of transcript(%)")+
     theme_classic()
 p_read_coverage
 ```
 
 ## m transcript diveristy by expression
-
 ```{r}
 library(ggpubr)
 # for salmon
@@ -1307,63 +1165,29 @@ my_comparisons <- list(
                         c("Illumina", "directRNA"),
                         c("Illumina", "directcDNA"),
                           c("Illumina", "PacBio"),
-                        # c("directRNA","directcDNA"),
-                        # c("directRNA","PacBio"),
-                        c("directcDNA","PacBio"))#)#
+                        c("directcDNA","PacBio"))
 
-# for bambu
-# my_comparisons <- list( c("cDNA", "Illumina"), 
-#                         c("cDNA", "directRNA"), 
-#                         
-#                         c("Illumina", "directRNA"),
-#                         # c("Illumina", "directcDNA"),
-#                         #   c("Illumina", "PacBio"),
-#                         c("directRNA","directcDNA"),
-#                         c("directRNA","PacBio"),
-#                         c("directcDNA","PacBio"))#)#
+
 p_transcript_diversity_boxplot <- ggplot(dt_agg[geneRank_new == 1000], aes(x = reorder(protocol_reduced,cumEstFun),  y = cumEstFun*100))+
     geom_boxplot()+
     stat_compare_means(comparisons = my_comparisons,
-                       #label.y = c(1,0.95,0.9,0.85,0.8),
-                      label.y = c(1,0.95,0.9,0.85,0.8,0.75)*100)+
-                       # method = c("t.test"))+
-                       # label.y = c(1,0.95,0.9,0.85,0.8,0.75))+ # Add pairwise comparisons p-value
-  # stat_compare_means(label.y = 50) +
+                        label.y = c(1,0.95,0.9,0.85,0.8,0.75)*100)+
     labs(x = "Protocol", y = "Percent of transcription \n for top 1000 ranked genes")+
     theme_classic()
 p_transcript_diversity_boxplot
-# pdf("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/p_gene_diversity_boxplot_salmon.pdf", width = 6, height = 4)
-# p_transcript_diversity_boxplot
-# dev.off()
 ```
 ## n transcript diversity by gene length
 ```{r}
-#txLengths.tbldf <- general_list$txLengths.tbldf
-# seSpikein <- readRDS("/mnt/projects/SGNExManuscript/output/bambuOutput_spikein_bam.rds")
-# seOutput <- readRDS("/mnt/projects/SGNExManuscript/output/bambuOutput_spikein_bam.rds")
-# com_data_gene <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/combinedExpressionDataGene_25May2023.rds")
-# com_data_gene[, protocol_general := gsub("-SMRTcell","", protocol_general)]
 geneTable <- unique(txLengths.tbldf[,list(geneLengthMax = max(tx_len)), by = list(gene_id, gene_biotype,hgnc_symbol)])
 setnames(geneTable, "gene_id","gene_name")
 geneTable[, geneRank := rank(geneLengthMax)]
-#com_data_gene_tmp <- geneTable[com_data_gene[grepl("ENSG",gene_name)&(method %in% c("bambu_lr","salmon_sr"))], on = "gene_name"]
 com_data_gene_tmp <- geneTable[com_data_gene[grepl("ENSG",gene_name)&(method %in% c("salmon_lr","salmon_sr"))], on = "gene_name"]
 
 ## rank by protocol and cell line 
-## gene order defined for each cell line protocol combination
-# geneOrder <- com_data_gene_tmp[,.(gene_name,cellLine,normEst,protocol_general,runname)] #cellLine %in% cellLines
-# geneOrder[, aveExp:=mean(normEst,na.rm=TRUE), by = list(gene_name, protocol_general,cellLine)]
-# geneOrder <- unique(geneOrder[,.(aveExp, gene_name, protocol_general,cellLine)])
-# geneOrder[, geneRank:=rank(-aveExp), by = list(protocol_general,cellLine)]
-
-# com_data_gene_tmp <- com_data_gene_tmp[geneOrder, on = c("gene_name","protocol_general","cellLine")]
-
-
 dt <- do.call("rbind",lapply(unique(com_data_gene_tmp$runname), function(r){
     dt <- com_data_gene_tmp[runname == r]
     dt[order(geneRank), cumEst:=cumsum(normEst)/sum(normEst)]
     dt <- dt[,.(geneRank,cumEst,runname, protocol_general, gene_biotype, cellLine)] 
-    #dt <- dt[,.(geneRank,cumEst,runname, protocol_general, cellLine)] 
     return(dt)
 }))
 
@@ -1372,25 +1196,18 @@ library(ggrepel)
 dt[, cell_protocol := paste0(cellLine, protocol_general)]
 dt[, protocol_reduced := gsub("RandomPrimer","",protocol_general)]
 
-
-
 dt_agg_geneLength <- dt[, list(geneRank_new = 1:max(ceiling(geneRank)),
                     cumEstFun = approxfun(geneRank, cumEst)(1:max(ceiling(geneRank)))), by = list(protocol_reduced, runname)]
-# dt_agg_ave <- unique(dt_agg[!grepl("Myeloma",runname)&!grepl("RandomPrimer",runname), list(cumEstAve = mean(cumEstFun,na.rm = TRUE), cumEstSd = sd(cumEstFun,na.rm = TRUE)), by = list(protocol_reduced, geneRank_new)])
+
 dt_agg_ave_geneLength <- unique(dt_agg_geneLength[!grepl("Myeloma",runname)&!grepl("RandomPrimer",runname), list(cumEstAve = median(cumEstFun,na.rm = TRUE), cumEstQ1 = quantile(cumEstFun,na.rm = TRUE, prob = 0.25), cumEstQ3 = quantile(cumEstFun,na.rm = TRUE, prob = 0.75)), by = list(protocol_reduced, geneRank_new)])
 ```
 
 # Supplementary Text Fig. 13
 ```{r}
 p_transcript_diversity_by_geneLength <- ggplot(dt_agg_ave_geneLength, aes(x = geneRank_new, y = cumEstAve*100, group = protocol_reduced, col = protocol_reduced, fill = protocol_reduced))+
-    #geom_ribbon(aes(ymin=pmax(0,cumEstAve-cumEstSd)*100, ymax=pmin(1,cumEstAve+cumEstSd)*100), col = NA, alpha=0.2,show.legend = FALSE)+
     geom_ribbon(aes(ymin=pmax(0,cumEstQ1)*100, ymax=pmin(1,cumEstQ3)*100), col = NA, alpha=0.2,show.legend = FALSE)+
     geom_line()+
-    #geom_line(data = dt_agg[cellLine == "Spikein"], col = "black", size = 3)+
-   # geom_vline(xintercept = 1000, linetype = 2)+
     geom_vline(xintercept = 31063, linetype = 2)+
-  # scale_x_log10()+
-    
      scale_color_manual(values = protocolCol,
                        name = "Protocol",
                        limits = protocolVec,
@@ -1399,19 +1216,14 @@ p_transcript_diversity_by_geneLength <- ggplot(dt_agg_ave_geneLength, aes(x = ge
                       name = "Protocol",
                       limits = protocolVec,
                       labels = protocolLabel)+
-   #geom_text_repel(data = dt_agg_ave[geneRank_new == 1000],aes(label =  paste0(round(cumEstAve*100),"%")), size = 3, nudge_x = -1)+
- geom_text_repel(data = dt_agg_ave_geneLength[geneRank_new == 31063],aes(label =  paste0(round(cumEstAve*100),"%")), size = 3, nudge_x = -1000)+
+   geom_text_repel(data = dt_agg_ave_geneLength[geneRank_new == 31063],aes(label =  paste0(round(cumEstAve*100),"%")), size = 3, nudge_x = -1000)+
     ylab("Percent of total transcription")+
     xlab("Number of genes (rank by gene length)")+
     theme_classic()
 p_transcript_diversity_by_geneLength
-# pdf("p_gene_diversity_by_geneLength_salmon.pdf", width = 6, height = 4)
-# p_transcript_diversity_by_geneLength
-# dev.off()
 ```
 
 ## o transcript diversity by gene length boxplot version with p-value
-
 ```{r}
 # 31603 1kb
 # 46545.5 3kb
@@ -1421,27 +1233,11 @@ my_comparisons <- list( c("cDNA", "directRNA"), c("cDNA", "Illumina"),c("cDNA", 
 p_transcript_diversity_boxplot_by_geneLength <- ggplot(dt_agg_geneLength[geneRank_new == 31063], aes(x = reorder(protocol_reduced,cumEstFun),  y = cumEstFun*100))+
     geom_boxplot()+
     stat_compare_means(comparisons = my_comparisons,
-                       #label.y = c(1,0.95,0.9,0.85,0.8),
-                      #label.y = c(1,0.95,0.9,0.85,0.8,0.75),
-                      label.y = seq(0.4,0.2,length.out = 7)*100)+ #method = c("t.test") by default, stat_compare_means use wilcox.test+
-                       # label.y = c(1,0.95,0.9,0.85,0.8,0.75))+ # Add pairwise comparisons p-value
-  # stat_compare_means(label.y = 50) +
+                       label.y = seq(0.4,0.2,length.out = 7)*100)+ 
      labs(x = "Protocol", y = "Percent of transcription \n for genes <= 1kb")+
     theme_classic()
 
 p_transcript_diversity_boxplot_by_geneLength
-# pdf("p_gene_diversity_boxplot_by_geneLength_salmon.pdf", width = 6, height = 4)
-# p_transcript_diversity_boxplot_by_geneLength
-# dev.off()
-# p2 <- ggplot(dt_agg[geneRank_new == 46545], aes(x = reorder(protocol_reduced,cumEstFun),  y = cumEstFun))+
-#     geom_boxplot()+
-#     stat_compare_means(comparisons = my_comparisons,
-#                        #label.y = c(1,0.95,0.9,0.85,0.8),
-#                       #label.y = c(1,0.95,0.9,0.85,0.8,0.75),
-#                       label.y = seq(0.4,0.2,length.out = 7))+ #method = c("t.test") by default, stat_compare_means use wilcox.test+
-#                        # label.y = c(1,0.95,0.9,0.85,0.8,0.75))+ # Add pairwise comparisons p-value
-#   # stat_compare_means(label.y = 50) +
-#     theme_minimal()
 ```
 
 
@@ -1552,13 +1348,6 @@ type_dist[, `:=`(protocol_type = gsub("-SMRTcell","",protocol_type))]
 type_dist[, protocol_type_factor := factor(protocol_type, c('directRNA','directcDNA','cDNA','PacBio','Illumina'),
                                                     protocolVec)]
 
-
-# sum_stats <- unique(type_dist[, list(full_length = sum(.SD[type %in% c("FIM","FSIM","MFIM")]$read_count)), by = list(protocol_type_factor,runname, nTotal)], by = NULL)
-# median(sum_stats[protocol_type_factor == "directRNA"]$full_length/sum_stats[protocol_type_factor == "directRNA"]$nTotal)
-# median(sum_stats[protocol_type_factor == "directcDNA"]$full_length/sum_stats[protocol_type_factor == "directcDNA"]$nTotal)
-# median(sum_stats[protocol_type_factor == "cDNA"]$full_length/sum_stats[protocol_type_factor == "cDNA"]$nTotal)
-# median(sum_stats[protocol_type_factor == "PacBio"]$full_length/sum_stats[protocol_type_factor == "PacBio"]$nTotal)
-
 p_full_length_filtered <- ggplot(type_dist[!grepl("all",runname)], aes(x = type, y = read_count/nTotal*100))+
     #geom_violin(draw_quantiles = NULL, trim = TRUE,adjust = 0.5)+
     geom_boxplot(aes(fill = protocol_type_factor,col = protocol_type_factor), width = 0.5, position=position_dodge(0.75), outlier.shape = NA)+
@@ -1580,9 +1369,6 @@ p_full_length_filtered <- ggplot(type_dist[!grepl("all",runname)], aes(x = type,
     xlab("Alignment type")+
     theme_classic()
 p_full_length_filtered
-# pdf("full_length_spliced_reads_protein_coding_genesonly.pdf", width = 6, height = 9/2)
-# p_full_length + theme(legend.position = "top")
-# dev.off()
 ```
 
 
@@ -1608,20 +1394,11 @@ p_mapped_read_length_matched <- ggplot(rldata_matched,
     aes(x = protocol_type_factor, y = aveLen))+ #/1000
        
     geom_boxplot(col = "black",width = 0.5)+
-    #geom_hline(yintercept = c(0.8, 0.9), linetype = "dashed", col = "grey")+
     geom_line(aes(group = cellLineRep), col = "grey", size = 0.4)+
     geom_point(aes(col = cellLine), alpha = 0.5)+
     stat_compare_means(paired = TRUE, method = "t.test", 
                        comparisons = list(c("cDNA","directcDNA"),c("directcDNA","directRNA")))+
-     # scale_fill_manual(values = protocolCol[1:3],
-     #                  name = "Protocol",
-     #                  limits = protocolVec[1:3],
-     #                  labels = protocolLabel[1:3])+
-    # scale_color_manual(values = protocolCol[1:3],
-    #                   name = "Protocol",
-    #                   limits = protocolVec[1:3],
-    #                   labels = protocolLabel[1:3])+
-    scale_color_brewer(type = "qual", palette= 3)+
+     scale_color_brewer(type = "qual", palette= 3)+
     xlab("Protocols")+
     ylab("Mean read length(Mappable)")+
     theme_classic()
@@ -1648,8 +1425,6 @@ Mode <- function(x) {
 sum_stats <- unique(rlData_long[, list(modeValue = Mode((value-directRNA)/tx_len),
                                 meanValue = mean((value-directRNA)/tx_len,na.rm = TRUE)), by = list(cellLinerep, variable)])
 p_coverage_difference <- ggplot(rlData_long[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(x = -(value-directRNA)/tx_len*100, fill = cellLinerep))+
-    #geom_vline(xintercept = 0, col = "grey", linetype = "dashed")+
-    #geom_histogram(position = "identity",bins = 100, alpha = 0.5)+
     geom_density(alpha = 0.5, col = "white")+
     xlab("Transcript coverage reduction percentage (%) \n PCR cDNA comparing to direct RNA")+
     ylab("Density")+
@@ -1658,63 +1433,26 @@ p_coverage_difference <- ggplot(rlData_long[grepl("HEYA8", cellLinerep)&(variabl
     geom_text(data = sum_stats[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(x = modeValue*100, y = 0.03, label = paste0("Mode: ", modeValue)))+
      geom_vline(data = sum_stats[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(xintercept = -meanValue*100), col = "grey", linetype = "dashed")+
     geom_text(data = sum_stats[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(x = -meanValue*100+5, y = 0.02, label = paste0("Mean: ", -round(meanValue*100))))+
-    #ylab("Frequency")+
-    #xlim(-1,1)+
-    theme_classic()
+   theme_classic()
 ```
 
 ## r read length scatter plot 
 ```{r}
 p_coverage_scatterplot <- ggplot(rlData_long[grepl("HEYA8", cellLinerep)&(variable == "cDNA")], aes(x =  directRNA, y = value))+
-    # geom_vline(xintercept = 0, col = "grey", linetype = "dashed")+
-    # geom_histogram(position = "identity",bins = 100, alpha = 0.5)+
-    #geom_point(alpha = 0.5, col = "lightblue")+
     geom_abline(intercept = 0, slope = 1)+
     geom_hex(binwidth = c(0.005, 0.005), size = 0.5, alpha = 0.1, color = "steelblue")+
     geom_density_2d()+
-   # scale_fill_gradient2()+
-    #geom_density(alpha = 0.5, col = "white")+
-    ylab("Read length (PCR cDNA)")+
+   ylab("Read length (PCR cDNA)")+
     xlab("Read length (directRNA)")+
     facet_wrap(~cellLinerep)+
     scale_x_log10()+
     scale_y_log10()+
-    #ylab("Frequency")+
-    #xlim(-1,1)+
     theme_classic()
 ```
 
 ## supplementary plot
 ```{r}
-
 pdf("supp_figure_2_draft_17oct2023.pdf", width = 14, height = 20)
-# ggarrange(p_expected_data_cost+theme(legend.position="none"), p_expected_throughput+theme(legend.position="none"),
-#           p_total_bases+theme(legend.position="none"), p_error_rate_log10+theme(legend.position="none"), 
-#           # ggarrange(
-#           #           , nrow = 2, align = "hv"),
-#           p_coverage_5to3_spikein +theme(legend.position="none"),
-#           p_read_coverage_spikein +theme(legend.position="none"),
-#           p_read_coverage+theme(legend.position="none"), 
-#           p_full_length_filtered+theme(legend.position="none"), 
-#           p_transcript_diversity_boxplot+theme(legend.position="none"),
-#          p_transcript_diversity_by_geneLength+theme(legend.position="none"),
-#          p_transcript_diversity_boxplot_by_geneLength+theme(legend.position="none"),
-#           p_cdna_dcdna+theme(legend.position="none"),
-#           p_mapped_read_length_matched+theme(legend.position="none"),
-#          
-#          p_coverage_difference +theme(legend.position="none"),
-#          p_coverage_scatterplot +theme(legend.position="none"),
-#          as_ggplot(get_legend(p_expected_data_cost)),
-#           as_ggplot(get_legend(p_total_bases)),
-#          as_ggplot(get_legend(p_read_coverage)),
-#          as_ggplot(get_legend(p_mapped_read_length_matched)),
-#           labels = c("a","b","c","d",
-#                      "e","f","g","h",
-#                      "i","j","k","l",
-#                      "","","",""),
-#           common.legend = TRUE,
-#           ncol = 4, nrow = 5, align = "hv")
-
 ggdraw() +
      draw_plot(p_expected_data_cost+theme(legend.position="none"), 0,16/21,1/3,5/21)+
      draw_plot(p_expected_throughput+theme(legend.position="none"),1/3,16/21, 1/3,5/21)+
@@ -1733,14 +1471,12 @@ ggdraw() +
     draw_plot( as_ggplot(get_legend(p_total_bases)), 2/5,0,1/5,1/21)+
     draw_plot(as_ggplot(get_legend(p_read_coverage)), 3/5,0,1/5,1/21)+
     draw_plot(as_ggplot(get_legend(p_mapped_read_length_matched)),4/5,0,1/5,1/21)
-
 dev.off()
 ```
 
 
 
 ```{r}
-#
 pdf("supp_figure_3_draft_170ct2023.pdf", width = 7, height = 5)
 ggdraw() +
         draw_plot(p_sequencing_depth_spikein+theme(legend.position="none"),0,4/7, 1/3,3/7)+
@@ -1752,7 +1488,6 @@ draw_plot(p_error_rate_log10_spikein+theme(legend.position="none"), 0,1/7,1/3,3/
     
       draw_plot( as_ggplot(get_legend(p_sequencing_depth_spikein)), 0,0,1/2,1/7)+
      draw_plot(as_ggplot(get_legend(p_coverage_5to3_spikein)), 1/2,0,1/2,1/7)
-   
 dev.off()
 ```
 
@@ -1795,20 +1530,11 @@ p_mapped_read_length_matched <- ggplot(rldata_matched,
     aes(x = protocol_type_factor, y = aveLen))+ #/1000
        
     geom_boxplot(col = "black",width = 0.5)+
-    #geom_hline(yintercept = c(0.8, 0.9), linetype = "dashed", col = "grey")+
     geom_line(aes(group = cellLineRep), col = "grey", size = 0.4)+
     geom_point(aes(col = cellLine), alpha = 0.5)+
     stat_compare_means(paired = TRUE, method = "t.test", 
                        comparisons = list(c("cDNA","directcDNA"),c("directcDNA","directRNA")))+
-     # scale_fill_manual(values = protocolCol[1:3],
-     #                  name = "Protocol",
-     #                  limits = protocolVec[1:3],
-     #                  labels = protocolLabel[1:3])+
-    # scale_color_manual(values = protocolCol[1:3],
-    #                   name = "Protocol",
-    #                   limits = protocolVec[1:3],
-    #                   labels = protocolLabel[1:3])+
-    scale_color_brewer(type = "qual", palette= 3)+
+     scale_color_brewer(type = "qual", palette= 3)+
     xlab("Protocols")+
     ylab("Average read length(Mappable)")+
     theme_classic()
@@ -1847,7 +1573,7 @@ full-length filtering distance analysis
 full-length filtered 
 full-length analysis for public dataset from literature papers
 ```{r}
-rin_data_se_files <- dir("/mnt/projects/SGNExManuscript/output_guppy6.4.2/RIN_data/se/", pattern = ".rds", full.names = TRUE)
+rin_data_se_files <- dir("RIN_data/se/", pattern = ".rds", full.names = TRUE)
 # check for short read 
 type_dist_rin_data <- lapply(rin_data_se_files, function(b){
   print(b)
@@ -1915,16 +1641,7 @@ type_dist <- rin_match_data[type_dist, on = "runname"]
 sum_stats <- unique(type_dist[, list(full_length = sum(.SD[type %in% c("FIM","FSIM","MFIM")]$read_count)), by = list(rin_value,runname, nTotal, spliced_type)], by = NULL)
 sum_stats[, percentage := full_length/nTotal]
 p_full_length_rin_data <- ggplot(type_dist, aes(x = type, y = read_count/nTotal))+
-    #geom_violin(draw_quantiles = NULL, trim = TRUE,adjust = 0.5)+
     geom_point(aes(col = as.factor(rin_value)), size = 4, shape = 16)+
-    # scale_fill_manual(values = protocolCol,
-    #                   name = "Protocol",
-    #                   limits = protocolVec,
-    #                   labels = protocolLabel)+
-    # scale_color_manual(values = protocolCol,
-    #                    name = "Protocol",
-    #                    limits = protocolVec[1:5],
-    #                    labels = protocolLabel[1:5])+
     scale_color_brewer(type = "seq", direction = 2, palette = 1)+
     ylab("Fraction of reads")+
     scale_x_discrete(limits = c("FIM","SIM","MSIM","FSIM","MFIM"),
@@ -1937,7 +1654,7 @@ p_full_length_rin_data <- ggplot(type_dist, aes(x = type, y = read_count/nTotal)
     xlab("Alignment type")+
     theme_classic()
 p_full_length_rin_data
-pdf("/full_length_rin_data_spliced_reads_protein_coding_genesonly.pdf", width = 8, height = 4)
+pdf("full_length_rin_data_spliced_reads_protein_coding_genesonly.pdf", width = 8, height = 4)
 p_full_length_rin_data + theme(legend.position = "top")
 dev.off()
 ```
@@ -2060,7 +1777,7 @@ fraction of reads cut short: 5', 3' or both ends
 seOutput <- readRDS("bambuOutput_May25.rds")
 distTablesList <- metadata(seOutput)$distTables
 library(BiocFileCache)
-bfc1 <- BiocFileCache("/mnt/projects/SGNExManuscript/output_guppy6.4.2/RunBambu22Apr/rc", ask = FALSE)
+bfc1 <- BiocFileCache("RunBambu22Apr/rc", ask = FALSE)
 info <- bfcinfo(bfc1)
 annotation_ranges <- rowRanges(seOutput)
 data_reads <- lapply(seq_along(distTablesList), function(k){
@@ -2111,12 +1828,12 @@ data_reads <- lapply(seq_along(distTablesList), function(k){
   perc_out[, protocol:=strsplit(runname, '\\_')[[1]][3], by = runname]
   return(perc_out)
 })
-saveRDS(data_reads, file = "/mnt/projects/SGNExManuscript/output_guppy6.4.2/first_last_exon_coverage_filtered_version.rds")
+saveRDS(data_reads, file = "first_last_exon_coverage_filtered_version.rds")
 ```
 
 
 ```{r}
-data_reads <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/first_last_exon_coverage.rds")
+data_reads <- readRDS("first_last_exon_coverage.rds")
 data <- do.call("rbind",data_reads)
 data[, protocol := gsub("Stranded","", protocol)]
 
@@ -2129,7 +1846,7 @@ ggplot(dataLong, aes(x = protocol, y = value/nTotal, fill = variable))+
 
 
 ## spliced reads only
-data_reads <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/first_last_exon_coverage_splicedOnly.rds")
+data_reads <- readRDS("first_last_exon_coverage_splicedOnly.rds")
 data <- do.call("rbind",data_reads)
 data[, protocol := gsub("Stranded","", protocol)]
 
@@ -2140,7 +1857,7 @@ ggplot(dataLong, aes(x = protocol, y = value/nSplicedTotal, fill = variable))+
     theme_classic()
 
 # 1/50bp
-data_reads <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/first_last_exon_coverage_splicedOnly_1bp_50bp.rds")
+data_reads <- readRDS("first_last_exon_coverage_splicedOnly_1bp_50bp.rds")
 data <- do.call("rbind",data_reads)
 data[, protocol := gsub("Stranded","", protocol)]
 
@@ -2158,7 +1875,7 @@ ggplot(dataLong, aes(x = protocol, y = value/nTotal, fill = variable))+
     theme_classic()
 
 
-data_reads <- readRDS("/mnt/projects/SGNExManuscript/output_guppy6.4.2/first_last_exon_coverage_filtered_version.rds")
+data_reads <- readRDS("first_last_exon_coverage_filtered_version.rds")
 data <- do.call("rbind",data_reads)
 data[, protocol := gsub("Stranded","", protocol)]
 filter_threshold <- 30
@@ -2170,12 +1887,11 @@ p_first_last_exon_coverage <- ggplot(dataLong, aes(x = protocol, y = value/nTota
     geom_hline(yintercept = c(0.8,0.95), col = "grey", linetype = "dashed")+
     geom_boxplot(outlier.size = 1, outlier.color = "grey", outlier.shape = 16)+
     ylim(0.3,1)+
-     #ggtitle(paste(filter_threshold,"All reads"))+
     scale_fill_brewer(type = "qual", palette = 1, name = "Start End coverage")+
     ylab("Fraction of reads")+
     theme_classic()+
     theme(legend.position = "top")
-pdf(paste0(wkdir, "revisionFigures_guppy6.4.2/figure2/fraction_first_last_exon_coverage.pdf"), width = 6, height = 4)
+pdf("fraction_first_last_exon_coverage.pdf", width = 6, height = 4)
 p_first_last_exon_coverage
 dev.off()
 

@@ -84,15 +84,13 @@ sr_ave[, cpm.major := (cpm.rank==1)]
 ```{r}
 library(dplyr)
 splicingDT <- do.call("rbind",lapply(cellLineVec, function(s){
-  dt <- data.table(as.data.frame(rowData(seOutput)))#data.table(as.data.frame(rowData(seOutput[which(apply(assays(seOutput)$CPM>=1,1,sum)>=1)])))#
+  dt <- data.table(as.data.frame(rowData(seOutput)))
 setnames(dt, c("TXNAME","GENEID"),c("tx_name","gene_name"))
-dt[, txCount:=length(unique(tx_name)), by = gene_name] # txCount should be based on active isoforms, active across samples, at least 1 cpm in any samples
+dt[, txCount:=length(unique(tx_name)), by = gene_name] 
   dt <- lr_ave[cellLine==s,.(tx_name,gene_name, aveExp, fullLengthCounts,cpm.major)][dt,on = c("tx_name","gene_name")]
   setnames(dt, c("aveExp","fullLengthCounts","cpm.major"),
            paste0("LongRead.",c("cpm","fullLengthCounts","cpm.major")))
-# dt <- lr_ave[cellLine==s,.(tx_name,gene_name, aveExp,cpm.major)][dt,on = c("tx_name","gene_name")] # for salmon and nanocount, there is no fulllengthcounts
-# setnames(dt, c("aveExp","cpm.major"),
-#          paste0("LongRead.",c("cpm","cpm.major")))
+
   dt <- sr_ave[cellLine==s,.(tx_name,gene_name, aveExp, cpm.major)][dt, on = c("tx_name","gene_name")]
   setnames(dt, c("aveExp","cpm.major"),
            paste0("ShortRead.",c("cpm","cpm.major")))
@@ -107,12 +105,9 @@ dt[, txCount:=length(unique(tx_name)), by = gene_name] # txCount should be based
   mutate(txMajor = tx_name[which(LongRead.cpm.major==1)[1]],
          txMajor.short = tx_name[which(ShortRead.cpm.major==1)[1]],
          cpm.major = LongRead.fullLengthCounts[which(LongRead.cpm.major==1)[1]],
-         #cpm.major = LongRead.cpm[which(LongRead.cpm.major==1)[1]],
-         cpm.major.short = ShortRead.cpm[which(ShortRead.cpm.major==1)[1]],
+          cpm.major.short = ShortRead.cpm[which(ShortRead.cpm.major==1)[1]],
          cpm=LongRead.fullLengthCounts,
-         #cpm = LongRead.cpm,
          cpm.short = ShortRead.cpm,
-      #cpm.gene = sum(LongRead.cpm)) %>%
          cpm.gene = sum(LongRead.fullLengthCounts)) %>% # in the case of salmon and nanocount the cpm gene will just be based on cpm not on fulllength counts
   filter(cpm.major>2 & ! LongRead.cpm.major & cpm>2 & cpm/cpm.gene>0.05)
   splicingTableMajorMinor <- compareTranscripts(rowRanges(seOutput)[majorMinorIsoformMatchTable$txMajor],rowRanges(seOutput)[majorMinorIsoformMatchTable$tx_name])
@@ -133,8 +128,6 @@ splicingDT.sum <- unique(splicingDT[, list(alternativeFirstExon = any(alternativ
                                    altSplicing5Prime = any(exon5Prime)), by = list(txMajor, txMinor, gene_name, strand)],by=NULL)
 splicingDT.agg <-unique(splicingDT.sum[,list(altFirstExon = any(alternativeFirstExon|internalFirstExon),
                            altLastExon = any(alternativeLastExon|internalLastExon),
-                           # altTSS = any(TSS),
-                           # altTES = any(TES),
                            intronRetention = any(intronRetention),
                            exonSkipping = any(exonSkipping),
                            altSplicing5Prime = any(altSplicing5Prime),
@@ -167,10 +160,7 @@ p_within_cellLine <- ggplot(plotdata, aes(x = variable, y = count))+
                               "altSplicing3Prime",
                               "altSplicing5Prime")))+
   theme_classic()
-# pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/splicing_summary_withinCellLines.pdf"), width = 13, height = 4)
-# print(p)
-# dev.off()
-# total percentage 
+
 percentageData <- unique(plotdata[,list(sumCount = sum(count)), by = list(variable)])
 percentageData[, perc := sumCount/sum(sumCount)]
 # > percentageData
@@ -187,7 +177,7 @@ percentageData[, perc := sumCount/sum(sumCount)]
 
 ## b splicing upset plot
 ```{r}
-#splicingDT <- readRDS("splicing_summaryDT_withinCellLine_bambu_filterBycpm.rds")
+
 library(ComplexHeatmap)
 #set.seed(123)
 lt = dcast(splicingDT, gene_name+txMajor+txMinor+strand+cellLine ~ variable, value.var = "value")
@@ -212,13 +202,7 @@ nonordered_names <- unlist(lapply(seq_along(comb_size(m)), function(i){
   paste(gsub("altTES","TES",gsub("altTSS","TSS",set_name(m)))[which(as.numeric(unlist(strsplit(names(comb_size(m))[i],"")))==1)], collapse = "&")
 }))
 barplot_top <- comb_size(m)
-# barplot_top[is.na(barplot_top)] <- 0
-# ht <- UpSet(m, top_annotation = upset_top_annotation(m,
-#     gp = gpar(col = comb_degree(m))),
-#       right_annotation = upset_right_annotation(m,
-#     ylim = c(0, 150),
-#     width = unit(4,"cm"),
-#     gp = gpar(fill = "gray60")))
+
 ss = set_size(m)
 cs = cbind(comb_size(m),novelCount[match(comb_name(m),pat)]$count)
 cs <- cbind(cs, cs[,1]-cs[,2])
@@ -229,7 +213,7 @@ plotdata_wide = unique(dcast(splicingDT,txMajor + txMinor + gene_name + cellLine
                            altSplicing5Prime = any(altSplicing5Prime),
                            altSplicing3Prime = any(altSplicing3Prime)), by = list(gene_name,cellLine)])
 plotdata <- unique(melt(plotdata_wide, id.vars = colnames(plotdata_wide)[c(1,2)], measure.vars = colnames(plotdata_wide)[-c(1:2)])[, list(count = sum(value)), by =list(cellLine,variable)],by=NULL)
-sbox <- as.matrix(dcast(plotdata, variable ~ cellLine, value.var = "count")[match(colnames(lt),variable),2:6,with=FALSE]) #match(set_name(m)[order(ss, decreasing = TRUE)], variable)
+sbox <- as.matrix(dcast(plotdata, variable ~ cellLine, value.var = "count")[match(colnames(lt),variable),2:6,with=FALSE]) 
 snumber <- apply(apply(do.call("rbind",strsplit(rownames(cs),"")),c(1,2),as.numeric),1,sum)
 cs_single <- cs[,c(3,2)]
 cs_single[snumber>1,] <- 0  
@@ -253,12 +237,6 @@ ht = UpSet(m,
                                 gp = gpar(fill = brewer.pal(8,"Dark2")[c(1:2)]),
                                 height = unit(4, "cm")
         ),
-        # "10>=" = anno_barplot(cs10,
-        #                        ylim =c(0, max(cs10)*1.1),#
-        #                        border = FALSE,
-        #                        gp = gpar(fill = brewer.pal(8,"Dark2")[c(1:2)]),
-        #                        height = unit(4, "cm")
-        # ),
         "multiple" = anno_barplot(cs_others,
                               ylim =c(0, max(apply(cs_others,1,sum))*1.1),#
                               border = FALSE,
@@ -285,20 +263,9 @@ ht = UpSet(m,
     ),
     right_annotation = NULL,
     show_row_names = FALSE)
-# decorate_annotation("Event Intersections", {
-#     grid.text(cs[od], x = seq_along(cs), y = unit(cs[od], "native") + unit(2, "pt"),
-#         default.units = "native", just = c("left", "bottom"),
-#         gp = gpar(fontsize = 6, col = "#404040"), rot = 45)
-# })
-# pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/DE_IsoSwtType_UpSetPlot_withinCellLines_novel",saveDate,"_bambu_filterByCPM.pdf"), width = 12, height = 10)
+
 ht = draw(ht)
 od = column_order(ht)
-# decorate_annotation("Event Intersections", {
-#     grid.text(cs[od,1], x = seq_along(cs), y = unit(cs[od], "native") + unit(2, "pt"),
-#         default.units = "native", just = c("left", "bottom"),
-#         gp = gpar(fontsize = 6, col = "#404040"), rot = 45)
-# })
-# dev.off()
 
 
 
@@ -311,9 +278,8 @@ sum((lt[,4]+lt[,1]>=2))/sum(lt[,4]) ## percentage of exon skipping co-observed w
 
 ## c heatmap plot for cell-type specific dominant isoform switching based on dexseq and stageR
 ```{r}
-#dtuGenes_1vs1 <- readRDS(paste0("/mnt/projects/SGNExManuscript/output_guppy6.4.2/dtuGenes_1vs1.rds"))
-dtuGenes_1vsall <- readRDS(paste0("/mnt/projects/SGNExManuscript/output_guppy6.4.2/dtuGenes_1vsall.rds"))
-table_1vsall <- fread(paste0("/mnt/projects/SGNExManuscript/output_guppy6.4.2/spliced_output_1vsall_bambu.csv"), header = TRUE)
+dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall.rds"))
+table_1vsall <- fread(paste0("spliced_output_1vsall_bambu.csv"), header = TRUE)
 tss_threshold <- 0
 tes_threshold <- 0
 aggCases_1vsall <- table_1vsall[, list(alternativeFirstExon = any(alternativeFirstExon),
@@ -329,7 +295,6 @@ aggCases_1vsall <- table_1vsall[, list(alternativeFirstExon = any(alternativeFir
 ## 9.1 Heatmap
 library(ComplexHeatmap)
 library(circlize)
-#col_fun = colorRamp2(c(0,2), c("white", "red"))
 geneTxTable_extended[, newTxClassAggregated:=ifelse(grepl("newFirstExon",txClassDescription)&(grepl("newLastExon",txClassDescription)),
                                                     "newFirstLastExon",
                                              ifelse(grepl("newFirstExon",txClassDescription), "newFirstExon",
@@ -353,15 +318,12 @@ tmpFilter <- tmpAll[,.(tx_name,gene_name,runname, estNorm,cellLine)][dtuGenes_1v
 setnames(tmpFilter, old = c("cellLine","i.cellLine"), new = c("expCellLine","cellLine"))
  setnames(aggCases_1vsall, c("gene","ref_tx","ref_cellLine"),c("gene_name","tx_name","cellLine"))
 tmp <- tmpFilter[aggCases_1vsall, on = c("gene_name","tx_name","cellLine")]
-# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype)]
-# setnames(geneTxTable, "gene_id","gene_name")
 tmp <- geneTxTable_extended[tmp, on = c("tx_name","gene_name")]
 tmp[grepl("R",tx_name), gene_biotype := "Spike-in"]
 tmp <- tmp[!is.na(runname)]
 tmp[, eqClassById := NULL]
 tmp_wide <- dcast(tmp[,-19,with = FALSE], ...~runname, value.var = "estNorm")
 tmp_wide[is.na(tmp_wide)] <- 0
-#tmp_wide <- unique(tmp_wide)
 tmp_final <- tmp_wide[tmp_wide[,.I[order(log2fold_1_0)], by = cellLine]$V1]
 plotdata <- as.data.frame(tmp_final[,-c(1:35),with=FALSE])
 col_fun = colorRamp2(c(0,15), c("white", "cornflowerblue"))
@@ -375,7 +337,7 @@ rowInfo[, gene_cluster:=ifelse(gene_biotype_corrected %in% tr_gene_list,'TR gene
                                               ifelse(gene_biotype_corrected %in% pseudogene_list,'Pseudogene',
                                                      ifelse(gene_biotype_corrected %in% ig_gene_list, 'IG gene',gene_biotype_corrected)))))]
 rowInfo[, gene_cluster := ifelse(gene_cluster %in% c("IG gene","TR gene", "Mt_tRNA","Mt_rRNA","ribozyme"),"others", gene_cluster)]
-# write.csv(rowInfo, file = paste0("/mnt/projects/SGNExManuscript/output_guppy6.4.2/splicing_heatmap_rowinfo.csv"))
+
 pvalue_col_fun = colorRamp2(c(0, 2, 3), c("green", "white", "red"))
 colCellLines <- brewer.pal(8,"Dark2")[seq_along(sort(unique(colInfo$expCellLine)))]
 colRowCellLines <- brewer.pal(8,"Dark2")[seq_along(sort(unique(rowInfo$cellLine)))]
@@ -397,8 +359,6 @@ hgncTypes = columnAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated
                            nisoform = rowInfo$nisoform,
                            altFirstExon = as.factor(rowInfo$alternativeFirstExon|rowInfo$internalFirstExon),
                            altLastExon = as.factor(rowInfo$alternativeLastExon|rowInfo$internalLastExon),
-                           # altTSS = as.factor(rowInfo$TSS),
-                           # altTES = as.factor(rowInfo$TES),
                            altSplicing5Prime = as.factor(rowInfo$altSplicing5Prime),
                            altSplicing3Prime = as.factor(rowInfo$altSplicing3Prime),
                            exonSkipping = as.factor(rowInfo$exonSkipping),
@@ -409,8 +369,6 @@ hgncTypes = columnAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated
                                       nisoform = col_fun_nisoform,
                                       altFirstExon = colEvt,
                                       altLastExon = colEvt,
-                                      # altTSS = colEvt,
-                                      # altTES = colEvt,
                                       altSplicing5Prime = colEvt,
                                       altSplicing3Prime = colEvt,
                                       exonSkipping = colEvt,
@@ -418,8 +376,7 @@ hgncTypes = columnAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated
                                       refcellLine = colRowCellLines),
   foo = anno_text(rowInfo$hgnc_symbol_corrected, gp = gpar(fontsize = 8)),
   annotation_name_side = "left")
-  #show_annotation_name = ,
-  #show_legend = c(rep(TRUE,11),FALSE))
+  
 plotmat <- (as.matrix(log2(plotdata+1)))
 colnames(plotmat) <- NULL
 p <- Heatmap(t(plotmat), name = "Counts", col = col_fun, bottom_annotation = hgncTypes,
@@ -429,7 +386,7 @@ p <- Heatmap(t(plotmat), name = "Counts", col = col_fun, bottom_annotation = hgn
         cluster_columns = FALSE,
         right_annotation = cellLine_anno)
 print(p)
-pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/DmntIsoSwt_Heatmap17Aug2023.pdf"), width = 13, height = 12)#
+pdf(paste0("DmntIsoSwt_Heatmap17Aug2023.pdf"), width = 13, height = 12)#
 p
 dev.off()
 ```
@@ -437,7 +394,7 @@ dev.off()
 
 ## arrange main figure
 ```{r}
-pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/Figure5_draft_17Aug2023.pdf"), width = 8.2, height = 20)#
+pdf(paste0("Figure5_draft_17Aug2023.pdf"), width = 8.2, height = 20)#
 
     ggdraw()+
     draw_plot(p_within_cellLine, 0,4/5,1,1/5)+
@@ -476,10 +433,7 @@ p_within_cellLine_salmon <- ggplot(plotdata_salmon, aes(x = variable, y = count)
                               "altSplicing3Prime",
                               "altSplicing5Prime")))+
   theme_classic()
-# pdf(paste0("/mnt/projects/SGNExManuscript/revisionFigures_guppy6.4.2/figure4/splicing_summary_withinCellLines.pdf"), width = 13, height = 4)
-# print(p)
-# dev.off()
-# total percentage 
+
 percentageData_salmon <- unique(plotdata_salmon[,list(sumCount = sum(count)), by = list(variable)])
 percentageData_salmon[, perc := sumCount/sum(sumCount)]
 # > percentageData_salmon
@@ -521,10 +475,7 @@ p_within_cellLine_nanocount <- ggplot(plotdata_nanocount, aes(x = variable, y = 
                               "altSplicing3Prime",
                               "altSplicing5Prime")))+
   theme_classic()
-# pdf(paste0("splicing_summary_withinCellLines.pdf"), width = 13, height = 4)
-# print(p)
-# dev.off()
-# total percentage 
+
 percentageData_nanocount <- unique(plotdata_nanocount[,list(sumCount = sum(count)), by = list(variable)])
 percentageData_nanocount[, perc := sumCount/sum(sumCount)]
 # > percentageData_nanocount
@@ -560,10 +511,7 @@ p_within_cellLine_filterbambu <- ggplot(plotdata_filterbambu, aes(x = variable, 
                               "altSplicing3Prime",
                               "altSplicing5Prime")))+
   theme_classic()
-# pdf(paste0("splicing_summary_withinCellLines.pdf"), width = 13, height = 4)
-# print(p)
-# dev.off()
-# total percentage 
+
 percentageData_filterbambu <- unique(plotdata_filterbambu[,list(sumCount = sum(count)), by = list(variable)])
 percentageData_filterbambu[, perc := sumCount/sum(sumCount)]
 # > percentageData_filterbambu
@@ -584,7 +532,6 @@ percentageData_filterbambu[, perc := sumCount/sum(sumCount)]
 #exon skipping and alternative promoters but not others 
 ```{r}
 library(dplyr)
-#saveRDS(splicingDT, file = paste0("output/splicingDT.rds"))
 splicingDT <- readRDS("splicing_summaryDT_withinCellLine.rds")
 
 txCount <- data.table(as.data.frame(rowData(seOutput[which(apply(assays(seOutput)$CPM>=1,1,sum)>=5)]))) # at least 1 CPM reads in 5 samples
@@ -605,8 +552,7 @@ plotdata_nisoforms <- do.call("rbind",lapply(genevec, function(s){
   eventSummary <- data.table(gene_name = s, 
              altFirstExon = length(reduce(txranges[txranges$exon_rank==1])),
              altLastExon = length(reduce(txranges[txranges$exon_endRank==1])))
-  # eventSummary[, others := paste0(splicingDT[gene_name == s & value]]
-  return(eventSummary)
+    return(eventSummary)
 }))
 
 
@@ -624,7 +570,6 @@ tmpdata <- unique(plotdata_long[,.(gene_name,txCount)],by= NULL)
 p_gene_rank_nisoforms <- ggplot(tmpdata, aes(x = gene_name))+
   geom_bar(aes(y = txCount), stat = "identity", col = "grey70")+
   geom_abline(intercept = 2:10, slope = 0, size = 1, col = "grey 70")+
-  # geom_point(data = plotdata_long[variable == "altFirstExon"], aes(x = gene_name, y = value), stat = "identity", col = colPat[1], alpha = 0.5)+
   geom_bar(data = plotdata_long, aes(x = gene_name, y = value, fill = variable), stat = "identity",alpha = 0.5)+
   scale_fill_brewer(type = "qual", palette = 6)+
   
@@ -633,13 +578,7 @@ p_gene_rank_nisoforms <- ggplot(tmpdata, aes(x = gene_name))+
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank())
-  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
-
-
-# pdf(paste0("figures/DE_IsoSwtType_GeneRanks",saveDate,".pdf"), width = 12, height = 5)
-# print(p)
-# dev.off()
+  
 
 write.csv(plotdata_wide[!is.na(txCount)][order(txCount)], file = paste0("geneRanksByIsoforms.csv"))
 
@@ -670,7 +609,6 @@ dev.off()
 # Function code for running dexseq
 ```{r}
 ## code for alternative splicing analysis===============
-#.libPaths("/mnt/dataSSD/software/R/site-library")
 rm(list = ls())
 # 1. load data ============================
 ### load library =====================
@@ -696,12 +634,12 @@ sampleData <- data.table(as.data.frame(read_xlsx('ONT Master Table.xlsx', sheet 
 ensemblAnnotations.transcripts <- read.delim(file = 'Homo_sapiens.GRCh38.91.annotations-transcripts.txt',header=TRUE)
 txdbEnsembl91 <- loadDb('hg38_sequins_SIRV_ERCCs_longSIRVs-txdb.sqlite')
 samples_wSpikein <- general_list$samples_wSpikein
-#c('Hct116','HepG2','K562','A549','MCF7',"H9","HEYA8")
-protocolCol <-  general_list$protocolCol#adjustcolor(brewer.pal(8,"Dark2")[1:5],0.7)
-protocolVec <-  general_list$protocolVec#c("directRNA","directcDNA","cDNA","PacBio","Illumina")
-protocolLabel <- general_list$protocolLabel#c("RNA","PCR-free cDNA","cDNA","PacBio","Illumina")
+
+protocolCol <-  general_list$protocolCol
+protocolVec <-  general_list$protocolVec
+protocolLabel <- general_list$protocolLabel
 txvec <- fread(paste0("txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
-#txvec <- fread(paste0(wkdir,"txList_matchingToGTF_wtChrIs.txt"), header = FALSE)
+
 txvec <- gsub("\\..*","",txvec$V1)
 ensemblAnnotations.transcripts <- copy(general_list$ensemblAnnotations.transcripts)
 setnames(ensemblAnnotations.transcripts, "ensembl_gene_id","gene_name")
@@ -722,7 +660,7 @@ tmp <- data.table(exon_rank = exonsRanges$exon_rank,
 tmp[, `:=`(exon_end_rank = max(exon_rank)-exon_rank+1), by = txId]
 tmp[, `:=`(exonMaxRank=max(exon_rank),
            exonEndMaxRank = max(exon_end_rank)), by = exonId]
-# exonsRanges$exon_rank_adjust <- tmp$exon_rank_adjust
+
 exonsRanges$exon_end_rank <- tmp$exon_end_rank
 exonsRanges$exonMaxRank <- tmp$exonMaxRank
 exonsRanges$exonEndMaxRank <- tmp$exonEndMaxRank
@@ -821,18 +759,16 @@ geneTxTable_extended[,nisoform:=length(unique(tx_name)), by = gene_name]
 #
 geneTxTable_extended <- geneTxTable[geneTxTable_extended, on = c("gene_name","tx_name")]
 # 2. Run DEXSeq ======================
-# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, nisoform)]
-# setnames(geneTxTable, 'gene_id', 'gene_name')
+
 # 2.1 DEXSeq for 1 vs all cell line==========================
 library(DRIMSeq)
 geneTxTableRaw <- as.data.table(rowData(seOutput))
 setnames(geneTxTableRaw, c("GENEID","TXNAME"),c("gene_name","tx_name"))
 geneTxTableRaw[, nisoform:=length(unique(tx_name)), by = gene_name]
 rm(seOutput)
-#final_data <- copy(com_data_filter_fullLength)
+
 ###prepare data for dexseq ==================
-#count.data <- dcast(com_data_filter_fullLength, tx_name ~ runname, value.var = 'totalCounts')
-#count.data <- dcast(salmonLR, tx_name ~ runname, value.var = 'counts')
+
 count.data <- dcast(nanocountLR, tx_name ~ runname, value.var = 'est_count')
 count.data <- setDF(count.data)
 rownames(count.data) <- count.data$tx_name
@@ -889,7 +825,7 @@ names(dFilterList) <- cellLineVec
 ### Run DEXSeq Model ==========================
 formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
 formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
-#design_full <- model.matrix(~cellLine, data=DRIMSeq::samples(dFilter))
+
 dxdList <- lapply(cellLineVec, function(s){
   print(s)
   dFilter <- dFilterList[[s]]
@@ -904,7 +840,6 @@ system.time({
   print('Size factor estimated')
   dxd <- estimateDispersions(dxd, formula = formulaFullModel, BPPARAM=BPPARAM, quiet = FALSE)
   print('Dispersion estimated')
-  #dxd <- estimateExonFoldChanges( dxd )
   dxd <- testForDEU(dxd, reducedModel=formulaReducedModel, fullModel = formulaFullModel, BPPARAM=BPPARAM)
   print('DEU tested')
   dxd <- estimateExonFoldChanges(dxd, fitExpToVar="ref",
@@ -918,19 +853,12 @@ saveRDS(dxdList, file = paste0("dxdList",saveDate,"_1vsall_nanocountLR.rds"))
 # 2.2 DEXSeq for 1 vs 1 ====================
 library(DRIMSeq)
 count.dataList <- lapply(1:ncol(combMat), function(s){
-  # count.data <- dcast(com_data_filter_fullLength[(cellLine %in% cellLineVec[combMat[,s]])],
-  #   tx_name ~ runname, value.var = 'totalCounts')
-    #count.data <- dcast(salmonLR[(cellLine %in% cellLineVec[combMat[,s]])],
-      # tx_name ~ runname, value.var = 'counts')
 count.data <- dcast(nanocountLR[(cellLine %in% cellLineVec[combMat[,s]])],
                     tx_name ~ runname, value.var = 'est_count')
 count.data <- setDF(count.data)
 rownames(count.data) <- count.data$tx_name
 count.data$tx_name <- NULL
 count.data[is.na(count.data)] <- 0
-# geneTxTable <- as.data.table(rowData(seOutput))
-# setnames(geneTxTable, c("GENEID","TXNAME"),c("gene_name","tx_name"))
-# geneTxTable[, nisoform:=length(unique(tx_name)), by = gene_name]
 geneTxTable <- geneTxTableRaw[match(rownames(count.data),tx_name)]
 na.id <- which(is.na(geneTxTable$tx_name))
 if(length(na.id)>0){
@@ -988,7 +916,6 @@ return(dFilter)
 names(dFilterList) <- cellLinePair
 formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
 formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
-#design_full <- model.matrix(~cellLine, data=DRIMSeq::samples(dFilter))
 dxdList <- lapply(cellLinePair, function(s){
   print(s)
   dFilter <- dFilterList[[s]]
@@ -1003,7 +930,6 @@ system.time({
   print('Size factor estimated')
   dxd <- estimateDispersions(dxd, formula = formulaFullModel, BPPARAM=BPPARAM)
   print('Dispersion estimated')
-  #dxd <- estimateExonFoldChanges( dxd )
   dxd <- testForDEU(dxd, reducedModel=formulaReducedModel, fullModel = formulaFullModel, BPPARAM=BPPARAM)
   print('DEU tested')
   dxd <- estimateExonFoldChanges(dxd, fitExpToVar="ref",
@@ -1340,7 +1266,7 @@ aggCases_1vsall <- table_1vsall[, list(alternativeFirstExon = any(alternativeFir
 ## 9.1 Heatmap
 library(ComplexHeatmap)
 library(circlize)
-#col_fun = colorRamp2(c(0,2), c("white", "red"))
+
 geneTxTable_extended[, newTxClassAggregated:=ifelse(grepl("newFirstExon",txClassDescription)&(grepl("newLastExon",txClassDescription)),
                                                     "newFirstLastExon",
                                              ifelse(grepl("newFirstExon",txClassDescription), "newFirstExon",
@@ -1368,15 +1294,12 @@ setnames(tmpFilter, old = c("cellLine","i.cellLine"), new = c("expCellLine","cel
 setnames(tmpFilterMinorIncluded, old = c("cellLine","i.cellLine"), new = c("expCellLine","cellLine"))
 setnames(aggCases_1vsall, c("gene","ref_tx","ref_cellLine"),c("gene_name","tx_name","cellLine"))
 tmp <- tmpFilterMinorIncluded[aggCases_1vsall, on = c("gene_name","tx_name","cellLine")]
-# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype)]
-# setnames(geneTxTable, "gene_id","gene_name")
 tmp <- geneTxTable_extended[tmp, on = c("tx_name","gene_name")]
 tmp[grepl("R",tx_name), gene_biotype := "Spike-in"]
 tmp <- tmp[!is.na(runname)]
 tmp[, eqClassById := NULL]
 tmp_wide <- dcast(tmp[,-19,with = FALSE], ...~runname, value.var = "estNorm")
 tmp_wide[is.na(tmp_wide)] <- 0
-#tmp_wide <- unique(tmp_wide)
 tmp_final <- tmp_wide[tmp_wide[,.I[order(log2fold_1_0)], by = cellLine]$V1]
 plotdata <- as.data.frame(tmp_final[,-c(1:35),with=FALSE])
 col_fun = colorRamp2(c(0,15), c("white", "cornflowerblue"))
@@ -1413,8 +1336,6 @@ hgncTypes = columnAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated
                            nisoform = rowInfo$nisoform,
                            altFirstExon = as.factor(rowInfo$alternativeFirstExon|rowInfo$internalFirstExon),
                            altLastExon = as.factor(rowInfo$alternativeLastExon|rowInfo$internalLastExon),
-                           # altTSS = as.factor(rowInfo$TSS),
-                           # altTES = as.factor(rowInfo$TES),
                            altSplicing5Prime = as.factor(rowInfo$altSplicing5Prime),
                            altSplicing3Prime = as.factor(rowInfo$altSplicing3Prime),
                            exonSkipping = as.factor(rowInfo$exonSkipping),
@@ -1425,8 +1346,6 @@ hgncTypes = columnAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated
                                       nisoform = col_fun_nisoform,
                                       altFirstExon = colEvt,
                                       altLastExon = colEvt,
-                                      # altTSS = colEvt,
-                                      # altTES = colEvt,
                                       altSplicing5Prime = colEvt,
                                       altSplicing3Prime = colEvt,
                                       exonSkipping = colEvt,
@@ -1434,8 +1353,6 @@ hgncTypes = columnAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated
                                       refcellLine = colRowCellLines),
   foo = anno_text(rowInfo$hgnc_symbol_corrected, gp = gpar(fontsize = 8)),
   annotation_name_side = "left")
-  #show_annotation_name = ,
-  #show_legend = c(rep(TRUE,11),FALSE))
 plotmat <- (as.matrix(log2(plotdata+1)))
 colnames(plotmat) <- NULL
 p_heatmap_including_minorIsoforms <- Heatmap(t(plotmat), name = "Counts", col = col_fun, bottom_annotation = hgncTypes,
@@ -1475,7 +1392,6 @@ setnames(table_wtCellLine, "estAve","geneAverageEstimates")
 cols <- c("altFirstExon","altLastExon","intronRetention",
           "exonSkipping","altSplicing5Prime","altSplicing3Prime")
 table_wtCellLine[ , (cols) := lapply(.SD,as.numeric), .SDcols = cols]
-#setnames(geneTxTable_extended, "gene","gene_name")
 setnames(table_wtCellLine,"gene_name","gene")
 table_wtCellLine[, GeneBiotype := setdiff(unique(geneTxTable_extended[gene_name == gene]$gene_biotype),NA), by = gene]
 table_wtCellLine[, HgncSymbol := setdiff(unique(geneTxTable_extended[gene_name == gene]$hgnc_symbol),NA), by = gene]
@@ -1548,7 +1464,6 @@ dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall.rds"))
 ## 9.1 Heatmap
 library(ComplexHeatmap)
 library(circlize)
-#col_fun = colorRamp2(c(0,2), c("white", "red"))
 geneTxTable_extended[, newTxClassAggregated:=ifelse(grepl("newFirstExon",txClassDescription)&(grepl("newLastExon",txClassDescription)),
                                                     "newFirstLastExon",
                                              ifelse(grepl("newFirstExon",txClassDescription), "newFirstExon",
@@ -1571,15 +1486,12 @@ tmp <- tmp[,.(tx_name,gene_name,runname, estNorm,cellLine)][dtuGenes_1vsall[stag
 setnames(tmp, old = c("cellLine","i.cellLine"), new = c("expCellLine","cellLine"))
  setnames(aggCases_1vsall, c("gene","ref_tx","ref_cellLine"),c("gene_name","tx_name","cellLine"))
 tmp <- tmp[aggCases_1vsall, on = c("gene_name","tx_name","cellLine")]
-# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, hgnc_symbol,gene_biotype)]
-# setnames(geneTxTable, "gene_id","gene_name")
 tmp <- geneTxTable_extended[tmp, on = c("tx_name","gene_name")]
 tmp[grepl("R",tx_name), gene_biotype := "Spike-in"]
 tmp <- tmp[!is.na(runname)]
 tmp[, eqClassById := NULL]
 tmp_wide <- dcast(tmp[,-19,with = FALSE], ...~runname, value.var = "estNorm")
 tmp_wide[is.na(tmp_wide)] <- 0
-#tmp_wide <- unique(tmp_wide)
 tmp_final <- tmp_wide[tmp_wide[,.I[order(log2fold_1_0)], by = cellLine]$V1]
 plotdata <- as.data.frame(tmp_final[,-c(1:35),with=FALSE])
 col_fun = colorRamp2(c(0,15), c("white", "blue"))
@@ -1615,8 +1527,6 @@ hgncTypes = rowAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated),
                            nisoform = rowInfo$nisoform,
                            altFirstExon = as.factor(rowInfo$alternativeFirstExon|rowInfo$internalFirstExon),
                            altLastExon = as.factor(rowInfo$alternativeLastExon|rowInfo$internalLastExon),
-                           # altTSS = as.factor(rowInfo$TSS),
-                           # altTES = as.factor(rowInfo$TES),
                            altSplicing5Prime = as.factor(rowInfo$altSplicing5Prime),
                            altSplicing3Prime = as.factor(rowInfo$altSplicing3Prime),
                            exonSkipping = as.factor(rowInfo$exonSkipping),
@@ -1627,8 +1537,6 @@ hgncTypes = rowAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated),
                                       nisoform = col_fun_nisoform,
                                       altFirstExon = colEvt,
                                       altLastExon = colEvt,
-                                      # altTSS = colEvt,
-                                      # altTES = colEvt,
                                       altSplicing5Prime = colEvt,
                                       altSplicing3Prime = colEvt,
                                       exonSkipping = colEvt,
@@ -1636,16 +1544,13 @@ hgncTypes = rowAnnotation(newTxClass = as.factor(rowInfo$newTxClassAggregated),
                                       refcellLine = colRowCellLines),
   foo = anno_text(rowInfo$hgnc_symbol_corrected, gp = gpar(fontsize = 8)),
   annotation_name_side = "top")
-  #show_annotation_name = ,
-  #show_legend = c(rep(TRUE,11),FALSE))
+
 plotmat <- (as.matrix(log2(plotdata+1)))
 colnames(plotmat) <- NULL
 p <- Heatmap(plotmat, name = "Counts", col = col_fun, right_annotation = hgncTypes,
         row_split = factor(rowInfo$cellLine, levels =  rev(c("K562","MCF7",
         "Hct116","A549","HEYA8","H9","HepG2"))),
-        # cluster_row_slices = TRUE,
-        # cluster_rows = FALSE,
-        top_annotation = cellLine_anno)
+       top_annotation = cellLine_anno)
 print(p)
 pdf(paste0("DmntIsoSwt_Heatmap",saveDate,".pdf"), width = 13, height = 12)#
 p
@@ -1655,8 +1560,6 @@ aggCases_1vsall[,`:=`(altFirstExon = alternativeFirstExon|internalFirstExon,
                       altLastExon = alternativeLastExon|internalLastExon)]
 aggCases_1vsall[, swtType:=paste(c("","altFirstExon")[any(altFirstExon)+1],
                            c("","altLastExon")[any(altLastExon)+1],
-                           # c("","TSS")[any(TSS)+1],
-                           # c("","TES")[any(TES)+1],
                            c("","intronRetention")[any(intronRetention)+1],
                            c("","exonSkipping")[any(exonSkipping)+1],
                            c("","altSplicing5Prime")[any(altSplicing5Prime)+1],
@@ -1734,9 +1637,7 @@ https://plbaldoni.rbind.io/TranscriptDE-code/simulation-complete.html
 #### edgeR
 ```{r}
 library(edgeR)
-# choose two cell lines: start from salmon
-# filesList <- list.files("/mnt/processMachine2/chenying/salmon_fastq6.4.2/count/","quant.sf",recursive = TRUE,full.names = TRUE)
-# filesList <- list.files("/mnt/processMachine2/chenying/salmon_fastq6.4.2/count/","quant.sf",recursive = TRUE,full.names = TRUE)
+
 filesList <- filesList[grep("SGNex_(A549|K562)",filesList)]
 quant <- dirname(filesList)
 catch <- catchSalmon(paths = quant)
@@ -1772,7 +1673,7 @@ dev.off()
 design <- model.matrix(~ 0 + cellLine + protocol_type ,data = y$samples)
 colnames(design) <- gsub("group", "", colnames(design))
 
-#y1 <- calcNormFactors(y) # does not have any effect now post and pre same value 
+
 y <- estimateDisp(y, design, robust=TRUE)
 y$common.dispersion
 
@@ -1793,18 +1694,6 @@ pdf("DE.pdf")
 plotMD(qlf, status = is.de, values = c(1, -1),
       col = c("red","blue"), legend = "topright")
 dev.off()
-# x_human <- lapply(x, function(x){
-#   human <- grepl("^ENST", rownames(x))
-#   x_human <- x[human, ]
-#   return(calcNormFactors(x_human))
-# })
-# qlres_human <- lapply(x_human, function(x){
-#   design <- model.matrix(~x$samples$group)
-#   x <- estimateDisp(x, design)
-#   qlfit <- glmQLFit(x, design)
-#   res <- glmQLFTest(qlfit)
-#   return(res)
-# })
 
 edger_res <- topTags(qlf, n=nrow(y), sort.by="PValue")[[1]]
 
@@ -1838,23 +1727,16 @@ geneTxTable_extended[,nisoform:=length(unique(tx_name)), by = gene_name]
 #
 geneTxTable_extended <- geneTxTable[geneTxTable_extended, on = c("gene_name","tx_name")]
 # 2. Run DEXSeq ======================
-# geneTxTable <- txLengths.tbldf[,.(tx_name, gene_id, nisoform)]
-# setnames(geneTxTable, 'gene_id', 'gene_name')
+
 # 2.1 DEXSeq for 1 vs all cell line==========================
 count.dataList <- lapply(1:ncol(combMat), function(s){
-  # count.data <- dcast(com_data_filter_fullLength[(cellLine %in% cellLineVec[combMat[,s]])],
-  #   tx_name ~ runname, value.var = 'totalCounts')
+
     count.data <- dcast(salmonLR[(cellLine %in% cellLineVec[combMat[,s]])],
     tx_name ~ runname, value.var = 'counts')
-# count.data <- dcast(nanocountLR[(cellLine %in% cellLineVec[combMat[,s]])],
-#                     tx_name ~ runname, value.var = 'est_count')
 count.data <- setDF(count.data)
 rownames(count.data) <- count.data$tx_name
 count.data$tx_name <- NULL
 count.data[is.na(count.data)] <- 0
-# geneTxTable <- as.data.table(rowData(seOutput))
-# setnames(geneTxTable, c("GENEID","TXNAME"),c("gene_name","tx_name"))
-# geneTxTable[, nisoform:=length(unique(tx_name)), by = gene_name]
 geneTxTable <- geneTxTableRaw[match(rownames(count.data),tx_name)]
 na.id <- which(is.na(geneTxTable$tx_name))
 if(length(na.id)>0){
@@ -1926,13 +1808,10 @@ yobj$samples
 plotMDS(yobj,col = c(1:2)[y$samples$group],labels = basename(colnames(y$samples)),xlim = c(-4,4))
 
 
-#dexseq formula
-#formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
-#formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
 design <- model.matrix(~ 0 + group + protocol ,data = yobj$samples)
 colnames(design) <- gsub("group", "", colnames(design))
 
-#y1 <- calcNormFactors(y) # does not have any effect now post and pre same value 
+
 yobj <- estimateDisp(yobj, design, robust=TRUE)
 yobj$common.dispersion
 
@@ -2000,26 +1879,16 @@ dge.sleuth_lrt <- runSleuth(targets = df.example.targets,test = 'lrt',quantifier
 
 ## start from counts 
 ```{r}
-#count.data <- dcast(com_data_filter_fullLength, tx_name ~ runname, value.var = 'totalCounts')
-#count.data <- dcast(salmonLR, tx_name ~ runname, value.var = 'counts')
 count.data <- dcast(nanocountLR, tx_name ~ runname, value.var = 'est_count')
 ```
 
 
 ```{r}
 counts <- round(final_data)
-# counts$gene_id <- tmp_wide$gene_name
-# counts <- as.data.frame(counts)
+
 coldata <- as.data.frame(runname_infoDT)
 setnames(coldata, "sample_name","sample_id")
-# d <- dmDSdata(counts=counts,
-#               samples=coldata)
-# trs_cts_unfiltered <- counts(d)
-# gene_cts <- trs_cts_unfiltered %>% 
-#     dplyr::select(c(1, 3:ncol(trs_cts)))  %>% 
-#     group_by(gene_id) %>% 
-#     summarise_all(tibble::lst(sum)) %>% 
-#     data.frame()
+
 gene_cts <- counts
 design <- model.matrix(~cellLine + protocol_general + cellLine:protocol_general + 1, data=coldata)
 y <- DGEList(gene_cts)
@@ -2075,7 +1944,6 @@ aveGene[, estNorm:=sum(estNorm), by = list(cellLine, gene_name,runname)]
 aveGene <- unique(aveGene[,.(estNorm, cellLine, gene_name, runname)])
 aveGene[, estAve:=median(estNorm), by = list(cellLine, gene_name)]
 
-#rm(com_data_filter_fullLength)
 salmonLR <- readRDS("salmon_lr.rds")
 salmonLR <- salmonLR[runname %in% runnameVec]
 salmonLR[, protocol:=gsub('PromethionDirect','direct',gsub('cDNAStranded','cDNA',unlist(strsplit(runname, '_'))[3])), by = runname]
@@ -2114,10 +1982,7 @@ rm(seOutput)
 count.dataList <- lapply(1:ncol(combMat), function(s){
   count.data <- dcast(com_data_filter_fullLength[(cellLine %in% cellLineVec[combMat[,s]])],
     tx_name ~ runname, value.var = 'totalCounts')
-    # count.data <- dcast(salmonLR[(cellLine %in% cellLineVec[combMat[,s]])],
-    # tx_name ~ runname, value.var = 'counts')
-# count.data <- dcast(nanocountLR[(cellLine %in% cellLineVec[combMat[,s]])],
-#                     tx_name ~ runname, value.var = 'est_count')
+   
 count.data <- setDF(count.data)
 rownames(count.data) <- count.data$tx_name
 count.data$tx_name <- NULL
@@ -2147,7 +2012,7 @@ return(geneCount)
 names(geneCountList) <- cellLinePair
 dFilterList1vs1 <- lapply(1:ncol(combMat), function(s){
     sample.data <- unique(com_data_filter_fullLength[(cellLine %in% cellLineVec[combMat[,s]]),.(runname,  protocol,cellLine)])
-  # sample.data <- unique(salmonLR[(cellLine %in% cellLineVec[combMat[,s]]),.(runname,  protocol,cellLine)])
+  
   sample.data <- sample.data[match(colnames(count.dataList[[cellLinePair[s]]])[-c(1,2)],runname)]
 sample.data[, ref:=as.numeric(cellLine==cellLineVec[combMat[1,s]])]
 sample.data[, ref:=factor(ref)]
@@ -2185,8 +2050,6 @@ names(dFilterList1vs1) <- cellLinePair
 ```{r}
 ###prepare data for dexseq ==================
 count.data <- dcast(com_data_filter_fullLength, tx_name ~ runname, value.var = 'totalCounts')
-#count.data <- dcast(salmonLR, tx_name ~ runname, value.var = 'counts')
-#count.data <- dcast(nanocountLR, tx_name ~ runname, value.var = 'est_count')
 count.data <- setDF(count.data)
 rownames(count.data) <- count.data$tx_name
 count.data$tx_name <- NULL
@@ -2210,8 +2073,8 @@ geneCount <- dcast(geneCount, gene_id ~ variable, value.var = "gene_count")
 ### Filtering =================
 dFilterList1vsall <- lapply(cellLineVec, function(s){
   print(s)
-    sample.data <- unique(com_data_filter_fullLength[,.(runname, protocol,cellLine)])#nanocountLR
-#sample.data <- unique(salmonLR[,.(runname, protocol,cellLine)])#nanocountLR
+    sample.data <- unique(com_data_filter_fullLength[,.(runname, protocol,cellLine)])
+
 sample.data <- sample.data[match(colnames(count.data)[-c(1,2)],runname)]
 sample.data[, ref:=as.numeric(cellLine==s)]
 sample.data[, ref:=factor(ref)]
@@ -2256,36 +2119,21 @@ group = samples(dt_filter)$ref,
 genes = counts(dt_filter)[,c(1,2)])
 
 yobj <- normLibSizes(yobj)
-#yobj$samples
 
-
-#plotMDS(yobj,col = c(1:2)[yobj$samples$group],labels = basename(colnames(yobj$samples)),xlim = c(-4,4))
-
-
-#dexseq formula
-#formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
-#formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
 design <- model.matrix(~ ref + protocol,data = yobj$samples)
 colnames(design) <- colnames(design)
 
-#y1 <- calcNormFactors(y) # does not have any effect now post and pre same value 
 yobj <- estimateDisp(yobj, design, robust=TRUE)
-#yobj$common.dispersion
 
-
-#plotBCV(yobj)
 
 
 
 fit <- glmQLFit(yobj, design, robust=TRUE)
-#plotQLDisp(fit)
 
 contr <- makeContrasts(contrasts = "ref1", levels=design)
 qlf <- glmQLFTest(fit, contrast=contr)
 de_res <- topTags(qlf, n=nrow(yobj$counts))
-#is.de <- decideTests(qlf)
-# plotMD(qlf, status = is.de, values = c(1, -1),
-#       col = c("red","blue"), legend = "topright")
+
 dtu <- diffSpliceDGE(fit,contrast=contr,geneid = "gene_id",exonid = "feature_id" )
 edger_results <- data.table(log2fold_1_0 = dtu$coef, 
                             transcript_pvalue = dtu$`exon.p.value`,
@@ -2312,36 +2160,18 @@ group = samples(dt_filter)$ref,
 genes = counts(dt_filter)[,c(1,2)])
 
 yobj <- normLibSizes(yobj)
-#yobj$samples
-
-
-#plotMDS(yobj,col = c(1:2)[yobj$samples$group],labels = basename(colnames(yobj$samples)),xlim = c(-4,4))
-
-
-#dexseq formula
-#formulaFullModel <- as.formula("~sample + exon + ref:exon+protocol:exon")
-#formulaReducedModel <- as.formula("~sample + exon+protocol:exon")
 design <- model.matrix(~ ref + protocol ,data = yobj$samples)
 colnames(design) <- colnames(design)
 
-#y1 <- calcNormFactors(y) # does not have any effect now, post and pre same value 
+
 yobj <- estimateDisp(yobj, design, robust=TRUE)
-#yobj$common.dispersion
-
-
-#plotBCV(yobj)
 
 
 
 fit <- glmQLFit(yobj, design, robust=TRUE)
-#plotQLDisp(fit)
-
 contr <- makeContrasts(contrasts = "ref1", levels=design)
 qlf <- glmQLFTest(fit, contrast=contr)
 de_res <- topTags(qlf, n=nrow(yobj$counts))
-#is.de <- decideTests(qlf)
-# plotMD(qlf, status = is.de, values = c(1, -1),
-#       col = c("red","blue"), legend = "topright")
 
 
 dtu <- diffSpliceDGE(fit,contrast=contr,geneid = "gene_id",exonid = "feature_id" )
@@ -2372,12 +2202,6 @@ dtu is different, more intuitive
 
 ## dexseq results 
 ```{r}
-# bambu results 
-# dtuGenes_1vs1 <- readRDS(paste0("dtuGenes_1vs1.rds"))
-# dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall.rds"))
-
-
-
 # process salmon results 
 dxdList_1vsall <- readRDS("dxdList2023-07-19_1vsall_salmonLR.rds")
 com_data_filter_fullLength <- readRDS("com_data_filter_fullLength.rds")
@@ -2494,17 +2318,10 @@ setnames(dtuGenes_1vsall, "fullLengthSupport",paste0("ref_","fullLengthSupport")
 setnames(dtuGenes_1vsall, c("gene","transcript"),c("stageR_gene_padj","stageR_tx_padj"))
 saveRDS(dtuGenes_1vs1, file = paste0("dtuGenes_1vs1_salmonLR.rds"))
 saveRDS(dtuGenes_1vsall, file = paste0("dtuGenes_1vsall_salmonLR.rds"))
-
-
-# geneList_1vs1 <- unique(dtuGenes_1vs1[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)][,.(gene_name, cellLine,cellLineNonRef)])
-# geneList_1vsall <- unique(dtuGenes_1vsall[stageR_gene_padj<0.05&(stageR_tx_padj<0.05)&(padj<0.05)&(abs(log2fold_1_0)>=2)&(nIsoRank>1)&(estAve>0)&(ref_fullLengthSupport>5)][,.(gene_name, cellLine)])
 ```
 
 load salmon LR dtu results 
 ```{r}
-# dtuGenes_1vs1 <- readRDS(paste0("dtuGenes_1vs1_salmonLR.rds"))
-# dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall_salmonLR.rds"))
-
 dtuGenes_1vs1 <- readRDS(paste0("dtuGenes_1vs1.rds"))
 dtuGenes_1vsall <- readRDS(paste0("dtuGenes_1vsall.rds"))
 
@@ -2521,7 +2338,6 @@ outDt_1vs1 <- do.call("rbind",lapply(seq_len(ncol(combMat)), function(ss){
     edger_temp[, method := "edger"]
     dexseq_temp1 <- dtuGenes_1vs1[(log2fold_1_0>=0)&cellLine == cellLineVec[combMat[1,ss]]&(cellLineNonRef == cellLineVec[combMat[2,ss]])]
     dexseq_temp2 <- dtuGenes_1vs1[(log2fold_1_0<0)&cellLine == cellLineVec[combMat[2,ss]]&(cellLineNonRef == cellLineVec[combMat[1,ss]])]
-    #dexseq_temp2[, log2fold_1_0 := -(log2fold_1_0)]
     dexseq_temp <- rbind(dexseq_temp1[,.(gene_name,tx_name, padj,log2fold_1_0, stageR_gene_padj,stageR_tx_padj)], 
                          dexseq_temp2[,.(gene_name, tx_name, padj,log2fold_1_0, stageR_gene_padj,stageR_tx_padj)])
     dexseq_temp[, method := "dexseq"]
@@ -2568,9 +2384,6 @@ outDt_1vs1_wide <- dcast(outDt_1vs1, tx_name + gene_name + cellLine0 + cellLine1
 
 
 dmnTx_processDt <- dmnTx[, list(dominantIsoformSwitch = ifelse((isoRank==1&(nIsoRank>1)&(estAve>0)),"majorIsoformSwitch","minorIsoformSwitch")), by = list(cellLine, tx_name, gene_name)]
-# outDt_wide_dmn <- dmnTx[outDt_wide, on = c("tx_name","cellLine")]
-# outDt_wide_dmn_fl <- fLTx[outDt_wide_dmn, on = c("gene_name","tx_name","cellLine")]
-# outDt_wide_dmn_fl
 setnames(dmnTx_processDt, "cellLine","cellLine0")
 outDt_1vs1_wide_dmn0 <- dmnTx_processDt[outDt_1vs1_wide, on = c("tx_name","cellLine0","gene_name")]
 setnames(outDt_1vs1_wide_dmn0, "dominantIsoformSwitch","dominant0")
@@ -2613,7 +2426,6 @@ p2 <- ggplot(outDt_1vs1_wide[all_status_sum != "0"], aes(x = edger, y = dexseq))
     theme(legend.position = "top")
 
 pdf("edgeRvsdexseq_1vs1_salmon_scatterplot_revised.pdf")
-# it's best if we could find out for the ones identified by each, what is the supporting status 
 ggarrange(p1,p2,nrow = 2, common.legend = TRUE)
 dev.off()
 
@@ -2643,11 +2455,6 @@ plotdata3 <- unique(plotdata[, list(count = .N), by = list(cellLineContrs, log2f
 p3 <- ggplot(plotdata3[log2fcsign_status_sum!="0"], aes(x = cellLineContrs, y = count, fill = log2fcsign_status_sum))+geom_bar(stat = "identity")+coord_flip()+theme_classic() ## overall 
 
 ggarrange(p1, p3,p2, nrow = 1, common.legend = TRUE, labels = c("DTU","Signif"))
-
-
-## venn diagram 
-
-
 ```
 
 
@@ -2859,7 +2666,6 @@ pList_1vs1 <- lapply(unique(filter_1vs1$cellLineContrs), function(cc){
 })
 
 library(ggpubr)
-#ggarrange(plotlist = pList_1vs1, nrow = 3, ncol = 7)
 filter_1vsall <- outDt_1vsall_wide_dmn_fl[dominantIsoformSwitch == "majorIsoformSwitch"&(fullLengthSupport>5)&(log2fcsign_status_sum != "0")]
 library(ggVennDiagram)
 pList_1vsall <- lapply(unique(filter_1vsall$cellLine), function(cc){
@@ -2940,9 +2746,6 @@ geneList_1vsall <- unique(dtuGenes_1vsall[gene<0.05&(transcript<0.05)&(padj<0.05
 outDt_1vsall_dmn <- dmnTx[outDt_1vsall, on = c("tx_name","cellLine")]
 outDt_1vsall_dmn_fl <- fLTx[outDt_1vsall_dmn, on = c("gene_name","tx_name","cellLine")]
 outDt_1vsall_dmn_fl[, dominantIsoformSwitch := ifelse((isoRank==1&(nIsoRank>1)&(estAve>0)),"majorIsoformSwitch","minorIsoformSwitch")]
-
-
-
 
 outDt_wide_dmn_fl[, dtu_status := (stageR_gene_padj<0.05)&(stageR_tx_padj<0.05)]
 outDt_wide_dmn_fl[is.na(dtu_status), dtu_status := FALSE]
