@@ -35,7 +35,7 @@ https://groups.google.com/forum/#!forum/sg-nex-updates/join
 
 **Latest Release (v0.6)**
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10795697.svg)](https://doi.org/10.5281/zenodo.10795697)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14242195.svg)](https://doi.org/10.5281/zenodo.14242195)
 
 This release includes 113 samples from 13 different cell lines. 
 
