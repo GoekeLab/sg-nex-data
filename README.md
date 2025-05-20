@@ -68,6 +68,13 @@ Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing f
 
 **Release Note & Updates**
 
+Minor update                   
+Date: 2025-05-20                     
+PacBio samples added for public access
+- description of the pacbio samples: [pacbio_sample spreadsheet](docs/samples_pacbio.tsv)
+- make fastq and genome/transcriptome bam files available: [fastq, and bam](http://sg-nex-data.s3-website-ap-southeast-1.amazonaws.com/)
+
+
 Version Number: V0.6.0                
 Date: 2024-11-21               
 Replacement of fastq and bam files                              
