@@ -68,6 +68,13 @@ Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing f
 
 **Release Note & Updates**
 
+
+Minor update   
+Date: 2025-05-30                
+Spike-in information updated        
+- updated the spike-in concentration table links for SIRV-1 and SIRV-4
+- added spike in concentration information to [short read sample spreadsheet](docs/illumina_samples.tsv) (Note that the H9 and HEYA8 spike-in information in Supplementary Table 1 in our manuscript is flipped) 
+
 Minor update                   
 Date: 2025-05-20                     
 PacBio samples added for public access
