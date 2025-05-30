@@ -59,8 +59,8 @@ Please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) whi
 
 Here are the locations for the spike-in concentrations used in SG-NEx samples:
 - [Sequin concentration](docs/RNAsequins_MixA.xlsx)
-- [SIRV-1 concentration](https://www.lexogen.com/wp-content/uploads/2021/10/025UI368V0200_SIRV-Calculator_Set-1_extended.xlsx)
-- [SIRV-4 concentration](https://www.lexogen.com/wp-content/uploads/2021/10/141UI371V0200_SIRV-Calculator_Set-4_extended.xlsx)
+- [SIRV-1 concentration](https://www.lexogen.com/wp-content/uploads/2021/06/SIRV_Set1_Norm_sequence-design-overview_20210507a.xlsx)
+- [SIRV-4 concentration](https://www.lexogen.com/wp-content/uploads/2021/06/SIRV_Set4_Norm_sequence-design-overview_20210507a.xlsx)
 
 _**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
