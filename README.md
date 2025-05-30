@@ -62,9 +62,9 @@ Here are the locations for the spike-in concentrations used in SG-NEx samples:
 - [SIRV-1 concentration](https://www.lexogen.com/wp-content/uploads/2021/06/SIRV_Set1_Norm_sequence-design-overview_20210507a.xlsx)
 - [SIRV-4 concentration](https://www.lexogen.com/wp-content/uploads/2021/06/SIRV_Set4_Norm_sequence-design-overview_20210507a.xlsx)
 
-_**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
+_**Citation**_: Please cite the paper describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
-Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
+Chen, Y., Davidson, N.M., Wan, Y.K. _et al._ A systematic benchmark of Nanopore long-read RNA sequencing for transcript-level analysis in human cell lines. _Nat Methods_ **22**, 801–812 (2025). https://doi.org/10.1038/s41592-025-02623-4
 
 **Release Note & Updates**
 
@@ -194,9 +194,9 @@ Ying Chen, Nadia M. Davidson, Yuk Kei Wan, Hasindu Gamaarachchi, Andre Sim, Hars
 
 The SG-NEx resource is described in:
 
-Chen, Ying, et al. "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
+Chen, Y., Davidson, N.M., Wan, Y.K. _et al._ A systematic benchmark of Nanopore long-read RNA sequencing for transcript-level analysis in human cell lines. _Nat Methods_ **22**, 801–812 (2025). https://doi.org/10.1038/s41592-025-02623-4
 
-Please cite this pre-print when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
+Please cite this paper when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
 ## Contact
 
