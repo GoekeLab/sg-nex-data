@@ -59,14 +59,21 @@ Please refer to the [data access tutorial](docs/AWS_data_access_tutorial.md) whi
 
 Here are the locations for the spike-in concentrations used in SG-NEx samples:
 - [Sequin concentration](docs/RNAsequins_MixA.xlsx)
-- [SIRV-1 concentration](https://www.lexogen.com/wp-content/uploads/2021/10/025UI368V0200_SIRV-Calculator_Set-1_extended.xlsx)
-- [SIRV-4 concentration](https://www.lexogen.com/wp-content/uploads/2021/10/141UI371V0200_SIRV-Calculator_Set-4_extended.xlsx)
+- [SIRV-1 concentration](https://www.lexogen.com/wp-content/uploads/2021/06/SIRV_Set1_Norm_sequence-design-overview_20210507a.xlsx)
+- [SIRV-4 concentration](https://www.lexogen.com/wp-content/uploads/2021/06/SIRV_Set4_Norm_sequence-design-overview_20210507a.xlsx)
 
-_**Citation**_: Please cite the pre-print describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
+_**Citation**_: Please cite the paper describing the SG-NEx data resource when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
-Chen, Y. _et al._ "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
+Chen, Y., Davidson, N.M., Wan, Y.K. _et al._ A systematic benchmark of Nanopore long-read RNA sequencing for transcript-level analysis in human cell lines. _Nat Methods_ **22**, 801–812 (2025). https://doi.org/10.1038/s41592-025-02623-4
 
 **Release Note & Updates**
+
+
+Minor update   
+Date: 2025-05-30                
+Spike-in information updated        
+- updated the spike-in concentration table links for SIRV-1 and SIRV-4
+- added spike in concentration information to [short read sample spreadsheet](docs/illumina_samples.tsv) (Note that the H9 and HEYA8 spike-in information in Supplementary Table 1 in our manuscript is flipped) 
 
 Minor update                   
 Date: 2025-05-20                     
@@ -187,9 +194,9 @@ Ying Chen, Nadia M. Davidson, Yuk Kei Wan, Hasindu Gamaarachchi, Andre Sim, Hars
 
 The SG-NEx resource is described in:
 
-Chen, Ying, et al. "A systematic benchmark of Nanopore long read RNA sequencing for transcript level analysis in human cell lines." _bioRxiv_ (2021). doi: https://doi.org/10.1101/2021.04.21.440736
+Chen, Y., Davidson, N.M., Wan, Y.K. _et al._ A systematic benchmark of Nanopore long-read RNA sequencing for transcript-level analysis in human cell lines. _Nat Methods_ **22**, 801–812 (2025). https://doi.org/10.1038/s41592-025-02623-4
 
-Please cite this pre-print when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
+Please cite this paper when using these data, and add the following details: "The SG-NEx data was accessed on [DATE] at registry.opendata.aws/sg-nex-data".
 
 ## Contact
 
