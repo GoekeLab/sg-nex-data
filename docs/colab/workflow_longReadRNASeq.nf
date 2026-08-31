@@ -1,6 +1,6 @@
 #!/usr/bin/env nextflow
 // Author: Jonathan Göke
-// Contact: gokej@gis.a-star.edu.sg
+// Contact: jonathan_goeke@a-star.edu.sg
 // This script is based on https://github.com/GoekeLab/bioinformatics-workflows/tree/master/nextflow
 
 // Define pipeline input parameters 
@@ -19,6 +19,7 @@ process MINIMAP2_ALIGN {
   output:
     path "aligned_reads.sam"
 
+  script:
   """
     minimap2 -ax splice -uf -k14 $refFa $reads > aligned_reads.sam
   """
@@ -34,7 +35,8 @@ process SAM_TO_BAM {
     path reads_sam
   output:
     path "aligned_reads.bam"
-  
+
+  script:
   """
     samtools view -b $reads_sam > aligned_reads.bam
   """
@@ -58,7 +60,8 @@ process BAMBU {
     path "counts_gene.txt"
     path "extended_annotations.gtf"
 
-    """
+  script:
+  """
     #!/usr/bin/env Rscript --vanilla
     library(bambu)
     annotations <- prepareAnnotations("$refGtf")
