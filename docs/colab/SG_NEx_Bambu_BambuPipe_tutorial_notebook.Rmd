@@ -1,0 +1,550 @@
+---
+title: "Long-read RNA-seq analysis with bambu across bulk, single-cell and spatial data"
+output:
+  html_document:
+    toc: no
+  pdf_document:
+    toc: no
+---
+
+This tutorial uses [bambu](https://github.com/GoekeLab/bambu), a Bioconductor package, to perform novel transcript discovery and quantification on the bulk and single-cell samples of the [SG-NEx project](https://github.com/GoekeLab/sg-nex-data). To illustrate downstream analysis (for example, differential transcript usage and isoform switching) using bambu's output, we use [IsoformSwitchAnalyzeR](https://bioconductor.org/packages/IsoformSwitchAnalyzeR).
+
+## **Content**
+
+- [Download data for the tutorial](#download-data-for-the-tutorial)
+- [Part 1: Transcript discovery and quantification with bambu](#part-1-transcript-discovery-and-quantification-with-bambu)
+  - [Aligning the reads to the genome](#aligning-the-reads-to-the-genome)
+  - [Running bambu](#running-bambu)
+  - [Interpreting the extended annotation](#interpreting-the-extended-annotation)
+  - [Interpreting bambu's count type](#interpreting-bambus-count-type)
+  - [Extending bambu to single-cell and spatial data using bambu-pipe](#extending-bambu-to-single-cell-and-spatial-data-using-bambu-pipe)
+    - [Cell type clustering on the single-cell mixture data](#cell-type-clustering-on-the-single-cell-mixture-data)
+- [Part 2: Differential transcript usage using bambu's output](#part-2-differential-transcript-usage-using-bambus-output)
+  - [Identifying candidate genes with DTU events](#identifying-candidate-genes-with-dtu-events)
+  - [Visualising isoform switching event](#visualising-isoform-switching-event)
+- [Reference](#reference)
+
+## **Download data for the tutorial**
+
+We load the packages that we use in this tutorial.
+
+```{r, message = FALSE}
+library(bambu)
+library(IsoformSwitchAnalyzeR)
+library(Seurat)
+library(Gviz)
+
+library(ggplot2)
+library(dplyr)
+```
+
+The code below creates the project folder of the tutorial, `bambu_tutorial`, in the same directory of this `.Rmd` file, and makes it the working directory of all later code chunks. All later code reads and writes files in this folder.
+
+```{r setup}
+knitr::opts_chunk$set(warning = FALSE, fig.align = "center")
+project_dir <- "bambu_tutorial"
+dir.create(project_dir, recursive = TRUE, showWarnings = FALSE)
+knitr::opts_knit$set(root.dir = normalizePath(project_dir))
+```
+
+The following code provides the location of the data used for this tutorial from the SG-NEx S3 bucket downloadable with the [AWS CLI](https://aws.amazon.com/cli/). Replace `<project_dir>` with the full path of the folder `bambu_tutorial`. On Windows, run these commands in WSL or Git Bash.
+
+```bash
+# bulk data
+# cd <project_dir>
+# mkdir -p bulk
+# aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.fa ./bulk/
+# aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.fa.fai ./bulk/
+# aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/annotations/hg38_chr22.gtf ./bulk/
+# aws s3 cp --no-sign-request s3://sg-nex-data/data/data_tutorial/fastq/HepG2_directRNA_sample1.fastq.gz ./bulk/
+# aws s3 sync --no-sign-request s3://sg-nex-data/data/data_tutorial/bam ./bulk --exclude "*" --include "*_directRNA_sample*"
+```
+
+```bash
+# single-cell data
+# cd <project_dir>
+# aws s3 sync --no-sign-request s3://sg-nex-data/data/data_tutorial/singlecell ./single_cell --exclude "*" \
+#   --include "GIS_cellMix_HCT116-A549-HepG2-MCF7_joint/seurat_obj.rds" \
+#   --include "GIS_cellMix_HCT116-A549-HepG2-MCF7_joint/extended_annotations.gtf" \
+#   --include "GIS_cellMix_HCT116-A549-HepG2-MCF7_joint/transcript_counts_clusters/se_transcript_counts_clusters.rds" \
+#   --include "GIS_cellMix_HCT116-A549-HepG2-MCF7_joint/unique_counts/se_unique_counts.rds" \
+#   --include "isoformSwitchList.rds" --include "*_ENSG00000183891.bam*"
+```
+
+## **Part 1: Transcript discovery and quantification with bambu**
+
+To run bambu, we need reads aligned to the genome (BAM files), a reference annotation (GTF file, TxDb object or bambu annotation object) and a reference genome sequence (FASTA file or BSgenome). In this tutorial, we use the A549 and HepG2 SG-NEx direct RNA samples from the bulk RNA-seq experiment.
+
+### **Aligning the reads to the genome**
+
+Genome alignment is done using minimap2, followed by sorting and indexing of the alignments using samtools. For this tutorial, the aligned BAM files are already available in the download. The bash command for running minimap2 and samtools is shown below.
+
+```bash
+cd <project_dir>/bulk
+minimap2 -ax splice -uf -k14 -t 2 hg38_chr22.fa HepG2_directRNA_sample1.fastq.gz 2> minimap2.log \
+  | samtools sort -@ 2 -o HepG2_directRNA_sample1.bam
+samtools index HepG2_directRNA_sample1.bam
+ls *.bam
+```
+
+```
+A549_directRNA_sample1.bam  A549_directRNA_sample3.bam   HepG2_directRNA_sample2.bam
+A549_directRNA_sample2.bam  HepG2_directRNA_sample1.bam  HepG2_directRNA_sample3.bam
+```
+
+For further information on using minimap2 and samtools under different settings, refer to the [minimap2](https://github.com/lh3/minimap2) and [samtools](https://github.com/samtools/samtools) documentation.
+
+### **Running bambu**
+
+First, we define the genome and annotation files and list the BAM files of the 6 samples. Here, `prepareAnnotations()` makes the bambu annotation object from the GTF file. In practice, the bambu annotation can be reused in different bambu runs to save processing time.
+
+```{r, message = FALSE}
+fa_file <- "bulk/hg38_chr22.fa"
+gtf_file <- "bulk/hg38_chr22.gtf"
+annotations <- prepareAnnotations(gtf_file)
+bam_files <- list.files("bulk", pattern = "\\.bam$", full.names = TRUE)
+bam_files
+```
+
+Next, we run bambu to perform transcript discovery and quantification. The output `se` is a `SummarizedExperiment` with one row for each transcript (annotated and novel) and one column for each sample. `rcOutDir` saves the read classes (the reads grouped by their splice junctions) as `.rds` files. Later bambu runs can start from these files and skip the BAM processing, as in the NDR part below.
+
+```{r}
+dir.create("bulk/rc", showWarnings = FALSE)
+# rcOutDir: folder for the read classes
+# ncore: number of CPUs
+se <- bambu(reads = bam_files, annotations = annotations, genome = fa_file,
+            rcOutDir = "bulk/rc", ncore = 1)
+se
+```
+
+The figure shows the structure of a `SummarizedExperiment`. `assays` holds the count matrices (rows are transcripts, columns are samples). `rowRanges` and `rowData` hold the transcript information, and `colData` holds the sample information.
+
+```{r, echo = FALSE, out.width = "60%", fig.cap = "Structure of a <code>SummarizedExperiment</code>. Figure from the <a href='https://www.bioconductor.org/packages/devel/bioc/vignettes/SummarizedExperiment/inst/doc/SummarizedExperiment.html'>SummarizedExperiment vignette</a>."}
+knitr::include_graphics("https://raw.githubusercontent.com/Bioconductor/SummarizedExperiment/devel/vignettes/SE.svg")
+```
+
+### **Interpreting the extended annotation**
+
+`rowRanges(se)` is the extended annotation: the reference annotation together with the novel transcripts. It is a `GRangesList` with one `GRanges` for each transcript, which holds the exons of the transcript. We pick 1 novel transcript as an example, in the gene ENSG00000100097, and look at its exons.
+
+```{r}
+bulk_gene <- "ENSG00000100097"
+bulk_novel_tx <- rownames(se)[rowData(se)$GENEID == bulk_gene & rowData(se)$novelTranscript]
+rowRanges(se)[bulk_novel_tx]
+```
+
+`rowData(se)` gives information about each transcript:
+
+- `TXNAME`, `GENEID`: transcript and gene ID. Novel transcripts have the IDs `BambuTx...`, and novel genes have the IDs `BambuGene...`.
+- `novelTranscript`, `novelGene`: `TRUE` for a novel transcript or gene.
+- `NDR`: the novel discovery rate (NDR) score of the transcript. A low score means a high-confidence transcript.
+
+We show these columns for the transcripts of the example gene.
+
+```{r}
+rowData(se)[rowData(se)$GENEID == bulk_gene, c("TXNAME", "GENEID", "novelTranscript", "novelGene", "NDR")]
+```
+
+`plotBambu()` plots the exons of all transcripts of this gene, together with the count expression of each transcript in each sample that will be explained later in more detail.
+
+```{r, message = FALSE, fig.width = 9, fig.height = 6}
+invisible(plotBambu(se, type = "annotation", gene_id = bulk_gene))
+```
+
+**Modulating the sensitivity of transcript discovery**
+
+bambu gives each candidate transcript a score. The NDR threshold is approximately the fraction of novel transcripts among all transcripts that pass the threshold: NDR = 0.1 means that approximately 10% of the output transcripts are novel. By default, bambu selects the NDR from the predicted completeness of the reference annotation. A low NDR gives fewer novel transcripts with a higher precision, and a high NDR gives more novel transcripts with a higher sensitivity. Here we start from the saved read classes in `bulk/rc/` and run only transcript discovery (`quant = FALSE`) with 2 other NDR values. The table gives the number of novel transcripts for each NDR, together with the recommended NDR of the first run.
+
+```{r}
+rc_files <- list.files("bulk/rc", pattern = "\\.rds$", full.names = TRUE)
+ndr_table <- data.frame(NDR = metadata(rowRanges(se))$NDRthreshold,
+                        novel_transcripts = sum(rowData(se)$novelTranscript))
+for (ndr in c(0.05, 0.3)) {
+  annotation_ndr <- bambu(reads = rc_files, annotations = annotations, genome = fa_file,
+                          NDR = ndr, quant = FALSE, ncore = 1)
+  ndr_table <- rbind(ndr_table, data.frame(NDR = ndr,
+                                           novel_transcripts = sum(mcols(annotation_ndr)$novelTranscript)))
+}
+ndr_table <- ndr_table[order(ndr_table$NDR), ]
+rownames(ndr_table) <- NULL
+ndr_table
+```
+
+### **Interpreting bambu's count type**
+
+The `SummarizedExperiment` stores different count types together with the sample information with `assays(se)` and `colData(se)`. For bulk data, `assays(se)` provides 4 different types of transcript count matrices:
+
+- `counts`: the estimate of the reads of each transcript from the expectation-maximisation (EM) algorithm. It uses all reads: full-length reads, partial reads and reads that are compatible with more than 1 transcript.
+- `CPM`: `counts` normalised to counts per million.
+- `fullLengthCounts`: the reads that cover the full transcript (all its splice junctions), from the EM.
+- `uniqueCounts`: the reads that are compatible with only this transcript.
+
+```{r}
+colData(se)
+assayNames(se)
+head(assays(se)$counts)
+head(assays(se)$fullLengthCounts)
+```
+
+We can also obtain gene counts by applying `transcriptToGeneExpression()` on the transcript `se` object.
+
+```{r}
+se_gene <- transcriptToGeneExpression(se)
+se_gene
+```
+
+Finally, we can also use `writeBambuOutput()` to write the extended annotation and the counts to GTF and text files for downstream analysis on non-R platforms.
+
+```{r}
+writeBambuOutput(se, path = "bulk/output")
+list.files("bulk/output")
+```
+
+| Output file | Description |
+|:------------|:------------|
+| extended_annotations.gtf | Extended annotation: reference and novel transcripts and genes. **It can be opened together with the BAM files in a genome browser, for example [IGV](https://igv.org/).** |
+| counts_transcript.txt | `counts` of each transcript in each sample. |
+| CPM_transcript.txt | `CPM` of each transcript in each sample. |
+| fullLengthCounts_transcript.txt | `fullLengthCounts` of each transcript in each sample. |
+| uniqueCounts_transcript.txt | `uniqueCounts` of each transcript in each sample. |
+| counts_gene.txt | Gene counts of each gene in each sample. |
+
+### **Extending bambu to single-cell and spatial data using bambu-pipe**
+
+[bambu-pipe](https://github.com/GoekeLab/bambu-pipe) is a Nextflow pipeline that runs bambu on long-read single-cell and spatial data. It performs context-aware transcript discovery and quantification in 3 stages:
+
+- **Preprocessing**: (optional) quality score filtering with Chopper, barcode and UMI identification and demultiplexing with Flexiplex, and primer removal with Cutadapt.
+- **Alignment**: genome alignment with minimap2.
+- **Transcript discovery and quantification**: read class construction and transcript discovery with bambu, jointly across all samples; then (optional) transcript quantification with bambu's clustered EM or single-cell EM. **In clustered EM, we use Seurat to cluster the cells by their gene expression across all samples, and bambu quantifies the transcripts of each cluster in each sample.** In single-cell EM, bambu quantifies the transcripts of each cell, or of each spot in spatial samples.
+
+The rest of this tutorial uses real single-cell data: 3 libraries of the same HCT116-A549-HepG2-MCF7 cell-line mixture, sequenced with different 10x chemistry and sequencing technology.
+
+| Sample | Cell lines | 10x chemistry | Technology |
+|:-------|:-----------|:--------------|:-----------|
+| HCT116ONT3p | HCT116, A549, HepG2, MCF7 | 10x 3' v3 | ONT |
+| HCT116ONT5p | HCT116, A549, HepG2, MCF7 | 10x 5' v2 | ONT |
+| HCT116PB5p | HCT116, A549, HepG2, MCF7 | 10x 5' v2 | PacBio |
+
+The pipeline runs all stages from the FASTQ files to the transcript counts in 1 command, with transcript discovery jointly across the 3 samples. `--quantification_mode clusteredEM` runs the clustered EM, and `--seurat_resolution` sets the resolution of the Seurat clustering.
+
+```bash
+nextflow run GoekeLab/bambu-pipe -r v0.10.3 -profile singularity,hpc \
+  --input samplesheet.csv \
+  --genome GRCh38.primary_assembly.genome.fa \
+  --annotation gencode.v49.primary_assembly.annotation.gtf \
+  --quantification_mode clusteredEM \
+  --seurat_resolution 0.01 \
+  --output_dir bambupipe_output
+```
+
+where `samplesheet.csv` has one row for each sample with columns: sample name (`sample`), path to the FASTQ or BAM file (`path`), 10x library chemistry (`chemistry`) and sequencing technology (`technology`, `ONT` or `PacBio`).
+
+```
+# samplesheet.csv
+sample,path,chemistry,technology
+HCT116ONT3p,GIS_cellMix_HCT116-A549-HepG2-MCF7_3primeSingleCellcDNA_Rep1_Run1.fastq.gz,10x3v3,ONT
+HCT116ONT5p,GIS_cellMix_HCT116-A549-HepG2-MCF7_5primeSingleCellcDNA_Rep1_Run2Run3combined.fastq.gz,10x5v2,ONT
+HCT116PB5p,GIS_cellMix_HCT116-A549-HepG2-MCF7_5primeSingleCellcDNAPacBio_Rep1_Run1.fastq.gz,10x5v2,PacBio
+```
+
+The output of this joint sample run is deposited in the data tutorial folder of the SG-NEx S3 bucket, and is already downloaded under `bambu_tutorial/single_cell/GIS_cellMix_HCT116-A549-HepG2-MCF7_joint`. For the rest of the tutorial, we use some of these output files. For a complete description of the output files and different configurations to run bambu-pipe, see the [bambu-pipe README](https://github.com/GoekeLab/bambu-pipe/tree/v0.10.3#output).
+
+#### **Cell type clustering on the single-cell mixture data**
+
+bambu-pipe gives a Seurat object with the cells of the 3 libraries, the PCA, the Harmony embedding (corrected for the sequencing technology and the chemistry) and the clusters. We read the Seurat object and the transcript counts of each cluster in each library.
+
+```{r, message = FALSE}
+joint_dir <- "single_cell/GIS_cellMix_HCT116-A549-HepG2-MCF7_joint"
+seu <- readRDS(file.path(joint_dir, "seurat_obj.rds"))
+se_tx <- readRDS(file.path(joint_dir, "transcript_counts_clusters/se_transcript_counts_clusters.rds"))
+seu
+```
+
+We calculate the UMAP on the Harmony embedding with the 30 dimensions that bambu-pipe uses for the clustering. We give each bambu-pipe cluster the name of its cell line, and show the cell lines on the UMAP. The cell line label for each cluster is annotated by the correlation of the cluster expression with the SG-NEx bulk expression of the cell lines.
+
+```{r, message = FALSE}
+seu <- RunUMAP(seu, reduction = "harmony", dims = 1:30, verbose = FALSE)
+cluster_cell_line <- c("0" = "HepG2", "1" = "A549", "2" = "HCT116", "3" = "MCF7")
+seu$cell_line <- unname(cluster_cell_line[as.character(seu$harmony_clusters)])
+DimPlot(seu, reduction = "umap", group.by = "cell_line", label = TRUE)
+```
+
+
+**Notes**
+
+- A cluster is not only a cell type. For spatial data, a cluster can also be a region of spots, and bambu-pipe also runs on spatial Visium and Visium HD data.
+- You can also provide your own cell-to-cluster assignments, using the `--manual_clustering true` option and a CSV file with the columns `id` (a barcode of the cell or spot) and `cluster`.
+
+For a complete description of the manual clustering option or other advanced features of bambu-pipe, refer to the [bambu-pipe README](https://github.com/GoekeLab/bambu-pipe/tree/v0.10.3#advanced-usage).
+
+## **Part 2: Differential transcript usage using bambu's output**
+
+We now have bambu's output from the joint single-cell run on real data. Next, we use it to find isoform switching events between 2 cell lines of the mixture. Differential transcript usage (DTU) is a change in the fraction of a gene's expression that comes from each of its transcripts (the isoform fraction, IF) between conditions. An isoform switch is a type of DTU in which the IF of one isoform increases and the IF of another isoform of the same gene decreases. In this section, we use IsoformSwitchAnalyzeR to find the isoform switches in bambu's output, and we show 1 gene with a switch between a novel and an annotated transcript with Seurat and Gviz.
+
+### **Identifying candidate genes with DTU events**
+
+In this tutorial, we select the A549 and HCT116 cell line clusters from different chemistry and/or technology to perform DTU based on the counts from clustered EM output.
+
+```{r}
+compared_cell_lines <- c("A549", "HCT116")
+se_tx$cell_line <- unname(cluster_cell_line[sub("cluster_", "", se_tx$cluster)])
+se_pair <- se_tx[, se_tx$cell_line %in% compared_cell_lines]
+se_pair
+```
+
+We ran `IsoformSwitchAnalyzeR` in 2 steps:
+
+1. We write the design table. Each column of `se_pair` (1 cluster in 1 library) is a pseudobulk replicate of its cell line. The condition is the cell line, and the columns `technology` and `chemistry` correct for the batch effects of the 3 libraries: IsoformSwitchAnalyzeR adds them to the DEXSeq model as covariates.
+2. IsoformSwitchAnalyzeR imports the counts and the bambu extended annotation (`importRdata()`), filters the isoforms (`preFilter()`) and tests each gene for a change in the IF of its isoforms between the 2 cell lines (`isoformSwitchTestDEXSeq()`). The output has the change of IF (`dIF`) and the q-value of each isoform.
+
+The 2 steps take a long time, so their code is commented out, and we load the precomputed result from the download.
+
+```{r}
+# step 1: design table
+# design <- data.frame(
+#   sampleID = colnames(se_pair),
+#   condition = se_pair$cell_line,
+#   technology = ifelse(grepl("ONT", se_pair$sampleName), "ONT", "PacBio"),
+#   chemistry = ifelse(grepl("3p", se_pair$sampleName), "10x3v3", "10x5v2"))
+
+# step 2: isoform switch test
+# keep the transcripts with 100 or more counts, summed over the A549 and HCT116 clusters
+# keep_tx <- rowSums(assay(se_pair, "counts")) >= 100
+# keep the genes with 2 or more of these transcripts
+# gene_ids <- rowData(se_pair)$GENEID
+# se_pair_filtered <- se_pair[keep_tx & gene_ids %in% names(which(table(gene_ids[keep_tx]) >= 2)), ]
+# to_df <- function(m) data.frame(isoform_id = rownames(m), as.matrix(m), check.names = FALSE)
+# switch_list <- importRdata(
+#   isoformCountMatrix = to_df(assay(se_pair_filtered, "counts")),
+#   isoformRepExpression = to_df(assay(se_pair_filtered, "CPM")),
+#   designMatrix = design,
+#   isoformExonAnnoation = file.path(joint_dir, "extended_annotations.gtf"),
+#   addAnnotatedORFs = FALSE, detectUnwantedEffects = FALSE, fixStringTieAnnotationProblem = FALSE,
+#   ignoreSurplusIsoforms = TRUE, estimateDifferentialGeneRange = FALSE)
+# keep the isoforms with 30 or more counts in 70% or more of the samples of each cell line,
+# and with an IF of 0.1 or more in 50% or more of these samples; remove the genes with 1 isoform
+# switch_list <- preFilter(switch_list, isoCount = 30, min.Count.prop = 0.7, IFcutoff = 0.1)
+# switch_list <- isoformSwitchTestDEXSeq(switch_list, alpha = 0.05, dIFcutoff = 0.1,
+#   reduceToSwitchingGenes = FALSE, reduceFurtherToGenesWithConsequencePotential = FALSE)
+switch_list <- readRDS("single_cell/isoformSwitchList.rds")
+extractSwitchSummary(switch_list, alpha = 0.05, dIFcutoff = 0.1)
+```
+
+Here you can see there are 754 genes with isoform switching events.
+
+In this tutorial, we select a candidate gene with a high-confidence isoform switching event with a novel transcript, based on the following criteria:
+
+1. The isoform has q < 0.05 and abs(dIF) > 0.1.
+2. The isoform has full-length counts and unique counts in the cell line with its higher IF.
+
+The volcano plot shows the dIF of each isoform against its -log10 q. Points with -log10 q above 30 are drawn at the top edge. The blue points pass criterion 1, and the red points pass criteria 1 and 2. The black points are the 2 isoforms of the selected gene.
+
+```{r, fig.width = 7, fig.height = 5.5}
+isoform_features <- switch_list$isoformFeatures
+condition_1 <- isoform_features$condition_1[1]
+condition_2 <- isoform_features$condition_2[1]
+# sum of 1 assay over the clusters of each cell line: 1 row for each isoform, 1 column for each cell line
+sum_by_cell_line <- function(assay_name) {
+  counts <- as.matrix(assay(se_pair, assay_name)[isoform_features$isoform_id, ])
+  sapply(c(condition_1, condition_2), function(cl) rowSums(counts[, se_pair$cell_line == cl, drop = FALSE]))
+}
+full_length_sum <- sum_by_cell_line("fullLengthCounts")
+unique_sum <- sum_by_cell_line("uniqueCounts")
+# column of the cell line with the higher IF of each isoform (dIF = IF2 - IF1)
+higher_if <- cbind(seq_len(nrow(isoform_features)), ifelse(isoform_features$dIF > 0, 2, 1))
+volcano <- isoform_features %>%
+  mutate(criterion_1 = isoform_switch_q_value < 0.05 & abs(dIF) > 0.1,
+         criterion_2 = full_length_sum[higher_if] > 0 & unique_sum[higher_if] > 0,
+         criteria = case_when(criterion_1 & criterion_2 ~ "criteria 1 and 2",
+                              criterion_1 ~ "criterion 1 only",
+                              TRUE ~ "other"),
+         criteria = factor(criteria, levels = c("other", "criterion 1 only", "criteria 1 and 2")),
+         log_q = pmin(-log10(isoform_switch_q_value), 30)) %>%
+  arrange(criteria)
+example_tx <- c("BambuTx46514", "ENST00000333610.4")
+example_gene <- unique(isoform_features$gene_id[isoform_features$isoform_id %in% example_tx])
+example_points <- filter(volcano, isoform_id %in% example_tx)
+ggplot(volcano, aes(dIF, log_q, colour = criteria)) +
+  geom_point(size = 1.5, alpha = 0.4) +
+  geom_point(data = example_points, colour = "black", size = 4) +
+  # label on the left of the point for dIF < 0, on the right for dIF > 0
+  geom_text(data = example_points, aes(label = isoform_id, hjust = ifelse(dIF < 0, 1.1, -0.1)),
+            colour = "black", size = 4.5) +
+  scale_colour_manual(name = NULL,
+                      values = c(`other` = "grey70", `criterion 1 only` = "#56B4E9",
+                                 `criteria 1 and 2` = "#D55E00"),
+                      labels = c(`other` = "other",
+                                 `criterion 1 only` = "criterion 1: q < 0.05 and |dIF| > 0.1",
+                                 `criteria 1 and 2` = "criteria 1 and 2: also full-length\nand unique counts")) +
+  geom_vline(xintercept = c(-0.1, 0.1), linetype = "dashed") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
+  coord_cartesian(xlim = c(-1, 1), ylim = c(0, 30)) +
+  labs(x = "dIF", y = "-log10 q", title = paste(condition_1, "vs", condition_2)) +
+  theme_bw(base_size = 14) +
+  theme(legend.position = "bottom") +
+  guides(colour = guide_legend(ncol = 1))
+```
+
+Among the candidate genes that satisfy criteria 1 and 2, we selected ENSG00000183891 with isoform switching usage between BambuTx46514 and ENST00000333610.4 for further analysis. The IsoformSwitchAnalyzeR output and the bambu counts of the 2 isoforms in each cluster are:
+
+```{r}
+isoform_features %>%
+  filter(isoform_id %in% example_tx) %>%
+  select(isoform_id, condition_1, condition_2, IF1, IF2, dIF, isoform_switch_q_value)
+```
+
+```{r}
+as.matrix(assay(se_pair[example_tx, ], "counts"))
+```
+
+```{r}
+as.matrix(assay(se_pair[example_tx, ], "fullLengthCounts"))
+```
+
+```{r}
+as.matrix(assay(se_pair[example_tx, ], "uniqueCounts"))
+```
+
+### **Visualising isoform switching event**
+
+The example gene is TTC32 (ENSG00000183891). In A549, the novel isoform BambuTx46514 is the most used isoform of the gene (IF 0.58). In HCT116, the annotated isoform ENST00000333610.4 is the most used isoform (IF 0.67). `switchPlotIsoExp()` shows the expression of each isoform of the gene in counts per million (CPM, the mean of the pseudobulk replicates), and `switchPlotIsoUsage()` shows its IF, in the 2 cell lines.
+
+```{r, fig.width = 7, fig.height = 4.5}
+print(switchPlotIsoExp(switch_list, gene = example_gene,
+                       condition1 = condition_1, condition2 = condition_2) +
+        labs(title = paste(example_gene, "isoform expression"), y = "Isoform expression (CPM)"))
+print(switchPlotIsoUsage(switch_list, gene = example_gene,
+                         condition1 = condition_1, condition2 = condition_2) +
+        labs(title = paste(example_gene, "isoform usage")))
+```
+
+The isoform switching can also be visualised with UMAP using either unique counts or single-cell transcript counts (if bambu-pipe was run with single-cell EM). Here, we use the unique counts because we do not perform single-cell EM. Every cell has 0 to 3 unique counts of 1 isoform, so we add the unique counts of each cell and its 99 nearest neighbours in the Harmony space. The IF of an isoform is its count divided by the count of all isoforms of the gene. A cell is grey when the gene has fewer than 5 counts in its neighbourhood. Here, the novel isoform has the higher IF (red) in the A549 cells, and the annotated isoform has the higher IF in the HCT116 cells.
+
+```{r, fig.width = 10, fig.height = 4.5}
+seu_pair <- subset(seu, subset = cell_line %in% c(condition_1, condition_2))
+se_unique <- readRDS(file.path(joint_dir, "unique_counts/se_unique_counts.rds"))
+gene_isoforms <- rownames(se_unique)[rowData(se_unique)$GENEID == example_gene]
+unique_counts <- as.matrix(assay(se_unique, "counts")[gene_isoforms, colnames(seu_pair)])
+rm(se_unique)
+# the 100 nearest cells of each cell (the cell and its 99 neighbours) in the Harmony space
+seu_pair <- FindNeighbors(seu_pair, reduction = "harmony", dims = 1:30, k.param = 100,
+                          return.neighbor = TRUE, graph.name = "harmony_nn", verbose = FALSE)
+neighbour_index <- Indices(seu_pair[["harmony_nn"]])
+# unique counts of each isoform, summed over the 100 cells: 1 row for each cell, 1 column for each isoform
+neighbourhood_counts <- apply(unique_counts, 1, function(counts)
+  rowSums(matrix(counts[neighbour_index], nrow = nrow(neighbour_index))))
+gene_counts <- rowSums(neighbourhood_counts)
+# 1 row for each cell and isoform: UMAP position, cell line and IF
+umap <- Embeddings(seu_pair, "umap")
+if_data <- do.call(rbind, lapply(example_tx, function(tx) data.frame(
+  UMAP_1 = umap[, 1], UMAP_2 = umap[, 2], cell_line = seu_pair$cell_line, isoform = tx,
+  IF = ifelse(gene_counts >= 5, neighbourhood_counts[, tx] / gene_counts, NA))))
+if_data$isoform <- factor(if_data$isoform, levels = example_tx)
+label_position <- if_data %>%
+  group_by(isoform, cell_line) %>%
+  summarise(UMAP_1 = median(UMAP_1), UMAP_2 = median(UMAP_2), .groups = "drop")
+ggplot(if_data, aes(UMAP_1, UMAP_2, colour = IF)) +
+  geom_point(size = 0.3) +
+  geom_text(data = label_position, aes(UMAP_1, UMAP_2, label = cell_line),
+            inherit.aes = FALSE, size = 4) +
+  scale_colour_gradient2(name = "IF", low = "#2166AC", mid = "grey90", high = "#B2182B",
+                         midpoint = 0.5, limits = c(0, 1), na.value = "grey80") +
+  facet_wrap(~ isoform) +
+  theme_classic()
+```
+
+Finally, to validate full-length read support for this isoform switching event, we can visualise the read coverage and sashimi plot of the candidate gene using the Gviz package. To do that, we first split the cell mixture BAM file of the 5' PacBio sample using the cell-to-cluster assignments in the Seurat object from the bambu-pipe output, and only keep the primary-aligned reads in the candidate gene region. The subsetted BAM files are already in the download, and we can load them using the Gviz package.
+
+```{r, fig.width = 10, fig.height = 9}
+# allow the contig names of the BAM header (for example GL000008.2)
+options(ucscChromosomeNames = FALSE)
+cell_line_colours <- setNames(c("#0072B2", "#56B4E9"), c(condition_1, condition_2))
+
+# all isoforms of the gene in the bambu extended annotation, the 2 isoforms of the switch first
+gene_isoforms <- rownames(se_tx)[rowData(se_tx)$GENEID == example_gene]
+gene_isoforms <- c(example_tx, setdiff(gene_isoforms, example_tx))
+gene_exons <- rowRanges(se_tx)[gene_isoforms]
+is_novel_tx <- setNames(rowData(se_tx)$novelTranscript, rownames(se_tx))
+gene_range <- range(unlist(gene_exons), ignore.strand = TRUE)
+chrom <- as.character(seqnames(gene_range))
+
+# 1 track for each isoform, exons numbered from the 5' end; the 2 isoforms of the switch in red
+isoform_tracks <- lapply(gene_isoforms, function(tx) {
+  exons <- granges(gene_exons[[tx]])
+  exon_rank <- if (all(strand(exons) == "-")) rank(-start(exons)) else rank(start(exons))
+  mcols(exons) <- data.frame(feature = "exon", gene = example_gene, exon = as.character(exon_rank),
+                             transcript = tx, symbol = tx)
+  colour <- if (tx %in% example_tx) "#B2182B" else "grey35"
+  GeneRegionTrack(exons, chromosome = chrom,
+                  name = paste0(ifelse(is_novel_tx[tx], "novel", "annotated"), "\n", tx),
+                  exonAnnotation = "exon", fontcolor.item = "white", cex.exonAnnotation = 0.7,
+                  rotation.title = 0, cex.title = 0.55, background.title = colour,
+                  fill = colour, col = NA, col.line = "grey50")
+})
+
+# 2 tracks for each cell line: coverage, and sashimi arcs of the junctions with 10 or more reads
+bam_tracks <- unlist(lapply(names(cell_line_colours), function(cl) {
+  bam_file <- file.path("single_cell", paste0(cl, "_", sub("\\..*", "", example_gene), ".bam"))
+  list(
+    AlignmentsTrack(bam_file, name = cl, type = "coverage", isPaired = FALSE,
+                    col.coverage = "grey45", fill.coverage = "grey65",
+                    col.axis = "white", background.title = cell_line_colours[[cl]]),
+    AlignmentsTrack(bam_file, name = " ", type = "sashimi", isPaired = FALSE,
+                    col.axis = cell_line_colours[[cl]], sashimiScore = 10, sashimiNumbers = TRUE,
+                    lwd.sashimiMax = 6, col.sashimi = cell_line_colours[[cl]], fill.sashimi = "white",
+                    background.title = cell_line_colours[[cl]])
+  )
+}))
+plotTracks(c(bam_tracks, isoform_tracks, GenomeAxisTrack(col = "black", fontcolor = "black")),
+           chromosome = chrom, from = start(gene_range) - 200, to = end(gene_range) + 200,
+           sizes = c(1.6, 1.4, 1.6, 1.4, rep(0.45, length(isoform_tracks)), 0.6),
+           fontsize = 12, title.width = 2.4, col.title = "white", cex.main = 0.9,
+           main = paste0(example_gene, ": ", condition_1, " vs ", condition_2,
+                         " (isoforms of the switch in red)"))
+```
+
+## **Reference**
+
+**bambu, bambu-pipe and SG-NEx**
+
+If you use bambu, bambu-pipe or the SG-NEx data in your work, please cite these papers:
+
+Chen, Ying, et al. "A systematic benchmark of Nanopore long-read RNA sequencing for transcript-level analysis in human cell lines." Nature Methods 22 (2025): 801-812. doi: <https://doi.org/10.1038/s41592-025-02623-4>
+
+Chen, Ying, et al. "Context-aware transcript quantification from long-read RNA-seq data with Bambu." Nature Methods 20 (2023): 1187-1195. doi: <https://doi.org/10.1038/s41592-023-01908-w>
+
+Sim, Andre, et al. "Isoform-level discovery, quantification and fusion analysis from single-cell and spatial long-read RNA-seq data with Bambu-Clump." bioRxiv (2025). doi: <https://doi.org/10.1101/2024.12.30.630828>
+
+**Other tools**
+
+This tutorial also uses these tools / R packages:
+
+Li, Heng. "Minimap2: pairwise alignment for nucleotide sequences." Bioinformatics 34 (2018): 3094-3100. doi: <https://doi.org/10.1093/bioinformatics/bty191>
+
+Danecek, Petr, et al. "Twelve years of SAMtools and BCFtools." GigaScience 10 (2021): giab008. doi: <https://doi.org/10.1093/gigascience/giab008>
+
+Di Tommaso, Paolo, et al. "Nextflow enables reproducible computational workflows." Nature Biotechnology 35 (2017): 316-319. doi: <https://doi.org/10.1038/nbt.3820>
+
+De Coster, Wouter, et al. "NanoPack2: population-scale evaluation of long-read sequencing data." Bioinformatics 39 (2023): btad311. doi: <https://doi.org/10.1093/bioinformatics/btad311>
+
+Cheng, Oliver, et al. "Flexiplex: a versatile demultiplexer and search tool for omics data." Bioinformatics 40 (2024): btae102. doi: <https://doi.org/10.1093/bioinformatics/btae102>
+
+Martin, Marcel. "Cutadapt removes adapter sequences from high-throughput sequencing reads." EMBnet.journal 17 (2011): 10-12. doi: <https://doi.org/10.14806/ej.17.1.200>
+
+Hao, Yuhan, et al. "Dictionary learning for integrative, multimodal and scalable single-cell analysis." Nature Biotechnology 42 (2024): 293-304. doi: <https://doi.org/10.1038/s41587-023-01767-y>
+
+Korsunsky, Ilya, et al. "Fast, sensitive and accurate integration of single-cell data with Harmony." Nature Methods 16 (2019): 1289-1296. doi: <https://doi.org/10.1038/s41592-019-0619-0>
+
+McInnes, Leland, et al. "UMAP: Uniform Manifold Approximation and Projection." Journal of Open Source Software 3 (2018): 861. doi: <https://doi.org/10.21105/joss.00861>
+
+Morgan, Martin, et al. "SummarizedExperiment: A container (S4 class) for matrix-like assays." R package version 1.42.0 (2026). doi: <https://doi.org/10.18129/B9.bioc.SummarizedExperiment>
+
+Vitting-Seerup, Kristoffer, et al. "The Landscape of Isoform Switches in Human Cancers." Molecular Cancer Research 15 (2017): 1206-1220. doi: <https://doi.org/10.1158/1541-7786.MCR-16-0459>
+
+Anders, Simon, et al. "Detecting differential usage of exons from RNA-seq data." Genome Research 22 (2012): 2008-2017. doi: <https://doi.org/10.1101/gr.133744.111>
+
+Hahne, Florian, et al. "Visualizing Genomic Data Using Gviz and Bioconductor." Methods in Molecular Biology 1418 (2016): 335-351. doi: <https://doi.org/10.1007/978-1-4939-3578-9_16>
+
+Wickham, Hadley. "ggplot2: Elegant Graphics for Data Analysis." Springer-Verlag New York (2016). <https://ggplot2.tidyverse.org>
+
+Wickham, Hadley, et al. "dplyr: A Grammar of Data Manipulation." R package version 1.2.1 (2026). <https://CRAN.R-project.org/package=dplyr>
